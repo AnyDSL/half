@@ -687,7 +687,7 @@ namespace half_float
 		/// Half literal.
 		/// \param d literal value
 		/// \return half with given value (if representable)
-		half operator "" h(long double d);
+		half operator "" _h(long double d);
 	}
 }
 

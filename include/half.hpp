@@ -157,7 +157,7 @@ namespace half_float
 	/// ~~~~
 	namespace literal
 	{
-		half operator "" h(long double d);
+		half operator "" _h(long double d);
 	}
 #endif
 
@@ -1082,7 +1082,7 @@ namespace half_float
 		/// Half literal.
 		/// \param d literal value
 		/// \return half with given value (if representable)
-		inline half operator "" h(long double d)
+		inline half operator "" _h(long double d)
 		{
 			return half(static_cast<float>(d));
 		}
