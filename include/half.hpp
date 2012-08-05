@@ -153,7 +153,7 @@ namespace half_float
 	/// Import this namespace to enable half-precision floating point literals:
 	/// ~~~~{.cpp}
 	/// using namespace half_float::literal;
-	/// half_float::half = 4.2h;
+	/// half_float::half = 4.2_h;
 	/// ~~~~
 	namespace literal
 	{

@@ -27,7 +27,7 @@ regarding C++11 support):
   <cmath> for their half-precision counter-parts to work (optional).
 
 - Support for C++11's user-defined literals for half-precision literals to 
-  work (**optional**).
+  work (optional).
   
 - Support for C++11's 'std::hash' from <functional> (optional, only if hashing 
   enabled by defining 'HALF_ENABLE_HASH').
@@ -108,7 +108,7 @@ provides a user-defined literal inside the half_float::literal namespace, which
 you just need to import:
 
     using namespace half_float::literal;
-    half x = 1.0h;
+    half x = 1.0_h;
 
 Implementation
 
@@ -138,13 +138,13 @@ each individual operation:
 
     half a, b;
     ...
-    a = (std::numeric_limits<half>::max() * 2.0h) / 2.0h; // a = MAX
-    b = std::numeric_limits<half>::max() * 2.0h;          // b = INF
-    b /= 2.0h;                                            // b stays INF
+    a = (std::numeric_limits<half>::max() * 2.0_h) / 2.0_h; // a = MAX
+    b = std::numeric_limits<half>::max() * 2.0_h;           // b = INF
+    b /= 2.0_h;                                             // b stays INF
     ...
-    a = (std::numeric_limits<half>::max() + 1.0h) - 1.0h; // a = MAX
-    b = std::numeric_limits<half>::max() + 1.0h;          // b = MAX (truncation)
-    b -= 1.0h;                                            // b = MAX-32 (truncation)
+    a = (std::numeric_limits<half>::max() + 1.0_h) - 1.0_h; // a = MAX
+    b = std::numeric_limits<half>::max() + 1.0_h;           // b = MAX (truncation)
+    b -= 1.0_h;                                             // b = MAX-32 (truncation)
 
 
 But this should only be a problem in very few cases. One last word has to be 
