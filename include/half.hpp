@@ -14,7 +14,7 @@
 // COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, 
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Version 1.2.1
+// Version 1.3.0
 
 /// \file
 /// Main header file for half precision functionality.
@@ -24,34 +24,37 @@
 
 #if defined(_MSC_VER)
 	#if _MSC_VER >= 1600
-		#ifndef HALF_HAVE_CPP11_CSTDINT
-			#define HALF_HAVE_CPP11_CSTDINT 1
+		#ifndef HALF_ENABLE_CPP11_CSTDINT
+			#define HALF_ENABLE_CPP11_CSTDINT 1
 		#endif
-		#ifndef HALF_HAVE_CPP11_STATIC_ASSERT
-			#define HALF_HAVE_CPP11_STATIC_ASSERT 1
+		#ifndef HALF_ENABLE_CPP11_STATIC_ASSERT
+			#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
+		#endif
+		#ifndef HALF_ENABLE_CPP11_HASH
+			#define HALF_ENABLE_CPP11_HASH 1
 		#endif
 	#endif
 #elif defined(__INTEL_COMPILER)
-	#if __INTEL_COMPILER >= 1100 && !defined(HALF_HAVE_CPP11_STATIC_ASSERT)
-		#define HALF_HAVE_CPP11_STATIC_ASSERT 1
+	#if __INTEL_COMPILER >= 1100 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
+		#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
 	#endif
 #elif defined(__clang__)
-	#if __has_include(<cstdint>) && !defined(HALF_HAVE_CPP11_CSTDINT)
-		#define HALF_HAVE_CPP11_CSTDINT 1
+	#if __has_include(<cstdint>) && !defined(HALF_ENABLE_CPP11_CSTDINT)
+		#define HALF_ENABLE_CPP11_CSTDINT 1
 	#endif
-	#if __has_feature(cxx_static_assert) && !defined(HALF_HAVE_CPP11_STATIC_ASSERT)
-		#define HALF_HAVE_CPP11_STATIC_ASSERT 1
+	#if __has_feature(cxx_static_assert) && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
+		#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
 	#endif
-	#if __has_feature(cxx_user_literals) && !defined(HALF_HAVE_CPP11_USER_LITERALS)
-		#define HALF_HAVE_CPP11_USER_LITERALS 1
+	#if __has_feature(cxx_user_literals) && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
+		#define HALF_ENABLE_CPP11_USER_LITERALS 1
 	#endif
 #elif defined(__GNUC__)
 	#define __GNUC_VERSION__ (__GNUC__*100+__GNUC_MINOR__)
-	#if __GNUC_VERSION__ >= 403 && !defined(HALF_HAVE_CPP11_STATIC_ASSERT)
-		#define HALF_HAVE_CPP11_STATIC_ASSERT 1
+	#if __GNUC_VERSION__ >= 403 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
+		#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
 	#endif
-	#if __GNUC_VERSION__ >= 407 && !defined(HALF_HAVE_CPP11_USER_LITERALS)
-		#define HALF_HAVE_CPP11_USER_LITERALS 1
+	#if __GNUC_VERSION__ >= 407 && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
+		#define HALF_ENABLE_CPP11_USER_LITERALS 1
 	#endif
 #endif
 
@@ -61,10 +64,10 @@
 #include <cfloat>
 #include <cmath>
 #include <cstring>
-#ifdef HALF_ENABLE_HASH
+#if HALF_ENABLE_CPP11_HASH
 	#include <functional>
 #endif
-#ifdef HALF_HAVE_CPP11_CSTDINT
+#if HALF_ENABLE_CPP11_CSTDINT
 	#include <cstdint>
 #endif
 
@@ -186,7 +189,7 @@ namespace half_float
 	bool isunordered(half x, half y);
 	/// \}
 
-#ifdef HALF_HAVE_CPP11_LITERALS
+#if HALF_HAVE_CPP11_LITERALS
 	/// User-defined literals.
 	/// Import this namespace to enable half-precision floating point literals:
 	/// ~~~~{.cpp}
@@ -203,7 +206,7 @@ namespace half_float
 	/// \brief Implementation details.
 	namespace detail
 	{
-	#ifdef HALF_HAVE_CPP11_CSTDINT
+	#if HALF_ENABLE_CPP11_CSTDINT
 		/// Unsigned integer of (at least) 16 bits width.
 		typedef std::uint_least16_t uint16;
 
@@ -234,8 +237,6 @@ namespace half_float
 		/// \tparam E concrete expression type
 		template<typename E> struct half_expr
 		{
-			/// Conversion to single-precision.
-			/// \return single precision value representing expression value
 			operator float() const;
 		};
 
@@ -243,12 +244,7 @@ namespace half_float
 		/// This class represents a half-precision expression which just stores a single-precision value internally.
 		struct float_half_expr : public half_expr<float_half_expr>
 		{
-			/// Conversion constructor.
-			/// \param f single-precision value to convert
 			explicit float_half_expr(float f);
-
-			/// Conversion to single-precision.
-			/// \return single precision value representing expression value
 			operator float() const;
 
 			/// Internal expression value stored in single-precision.
@@ -427,7 +423,7 @@ namespace half_float
 	class half : public detail::half_expr<half>
 	{
 		friend class std::numeric_limits<half>;
-#ifdef HALF_ENABLE_HASH
+#if HALF_ENABLE_CPP11_HASH
 		friend struct std::hash<half>;
 #endif
 
@@ -1151,7 +1147,7 @@ namespace half_float
 		return isnan(x) || isnan(y);
 	}
 
-#ifdef HALF_HAVE_CPP11_USER_LITERALS
+#if HALF_ENABLE_CPP11_USER_LITERALS
 	namespace literal
 	{
 		/// Half literal.
@@ -1197,7 +1193,7 @@ namespace half_float
 		/// \return binary representation of half-precision value
 		inline uint16 float2half(float value)
 		{
-		#ifdef HALF_HAVE_CPP11_STATIC_ASSERT
+		#if HALF_ENABLE_CPP11_STATIC_ASSERT
 			static_assert(std::numeric_limits<float>::is_iec559, "float to half conversion needs IEEE 754 conformant 'float' type");
 			static_assert(sizeof(uint32)==sizeof(float), "float to half conversion needs unsigned integer type of exactly 32 bits width");
 		#endif
@@ -1297,7 +1293,7 @@ namespace half_float
 		/// \return single-precision value
 		inline float half2float(uint16 value)
 		{
-		#ifdef HALF_HAVE_CPP11_STATIC_ASSERT
+		#if HALF_ENABLE_CPP11_STATIC_ASSERT
 			static_assert(std::numeric_limits<float>::is_iec559, "half to float conversion needs IEEE 754 conformant 'float' type");
 			static_assert(sizeof(uint32)==sizeof(float), "half to float conversion needs unsigned integer type of exactly 32 bits width");
 		#endif
@@ -1487,16 +1483,22 @@ namespace half_float
 			return half2float_impl(value, std::integral_constant<bool,std::numeric_limits<float>::is_iec559>());
 		}
 */
+		/// Conversion to single-precision.
+		/// \return single precision value representing expression value
 		template<typename E> half_expr<E>::operator float() const
 		{
 				return static_cast<float>(*static_cast<const E*>(this));
 		}
 
+		/// Conversion constructor.
+		/// \param f single-precision value to convert
 		inline float_half_expr::float_half_expr(float f)
 				: value(f)
 		{
 		}
 
+		/// Conversion to single-precision.
+		/// \return single precision value representing expression value
 		inline float_half_expr::operator float() const
 		{
 			return value;
@@ -2115,9 +2117,9 @@ namespace std
 		static half_float::half denorm_min() { return half_float::half(0x0001, true); }
 	};
 
-#ifdef HALF_ENABLE_HASH
+#if HALF_ENABLE_CPP11_HASH
 	/// Hash function for half-precision floats.
-	/// You have to define the preprocessor symbol `HALF_ENABLE_HASHING` for this specialization to be available.
+	/// This is only defined if C++11 `std::hash` is supported and enabled.
 	template<> struct hash<half_float::half>
 	{
 		/// Type of function argument.

@@ -24,19 +24,27 @@ Download and Installation									{#downloads}
 
 The library in its most recent version can be obtained from here, see [Release Notes](changelog.html) for further information:
 
--	[<b>half 1.2.0 (.zip)</b>](http://sourceforge.net/projects/half/files/latest/download)
+-	[<b>half 1.3.0 (.zip)</b>](http://sourceforge.net/projects/half/files/latest/download)
 
 If you are interested in previous versions of the library, see the [SourceForge download page](http://sourceforge.net/projects/half/files/half).
 
 Comfortably enough, the library consists of just a single header file containing all the functionality, which can be directly included by your projects, without the neccessity to build anything or link to anything.
 
-The library needs an IEEE-754-conformant single-precision `float` type, but this should be the case on most modern platforms. Whereas the library is fully C++98-compatible, it can profit from certain C++11 features. Support for those features is checked by the library at compile (or rather preprocessing) time automatically, but can be explicitly enabled or disabled by defining the corresponding preprocessor symbols to either 1 or 0:
+The library needs an IEEE-754-conformant single-precision `float` type, but this should be the case on most modern platforms. Whereas the library is fully C++98-compatible, it can profit from certain C++11 features. Support for those features is checked and enabled by the library automatically, but can be explicitly enabled or disabled by defining the corresponding preprocessor symbols to either 1 or 0 yourself:
 
--	Special integer types from `<cstdint>` (`HALF_HAVE_CPP11_CSTDINT`).
+-	Special integer types from `<cstdint>` (automatically enabled for *VC++ 2010* and up, overridable with `HALF_ENABLE_CPP11_CSTDINT`).
 -	Certain C++11 single-precision mathematical functions from `<cmath>` for their half-precision counterparts to work.
--	Static assertions for extended compile-time checks (`HALF_HAVE_CPP11_STATIC_ASSERT`).
--	User-defined literals for half-precision literals to work (`HALF_HAVE_CPP11_USER_LITERALS`).
--	Hash functor `std::hash` from `<functional>` (only if hashing enabled by explicitly defining `HALF_ENABLE_HASH`).
+-	Static assertions for extended compile-time checks (automatically enabled for *VC++ 2010*, *gcc 4.3*, *clang 2.9* and up, overridable with `HALF_ENABLE_CPP11_STATIC_ASSERT`).
+-	User-defined literals for half-precision literals to work (automatically enabled for *gcc 4.7*, *clang 3.1* and up, overridable with `HALF_ENABLE_CPP11_USER_LITERALS`).
+-	Hash functor `std::hash` from `<functional>` (automatically enabled for *VC++ 2010* and up, overridable with `HALF_ENABLE_CPP11_HASH`).
+
+C++11 feature                        | Used for                     | Enabled for (and newer)             | Override with
+-------------------------------------|------------------------------|-------------------------------------|---------
+sized integer types from `<cstdint>` | more flexible type sizes     | *VC++ 2010*                         | `HALF_ENABLE_CPP11_CSTDINT`
+certain new `<cmath>` functions      | corresponding half functions |     b       | c
+static assertions                    | extended compile-time checks | *VC++ 2010*, *gcc 4.3*, *clang 2.9* | `HALF_ENABLE_CPP11_STATIC_ASSERT`
+user-defined literals                | half-precision literals      | *gcc 4.7*, *clang 3.1*              | `HALF_ENABLE_CPP11_USER_LITERALS`
+`std::hash` from `<functional>`      | hash function for halfs      | *VC++ 2010*                         | `HALF_ENABLE_CPP11_HASH`
 
 The library has been tested successfully with *Visual C++ 2010*, *gcc 4.5-4.7* and *clang 3.1*. Please [contact me](#contact) if you have any problems, suggestions or even just success testing it on other platforms.
 
@@ -68,7 +76,7 @@ half s = sin(abs(a));
 long l = lround(s);
 ~~~~
 
-Furthermore the library provides proper specializations for `std::numeric_limits`, defining various implementation properties, and `std::hash` for hashing half-precision numbers (the latter only if the preprocessor symbol `HALF_ENABLE_HASH` is defined when including half.hpp). Similar to the corresponding preprocessor symbols from `<cmath>` the library also defines the [HUGE_VALH](\ref HUGE_VALH) constant and maybe the [FP_FAST_FMAH](\ref FP_FAST_FMAH) symbol.
+Furthermore the library provides proper specializations for `std::numeric_limits`, defining various implementation properties, and `std::hash` for hashing half-precision numbers (assuming support for C++11 `std::hash`). Similar to the corresponding preprocessor symbols from `<cmath>` the library also defines the [HUGE_VALH](\ref HUGE_VALH) constant and maybe the [FP_FAST_FMAH](\ref FP_FAST_FMAH) symbol.
 
 Conversions													{#conversions}
 -----------

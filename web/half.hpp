@@ -754,8 +754,8 @@ namespace half_float
 
 
 	/// User-defined literals.
-	/// Import this namespace to enable half-precision floating point literals (of course only on implementations that support 
-	/// C++11 user-defined literals):
+	/// Import this namespace to enable half-precision floating point literals (of course only if C++11 user-defined literals 
+	/// are supported and enabled):
 	/// ~~~~{.cpp}
 	/// using namespace half_float::literal;
 	/// half_float::half = 4.2_h;
@@ -861,7 +861,7 @@ namespace std
 	};
 
 	/// Hash function for half-precision floats.
-	/// You have to define the preprocessor symbol `HALF_ENABLE_HASHING` for this specialization to be available.
+	/// This is only defined if C++11 `std::hash` is supported and enabled.
 	template<> struct hash<half_float::half>
 	{
 		/// Type of function argument.
