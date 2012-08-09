@@ -24,40 +24,46 @@
 
 #if defined(_MSC_VER)
 	#if _MSC_VER >= 1600
-		#define HALF_HAVE_CPP11_CSTDINT
-		#define HALF_HAVE_CPP11_STATIC_ASSERT
+		#ifndef HALF_HAVE_CPP11_CSTDINT
+			#define HALF_HAVE_CPP11_CSTDINT 1
+		#endif
+		#ifndef HALF_HAVE_CPP11_STATIC_ASSERT
+			#define HALF_HAVE_CPP11_STATIC_ASSERT 1
+		#endif
 	#endif
 #elif defined(__INTEL_COMPILER)
-	#if __INTEL_COMPILER >= 1100
-		#define HALF_HAVE_CPP11_STATIC_ASSERT
+	#if __INTEL_COMPILER >= 1100 && !defined(HALF_HAVE_CPP11_STATIC_ASSERT)
+		#define HALF_HAVE_CPP11_STATIC_ASSERT 1
 	#endif
 #elif defined(__clang__)
-	#if __has_include(<cstdint>)
-		#define HALF_HAVE_CPP11_CSTDINT
+	#if __has_include(<cstdint>) && !defined(HALF_HAVE_CPP11_CSTDINT)
+		#define HALF_HAVE_CPP11_CSTDINT 1
 	#endif
-	#if __has_feature(cxx_static_assert)
-		#define HALF_HAVE_CPP11_STATIC_ASSERT
+	#if __has_feature(cxx_static_assert) && !defined(HALF_HAVE_CPP11_STATIC_ASSERT)
+		#define HALF_HAVE_CPP11_STATIC_ASSERT 1
 	#endif
-	#if __has_feature(cxx_user_literals)
-		#define HALF_HAVE_CPP11_USER_LITERALS
+	#if __has_feature(cxx_user_literals) && !defined(HALF_HAVE_CPP11_USER_LITERALS)
+		#define HALF_HAVE_CPP11_USER_LITERALS 1
 	#endif
 #elif defined(__GNUC__)
 	#define __GNUC_VERSION__ (__GNUC__*100+__GNUC_MINOR__)
-	#if __GNUC_VERSION__ >= 403
-		#define HALF_HAVE_CPP11_STATIC_ASSERT
+	#if __GNUC_VERSION__ >= 403 && !defined(HALF_HAVE_CPP11_STATIC_ASSERT)
+		#define HALF_HAVE_CPP11_STATIC_ASSERT 1
 	#endif
-	#if __GNUC_VERSION__ >= 407
-		#define HALF_HAVE_CPP11_USER_LITERALS
+	#if __GNUC_VERSION__ >= 407 && !defined(HALF_HAVE_CPP11_USER_LITERALS)
+		#define HALF_HAVE_CPP11_USER_LITERALS 1
 	#endif
 #endif
 
 #include <iostream>
 #include <limits>
-#include <functional>
 #include <climits>
 #include <cfloat>
 #include <cmath>
 #include <cstring>
+#ifdef HALF_ENABLE_HASH
+	#include <functional>
+#endif
 #ifdef HALF_HAVE_CPP11_CSTDINT
 	#include <cstdint>
 #endif

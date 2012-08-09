@@ -15,24 +15,24 @@ Comfortably enough, the library consists of just a single header file
 containing all the functionality, which can be directly included by your 
 projects, without the neccessity to build anything or link to anything.
 
-The library imposes some requirements on your C++ implementation (espcecially 
-regarding C++11 support):
+The library needs an IEEE-754-conformant single-precision 'float' type, but 
+this should be the case on most modern platforms. Whereas the library is fully 
+C++98-compatible, it can profit from certain C++11 features. Support for those 
+features is checked by the library at compile (or rather preprocessing) time 
+automatically, but can be explicitly enabled or disabled by defining the 
+corresponding preprocessor symbols to either 1 or 0:
 
-  - IEEE 754 conformant single-precision 'float' type (should be the case on 
-    most modern platforms).
+-   Special integer types from <cstdint> ('HALF_HAVE_CPP11_CSTDINT').
+-   Certain C++11 single-precision mathematical functions from <cmath> for 
+    their half-precision counterparts to work.
+-   Static assertions for extended compile-time checks 
+    ('HALF_HAVE_CPP11_STATIC_ASSERT').
+-   User-defined literals for half-precision literals to work 
+    ('HALF_HAVE_CPP11_USER_LITERALS').
+-   Hash functor 'std::hash' from '<functional>' (only if hashing enabled by 
+    explicitly defining 'HALF_ENABLE_HASH').
 
-  - Support for C++11 fixed-width integer types from <cstdint>.
-
-  - Support for certain C++11 single-precision mathematical functions from 
-    <cmath> for their half-precision counterparts to work (optional).
-
-  - Support for C++11 user-defined literals for half-precision literals to 
-    work (optional).
-
-  - Support for C++11 'std::hash' from <functional> (optional, only if hashing 
-    enabled by defining 'HALF_ENABLE_HASH').
-
-It has been tested successfully with Visual C++ 2010, gcc 4.5-4.7 and 
+The library has been tested successfully with Visual C++ 2010, gcc 4.5-4.7 and 
 clang 3.1. Please contact me if you have any problems, suggestions or even just 
 success testing it on other platforms.
 
@@ -76,7 +76,7 @@ Furthermore the library provides proper specializations for
 'std::hash' for hashing half-precision numbers (the latter only if the 
 preprocessor symbol 'HALF_ENABLE_HASH' is defined when including half.hpp). 
 Similar to the corresponding preprocessor symbols from <cmath> the library also 
-defines the HUGE_VALH constant and maybe the FP_FAST_FMAH symbol.
+defines the 'HUGE_VALH' constant and maybe the 'FP_FAST_FMAH' symbol.
 
 CONVERSIONS
 
@@ -107,8 +107,7 @@ half-precision environment.
 
 You may also specify explicit half-precision literals, since the library 
 provides a user-defined literal inside the 'half_float::literal' namespace, 
-which you just need to import (assuming your implementation supports C++11 
-user-defined literals, which is the case since gcc 4.7+ and clang 3.1+):
+which you just need to import (assuming support for C++11 user-defined literals):
 
     using namespace half_float::literal;
     half x = 1.0_h;

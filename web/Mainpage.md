@@ -30,15 +30,15 @@ If you are interested in previous versions of the library, see the [SourceForge 
 
 Comfortably enough, the library consists of just a single header file containing all the functionality, which can be directly included by your projects, without the neccessity to build anything or link to anything.
 
-The library imposes some requirements on your C++ implementation (espcecially regarding C++11 support):
+The library needs an IEEE-754-conformant single-precision `float` type, but this should be the case on most modern platforms. Whereas the library is fully C++98-compatible, it can profit from certain C++11 features. Support for those features is checked by the library at compile (or rather preprocessing) time automatically, but can be explicitly enabled or disabled by defining the corresponding preprocessor symbols to either 1 or 0:
 
--	IEEE 754 conformant single-precision `float` type (should be the case on most modern platforms).
--	Support for C++11 fixed-width integer types from `<cstdint>`.
--	Support for certain C++11 single-precision mathematical functions from `<cmath>` for their half-precision counterparts to work (**optional**).
--	Support for C++11 user-defined literals for half-precision literals to work (**optional**).
--	Support for C++11 `std::hash` from `<functional>` (**optional**, only if hashing enabled by defining `HALF_ENABLE_HASH`).
+-	Special integer types from `<cstdint>` (`HALF_HAVE_CPP11_CSTDINT`).
+-	Certain C++11 single-precision mathematical functions from `<cmath>` for their half-precision counterparts to work.
+-	Static assertions for extended compile-time checks (`HALF_HAVE_CPP11_STATIC_ASSERT`).
+-	User-defined literals for half-precision literals to work (`HALF_HAVE_CPP11_USER_LITERALS`).
+-	Hash functor `std::hash` from `<functional>` (only if hashing enabled by explicitly defining `HALF_ENABLE_HASH`).
 
-It has been tested successfully with *Visual C++ 2010*, *gcc 4.5-4.7* and *clang 3.1*. Please [contact me](#contact) if you have any problems, suggestions or even just success testing it on other platforms.
+The library has been tested successfully with *Visual C++ 2010*, *gcc 4.5-4.7* and *clang 3.1*. Please [contact me](#contact) if you have any problems, suggestions or even just success testing it on other platforms.
 
 --------------------------------------------------------------------------------
 
@@ -77,7 +77,7 @@ The [half](\ref half_float::half) is explicitly constructible/convertible from a
 
 In contrast to the float-to-half conversion, which reduces precision, the conversion from [half](\ref half_float::half) to `float` (and thus to any other type implicitly convertible to `float`) is implicit, because all values represetable with half-precision are also representable with single-precision. This way the half-to-float conversion behaves similar to the builtin float-to-double conversion and all arithmetic expressions involving both half-precision and single-precision arguments will be of single-precision type. This way you can also directly use the mathematical functions of the C++ standard library, though in this case you will invoke the single-precision versions which will also return single-precision values, which is (even if maybe performing the exact same computation, see below) not as conceptually clean when working in a half-precision environment.
 
-You may also specificy explicit half-precision literals, since the library provides a user-defined literal inside the half_float::literal namespace, which you just need to import (assuming your implementation supports C++11 user-defined literals, which is the case since *gcc 4.7* and *clang 3.1*):
+You may also specificy explicit half-precision literals, since the library provides a user-defined literal inside the half_float::literal namespace, which you just need to import (assuming support C++11 user-defined literals):
 
 ~~~~{.cpp}
 using namespace half_float::literal;
