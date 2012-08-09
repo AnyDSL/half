@@ -24,40 +24,43 @@
 
 #if defined(_MSC_VER)
 	#if _MSC_VER >= 1600
-		#define HALF_HAVE_CPP11_STATIC_ASSERT 1
+		#define HALF_HAVE_CPP11_CSTDINT
+		#define HALF_HAVE_CPP11_STATIC_ASSERT
 	#endif
 #elif defined(__INTEL_COMPILER)
 	#if __INTEL_COMPILER >= 1100
-		#define HALF_HAVE_CPP11_STATIC_ASSERT 1
+		#define HALF_HAVE_CPP11_STATIC_ASSERT
 	#endif
 #elif defined(__clang__)
-	#if !__has_include(<cstdint>)
-		#error "unsupported C++ implementation"
+	#if __has_include(<cstdint>)
+		#define HALF_HAVE_CPP11_CSTDINT
 	#endif
 	#if __has_feature(cxx_static_assert)
-		#define HALF_HAVE_CPP11_STATIC_ASSERT 1
+		#define HALF_HAVE_CPP11_STATIC_ASSERT
 	#endif
 	#if __has_feature(cxx_user_literals)
-		#define HALF_HAVE_CPP11_USER_LITERALS 1
+		#define HALF_HAVE_CPP11_USER_LITERALS
 	#endif
 #elif defined(__GNUC__)
 	#define __GNUC_VERSION__ (__GNUC__*100+__GNUC_MINOR__)
 	#if __GNUC_VERSION__ >= 403
-		#define HALF_HAVE_CPP11_STATIC_ASSERT 1
+		#define HALF_HAVE_CPP11_STATIC_ASSERT
 	#endif
 	#if __GNUC_VERSION__ >= 407
-		#define HALF_HAVE_CPP11_USER_LITERALS 1
+		#define HALF_HAVE_CPP11_USER_LITERALS
 	#endif
 #endif
 
 #include <iostream>
 #include <limits>
 #include <functional>
-#include <cstdint>
 #include <climits>
 #include <cfloat>
 #include <cmath>
 #include <cstring>
+#ifdef HALF_HAVE_CPP11_CSTDINT
+	#include <cstdint>
+#endif
 
 
 /// Value signaling overflow.
@@ -194,6 +197,32 @@ namespace half_float
 	/// \brief Implementation details.
 	namespace detail
 	{
+	#ifdef HALF_HAVE_CPP11_CSTDINT
+		/// Unsigned integer of (at least) 16 bits width.
+		typedef std::uint_least16_t uint16;
+
+		/// Unsigned integer of (at least) 32 bits width.
+		typedef std::uint_least32_t uint32;
+
+		/// Fastest signed integer capable of holding all values of type uint16.
+		typedef std::int_fast32_t int17;
+	#else
+		/// Unsigned integer of (at least) 16 bits width.
+		typedef unsigned short uint16;
+
+		/// Conditional type.
+		template<typename T,typename F,bool> struct conditional { typedef T type; };
+
+		/// Conditional type.
+		template<typename T,typename F> struct conditional<T,F,false> { typedef F type; };
+
+		/// Unsigned integer of (at least) 32 bits width.
+		typedef conditional<unsigned int,unsigned long,std::numeric_limits<unsigned int>::digits>=32>::type uint32;
+
+		/// Fastest signed integer capable of holding all values of type uint16.
+		typedef conditional<int,long,std::numeric_limits<int>::digits>=16>::type int17;
+	#endif
+
 		/// Generic half expression.
 		/// This class represents the base class for expressions of half-precision value, convertible to single precision.
 		/// \tparam E concrete expression type
@@ -228,8 +257,8 @@ namespace half_float
 
 		/// \name Conversion
 		/// \{
-		std::uint16_t float2half(float value);
-		float half2float(std::uint16_t value);
+		uint16 float2half(float value);
+		float half2float(uint16 value);
 		/// \}
 
 		/// \name Arithmetic operators
@@ -384,6 +413,11 @@ namespace half_float
 	/// (and many mathematical functions) are carried out in single-precision internally. All conversions from single- to 
 	/// half-precision are done using truncation (round towards zero), but temporary results inside chained arithmetic 
 	/// expressions are kept in single-precision as long as possible (while of course still maintaining a strong half-precision type).
+	///
+	/// One more word about the size of half. Although the half is representing an IEEE 16-bit type, it only has an actual size 
+	/// of 16 bits if your C++ implementation supports unsigned integers of exactly 16 bits width, which should be the case on 
+	/// nearly any reasonable platform. Nevertheless on platforms not supporting 16-bit unsigned integers, a half will have an 
+	/// actual size larger than 16 bits in memory.
 	class half : public detail::half_expr<half>
 	{
 		friend class std::numeric_limits<half>;
@@ -584,13 +618,13 @@ namespace half_float
 	private:
 		/// Constructor.
 		/// \param bits binary representation to set half to
-		half(std::uint16_t bits, bool)
+		half(detail::uint16 bits, bool)
 			: data_(bits)
 		{
 		}
 
 		/// Internal binary representation
-		std::uint16_t data_;
+		detail::uint16 data_;
 	};
 
 
@@ -623,8 +657,8 @@ namespace half_float
 	{
 		if(isnan(a) || isnan(b))
 			return false;
-		return (signbit(a) ? (static_cast<std::int_fast32_t>(0x8000)-a.data_) : static_cast<std::int_fast32_t>(a.data_)) < 
-			(signbit(b) ? (static_cast<std::int_fast32_t>(0x8000)-b.data_) : static_cast<std::int_fast32_t>(b.data_));
+		return (signbit(a) ? (static_cast<detail::int17>(0x8000)-a.data_) : static_cast<detail::int17>(a.data_)) < 
+			(signbit(b) ? (static_cast<detail::int17>(0x8000)-b.data_) : static_cast<detail::int17>(b.data_));
 	}
 
 	/// Comparison for greater than.
@@ -636,8 +670,8 @@ namespace half_float
 	{
 		if(isnan(a) || isnan(b))
 			return false;
-		return (signbit(a) ? (static_cast<std::int_fast32_t>(0x8000)-a.data_) : static_cast<std::int_fast32_t>(a.data_)) > 
-			(signbit(b) ? (static_cast<std::int_fast32_t>(0x8000)-b.data_) : static_cast<std::int_fast32_t>(b.data_));
+		return (signbit(a) ? (static_cast<detail::int17>(0x8000)-a.data_) : static_cast<detail::int17>(a.data_)) > 
+			(signbit(b) ? (static_cast<detail::int17>(0x8000)-b.data_) : static_cast<detail::int17>(b.data_));
 	}
 
 	/// Comparison for less equal.
@@ -649,8 +683,8 @@ namespace half_float
 	{
 		if(isnan(a) || isnan(b))
 			return false;
-		return (signbit(a) ? (static_cast<std::int_fast32_t>(0x8000)-a.data_) : static_cast<std::int_fast32_t>(a.data_)) <= 
-			(signbit(b) ? (static_cast<std::int_fast32_t>(0x8000)-b.data_) : static_cast<std::int_fast32_t>(b.data_));
+		return (signbit(a) ? (static_cast<detail::int17>(0x8000)-a.data_) : static_cast<detail::int17>(a.data_)) <= 
+			(signbit(b) ? (static_cast<detail::int17>(0x8000)-b.data_) : static_cast<detail::int17>(b.data_));
 	}
 
 	/// Comparison for greater equal.
@@ -662,8 +696,8 @@ namespace half_float
 	{
 		if(isnan(a) || isnan(b))
 			return false;
-		return (signbit(a) ? (static_cast<std::int_fast32_t>(0x8000)-a.data_) : static_cast<std::int_fast32_t>(a.data_)) >= 
-			(signbit(b) ? (static_cast<std::int_fast32_t>(0x8000)-b.data_) : static_cast<std::int_fast32_t>(b.data_));
+		return (signbit(a) ? (static_cast<detail::int17>(0x8000)-a.data_) : static_cast<detail::int17>(a.data_)) >= 
+			(signbit(b) ? (static_cast<detail::int17>(0x8000)-b.data_) : static_cast<detail::int17>(b.data_));
 	}
 
 	/// Identity.
@@ -746,7 +780,7 @@ namespace half_float
 		if(e > 0x6000)
 			return arg;
 		if(e < 0x3C00)
-			return half((arg.data_&0x8000)|(0x3C00&-static_cast<std::uint16_t>(~(arg.data_>>15)&((arg.data_&0x7FFF)!=0))), true);
+			return half((arg.data_&0x8000)|(0x3C00&-static_cast<detail::uint16>(~(arg.data_>>15)&((arg.data_&0x7FFF)!=0))), true);
 		e = 25 - (e>>10);
 		unsigned int mask = (1<<e) - 1;
 		return half((arg.data_&~mask)+((~(arg.data_>>15)&((arg.data_&mask)!=0))<<e), true);
@@ -761,7 +795,7 @@ namespace half_float
 		if(e > 0x6000)
 			return arg;
 		if(e < 0x3C00)
-			return half((arg.data_&0x8000)|(0x3C00&-static_cast<std::uint16_t>((arg.data_>>15)&((arg.data_&0x7FFF)!=0))), true);
+			return half((arg.data_&0x8000)|(0x3C00&-static_cast<detail::uint16>((arg.data_>>15)&((arg.data_&0x7FFF)!=0))), true);
 		e = 25 - (e>>10);
 		unsigned int mask = (1<<e) - 1;
 		return half((arg.data_&~mask)+(((arg.data_>>15)&((arg.data_&mask)!=0))<<e), true);
@@ -789,7 +823,7 @@ namespace half_float
 		if(e > 0x6000)
 			return arg;
 		if(e < 0x3C00)
-			return half((arg.data_&0x8000)|(0x3C00&-static_cast<std::uint16_t>((arg.data_&0x7FFF)>=0x3800)), true);
+			return half((arg.data_&0x8000)|(0x3C00&-static_cast<detail::uint16>((arg.data_&0x7FFF)>=0x3800)), true);
 		e >>= 10;
 		return half((arg.data_+(1<<(24-e)))&~((1<<(25-e))-1), true);
 	}
@@ -952,16 +986,16 @@ namespace half_float
 	/// \return next representable value after \a from in direction towards \a to
 	inline half nextafter(half from, half to)
 	{
-		std::uint16_t fabs = from.data_ & 0x7FFF, tabs = to.data_ & 0x7FFF;
+		detail::uint16 fabs = from.data_ & 0x7FFF, tabs = to.data_ & 0x7FFF;
 		if(fabs > 0x7C00)
 			return from;
 		if(tabs > 0x7C00 || from.data_==to.data_ || !(fabs|tabs))
 			return to;
 		if(!fabs)
 			return half((to.data_&0x8000)+1, true);
-		bool lt = (signbit(from) ? (static_cast<std::int_fast32_t>(0x8000)-from.data_) : static_cast<std::int_fast32_t>(from.data_)) < 
-			(signbit(to) ? (static_cast<std::int_fast32_t>(0x8000)-to.data_) : static_cast<std::int_fast32_t>(to.data_));
-		return half((from.data_+(((from.data_>>15)^static_cast<std::uint16_t>(lt))<<1))-1, true);
+		bool lt = (signbit(from) ? (static_cast<detail::int17>(0x8000)-from.data_) : static_cast<detail::int17>(from.data_)) < 
+			(signbit(to) ? (static_cast<detail::int17>(0x8000)-to.data_) : static_cast<detail::int17>(to.data_));
+		return half((from.data_+(((from.data_>>15)^static_cast<detail::uint16>(lt))<<1))-1, true);
 	}
 
 	/// Next representable value.
@@ -976,7 +1010,7 @@ namespace half_float
 		if(detail::isnan(to) || lfrom == to)
 			return half(static_cast<float>(to));
 		if(!(from.data_&0x7FFF))
-			return half((static_cast<std::uint16_t>(detail::signbit(to))<<15)+1, true);
+			return half((static_cast<detail::uint16>(detail::signbit(to))<<15)+1, true);
 		return half((from.data_+(((from.data_>>15)^(lfrom<to))<<1))-1, true);
 	}
 
@@ -1155,12 +1189,13 @@ namespace half_float
 		/// Convert IEEE single-precision to half-precision.
 		/// \param value single-precision value
 		/// \return binary representation of half-precision value
-		inline std::uint16_t float2half(float value)
+		inline uint16 float2half(float value)
 		{
 		#ifdef HALF_HAVE_CPP11_STATIC_ASSERT
 			static_assert(std::numeric_limits<float>::is_iec559, "float to half conversion needs IEEE 754 conformant 'float' type");
+			static_assert(sizeof(uint32)==sizeof(float), "float to half conversion needs unsigned integer type of exactly 32 bits width");
 		#endif
-			static const std::uint16_t base_table[512] = { 
+			static const uint16 base_table[512] = { 
 				0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 
 				0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 
 				0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 
@@ -1193,7 +1228,7 @@ namespace half_float
 				0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 
 				0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 
 				0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00 };
-			static const std::uint8_t shift_table[512] = { 
+			static const unsigned char shift_table[512] = { 
 				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
 				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
 				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
@@ -1210,7 +1245,7 @@ namespace half_float
 				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
 				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
 				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 13 };
-			std::uint32_t bits;// = *reinterpret_cast<std::uint32_t*>(&value);
+			uint32 bits;// = *reinterpret_cast<uint32*>(&value);
 			std::memcpy(&bits, &value, sizeof(float));
 			return base_table[bits>>23] + ((bits&0x7FFFFF)>>shift_table[bits>>23]);
 		}
@@ -1218,7 +1253,7 @@ namespace half_float
 		/// Convert non-IEEE single-precision to half-precision.
 		/// \param value single-precision value
 		/// \return binary representation of half-precision value
-		inline std::uint16_t float2half_impl(float value, const std::false_type&)
+		inline uint16 float2half_impl(float value, const std::false_type&)
 		{
 			unsigned int sign = signbit(value) << 15;
 			if(value == 0.0f)
@@ -1246,7 +1281,7 @@ namespace half_float
 		/// Convert single-precision to half-precision.
 		/// \param value single-precision value
 		/// \return binary representation of half-precision value
-		inline std::uint16_t float2half(float value)
+		inline uint16 float2half(float value)
 		{
 			return float2half_impl(value, std::integral_constant<bool,std::numeric_limits<float>::is_iec559>());
 		}
@@ -1254,12 +1289,13 @@ namespace half_float
 		/// Convert half-precision to IEEE single-precision.
 		/// \param value binary representation of half-precision value
 		/// \return single-precision value
-		inline float half2float(std::uint16_t value)
+		inline float half2float(uint16 value)
 		{
 		#ifdef HALF_HAVE_CPP11_STATIC_ASSERT
 			static_assert(std::numeric_limits<float>::is_iec559, "half to float conversion needs IEEE 754 conformant 'float' type");
+			static_assert(sizeof(uint32)==sizeof(float), "half to float conversion needs unsigned integer type of exactly 32 bits width");
 		#endif
-			static const std::uint32_t mantissa_table[2048] = { 
+			static const uint32 mantissa_table[2048] = { 
 				0x00000000, 0x33800000, 0x34000000, 0x34400000, 0x34800000, 0x34A00000, 0x34C00000, 0x34E00000, 0x35000000, 0x35100000, 0x35200000, 0x35300000, 0x35400000, 0x35500000, 0x35600000, 0x35700000, 
 				0x35800000, 0x35880000, 0x35900000, 0x35980000, 0x35A00000, 0x35A80000, 0x35B00000, 0x35B80000, 0x35C00000, 0x35C80000, 0x35D00000, 0x35D80000, 0x35E00000, 0x35E80000, 0x35F00000, 0x35F80000, 
 				0x36000000, 0x36040000, 0x36080000, 0x360C0000, 0x36100000, 0x36140000, 0x36180000, 0x361C0000, 0x36200000, 0x36240000, 0x36280000, 0x362C0000, 0x36300000, 0x36340000, 0x36380000, 0x363C0000, 
@@ -1388,16 +1424,16 @@ namespace half_float
 				0x387A0000, 0x387A2000, 0x387A4000, 0x387A6000, 0x387A8000, 0x387AA000, 0x387AC000, 0x387AE000, 0x387B0000, 0x387B2000, 0x387B4000, 0x387B6000, 0x387B8000, 0x387BA000, 0x387BC000, 0x387BE000, 
 				0x387C0000, 0x387C2000, 0x387C4000, 0x387C6000, 0x387C8000, 0x387CA000, 0x387CC000, 0x387CE000, 0x387D0000, 0x387D2000, 0x387D4000, 0x387D6000, 0x387D8000, 0x387DA000, 0x387DC000, 0x387DE000, 
 				0x387E0000, 0x387E2000, 0x387E4000, 0x387E6000, 0x387E8000, 0x387EA000, 0x387EC000, 0x387EE000, 0x387F0000, 0x387F2000, 0x387F4000, 0x387F6000, 0x387F8000, 0x387FA000, 0x387FC000, 0x387FE000 };
-			static const std::uint32_t exponent_table[64] = { 
+			static const uint32 exponent_table[64] = { 
 				0x00000000, 0x00800000, 0x01000000, 0x01800000, 0x02000000, 0x02800000, 0x03000000, 0x03800000, 0x04000000, 0x04800000, 0x05000000, 0x05800000, 0x06000000, 0x06800000, 0x07000000, 0x07800000, 
 				0x08000000, 0x08800000, 0x09000000, 0x09800000, 0x0A000000, 0x0A800000, 0x0B000000, 0x0B800000, 0x0C000000, 0x0C800000, 0x0D000000, 0x0D800000, 0x0E000000, 0x0E800000, 0x0F000000, 0x47800000, 
 				0x80000000, 0x80800000, 0x81000000, 0x81800000, 0x82000000, 0x82800000, 0x83000000, 0x83800000, 0x84000000, 0x84800000, 0x85000000, 0x85800000, 0x86000000, 0x86800000, 0x87000000, 0x87800000, 
 				0x88000000, 0x88800000, 0x89000000, 0x89800000, 0x8A000000, 0x8A800000, 0x8B000000, 0x8B800000, 0x8C000000, 0x8C800000, 0x8D000000, 0x8D800000, 0x8E000000, 0x8E800000, 0x8F000000, 0xC7800000 };
-			static const std::uint16_t offset_table[64] = { 
+			static const unsigned short offset_table[64] = { 
 				   0, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 
 				   0, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024 };
-			std::uint32_t bits = mantissa_table[offset_table[value>>10]+(value&0x3FF)] + exponent_table[value>>10];
-//			std::uint32_t bits = mantissa_table[(((value&0x7C00)!=0)<<10)+(value&0x3FF)] + exponent_table[value>>10];
+			uint32 bits = mantissa_table[offset_table[value>>10]+(value&0x3FF)] + exponent_table[value>>10];
+//			uint32 bits = mantissa_table[(((value&0x7C00)!=0)<<10)+(value&0x3FF)] + exponent_table[value>>10];
 //			return *reinterpret_cast<float*>(&bits);
 			float out;
 			std::memcpy(&out, &bits, sizeof(float));
@@ -1407,7 +1443,7 @@ namespace half_float
 		/// Convert half-precision to non-IEEE single-precision.
 		/// \param value binary representation of half-precision value
 		/// \return single-precision value
-		inline float half2float_impl(std::uint16_t value, const std::false_type&)
+		inline float half2float_impl(uint16 value, const std::false_type&)
 		{
 			int exp = value & 0x7C00;
 			float out;
@@ -1440,7 +1476,7 @@ namespace half_float
 		/// Convert half-precision to single-precision.
 		/// \param value binary representation of half-precision value
 		/// \return single-precision value
-		inline float half2float(std::uint16_t value)
+		inline float half2float(uint16 value)
 		{
 			return half2float_impl(value, std::integral_constant<bool,std::numeric_limits<float>::is_iec559>());
 		}
@@ -2089,13 +2125,11 @@ namespace std
 		/// \return hash value
 		std::size_t operator()(half_float::half arg) const
 		{
-			return std::hash<std::uint16_t>()(-static_cast<std::uint16_t>(arg.data_!=0x8000)&arg.data_);
+			return std::hash<half_float::detail::uint16>()(-static_cast<half_float::detail::uint16>(arg.data_!=0x8000)&arg.data_);
 		}
 	};
 #endif
 }
 
-
-#undef HALF_HAVE_CPP11_STATIC_ASSERT
 
 #endif
