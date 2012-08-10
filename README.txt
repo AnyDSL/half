@@ -20,7 +20,9 @@ this should be the case on most modern platforms. Whereas the library is fully
 C++98-compatible, it can profit from certain C++11 features. Support for those 
 features is checked by the library at compile (or rather preprocessing) time 
 automatically, but can be explicitly enabled or disabled by defining the 
-corresponding preprocessor symbols to either 1 or 0 yourself:
+corresponding preprocessor symbols to either 1 or 0 yourself. This is useful 
+when the automatic detection fails (for more exotic implementations) or when a 
+feature should be explicitly disabled:
 
   - Static assertions for extended compile-time checks (enabled for VC++ 2010, 
     gcc 4.3, clang 2.9 and newer, overridable with 'HALF_ENABLE_CPP11_STATIC_ASSERT').
@@ -38,7 +40,7 @@ corresponding preprocessor symbols to either 1 or 0 yourself:
   - Hash functor 'std::hash' from <functional> (enabled for VC++ 2010, 
     libstdc++ 4.3, libc++ and newer, overridable with 'HALF_ENABLE_CPP11_HASH').
 
-The library has been tested successfully with Visual C++ 2010, gcc 4.5-4.7 and 
+The library has been tested successfully with Visual C++ 2010, gcc 4.4-4.7 and 
 clang 3.1. Please contact me if you have any problems, suggestions or even just 
 success testing it on other platforms.
 
