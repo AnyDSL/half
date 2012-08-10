@@ -22,15 +22,21 @@ features is checked by the library at compile (or rather preprocessing) time
 automatically, but can be explicitly enabled or disabled by defining the 
 corresponding preprocessor symbols to either 1 or 0 yourself:
 
--   Special integer types from <cstdint> ('HALF_ENABLE_CPP11_CSTDINT').
--   Certain C++11 single-precision mathematical functions from <cmath> for 
-    their half-precision counterparts to work.
--   Static assertions for extended compile-time checks 
-    ('HALF_ENABLE_CPP11_STATIC_ASSERT').
--   User-defined literals for half-precision literals to work 
-    ('HALF_ENABLE_CPP11_USER_LITERALS').
--   Hash functor 'std::hash' from '<functional>' (only if hashing enabled by 
-    explicitly defining 'HALF_ENABLE_CPP11_HASH').
+  - Static assertions for extended compile-time checks (enabled for VC++ 2010, 
+    gcc 4.3, clang 2.9 and newer, overridable with 'HALF_ENABLE_CPP11_STATIC_ASSERT').
+
+  - User-defined literals for half-precision literals to work (enabled for 
+    gcc 4.7, clang 3.1 and newer, overridable with 'HALF_ENABLE_CPP11_USER_LITERALS').
+
+  - Special integer types from <cstdint> (enabled for VC++ 2010, libstdc++ 4.3, 
+    libc++ and newer, overridable with 'HALF_ENABLE_CPP11_CSTDINT').
+
+  - Certain C++11 single-precision mathematical functions from <cmath> for 
+    their half-precision counterparts to work (enabled for libstdc++ 4.3, 
+    libc++ and newer, overridable with 'HALF_ENABLE_CPP11_CMATH').
+
+  - Hash functor 'std::hash' from <functional> (enabled for VC++ 2010, 
+    libstdc++ 4.3, libc++ and newer, overridable with 'HALF_ENABLE_CPP11_HASH').
 
 The library has been tested successfully with Visual C++ 2010, gcc 4.5-4.7 and 
 clang 3.1. Please contact me if you have any problems, suggestions or even just 
@@ -73,8 +79,8 @@ directly through ADL:
 
 Furthermore the library provides proper specializations for 
 'std::numeric_limits', defining various implementation properties, and 
-'std::hash' for hashing half-precision numbers ((assuming support for C++11 
-`std::hash`). Similar to the corresponding preprocessor symbols from <cmath> 
+'std::hash' for hashing half-precision numbers (assuming support for C++11 
+'std::hash'). Similar to the corresponding preprocessor symbols from <cmath> 
 the library also defines the 'HUGE_VALH' constant and maybe the 'FP_FAST_FMAH' 
 symbol.
 

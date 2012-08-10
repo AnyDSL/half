@@ -486,6 +486,8 @@ int main(int argc, char *argv[])
 	b -= 1.0_h;
 	std::cout << a << " - " << b << std::dec << std::endl;
 */
+	std::cout << std::hash<half>()(std::numeric_limits<half>::infinity()) << std::endl;
+
 	std::unique_ptr<std::ostream> file;
 	if(argc > 1)
 		file.reset(new std::ofstream(argv[1]));

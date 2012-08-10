@@ -32,19 +32,13 @@ Comfortably enough, the library consists of just a single header file containing
 
 The library needs an IEEE-754-conformant single-precision `float` type, but this should be the case on most modern platforms. Whereas the library is fully C++98-compatible, it can profit from certain C++11 features. Support for those features is checked and enabled by the library automatically, but can be explicitly enabled or disabled by defining the corresponding preprocessor symbols to either 1 or 0 yourself:
 
--	Special integer types from `<cstdint>` (automatically enabled for *VC++ 2010* and up, overridable with `HALF_ENABLE_CPP11_CSTDINT`).
--	Certain C++11 single-precision mathematical functions from `<cmath>` for their half-precision counterparts to work.
--	Static assertions for extended compile-time checks (automatically enabled for *VC++ 2010*, *gcc 4.3*, *clang 2.9* and up, overridable with `HALF_ENABLE_CPP11_STATIC_ASSERT`).
--	User-defined literals for half-precision literals to work (automatically enabled for *gcc 4.7*, *clang 3.1* and up, overridable with `HALF_ENABLE_CPP11_USER_LITERALS`).
--	Hash functor `std::hash` from `<functional>` (automatically enabled for *VC++ 2010* and up, overridable with `HALF_ENABLE_CPP11_HASH`).
-
-C++11 feature                        | Used for                     | Enabled for (and newer)             | Override with
--------------------------------------|------------------------------|-------------------------------------|----------------------------------
-static assertions                    | extended compile-time checks | *VC++ 2010*, *gcc 4.3*, *clang 2.9* | `HALF_ENABLE_CPP11_STATIC_ASSERT`
-user-defined literals                | half-precision literals      | *gcc 4.7*, *clang 3.1*              | `HALF_ENABLE_CPP11_USER_LITERALS`
-sized integer types from `<cstdint>` | more flexible type sizes     | *VC++ 2010*, *libstdc++ 4.3*        | `HALF_ENABLE_CPP11_CSTDINT`
-certain new `<cmath>` functions      | corresponding half functions | *libstdc++ 4.3*                     | `HALF_ENABLE_CPP11_CMATH`
-`std::hash` from `<functional>`      | hash function for halfs      | *VC++ 2010*, *libstdc++ 4.3*        | `HALF_ENABLE_CPP11_HASH`
+C++11 feature                        | Used for                     | Enabled for (and newer)                     | Override with
+-------------------------------------|------------------------------|---------------------------------------------|----------------------------------
+static assertions                    | extended compile-time checks | *VC++ 2010*, *gcc 4.3*, *clang 2.9*         | `HALF_ENABLE_CPP11_STATIC_ASSERT`
+user-defined literals                | half-precision literals      | *gcc 4.7*, *clang 3.1*                      | `HALF_ENABLE_CPP11_USER_LITERALS`
+sized integer types from `<cstdint>` | more flexible type sizes     | *VC++ 2010*, *libstdc++ 4.3*, <i>libc++</i> | `HALF_ENABLE_CPP11_CSTDINT`
+certain new `<cmath>` functions      | corresponding half functions | *libstdc++ 4.3*, <i>libc++</i>              | `HALF_ENABLE_CPP11_CMATH`
+`std::hash` from `<functional>`      | hash function for halfs      | *VC++ 2010*, *libstdc++ 4.3*, <i>libc++</i> | `HALF_ENABLE_CPP11_HASH`
 
 The library has been tested successfully with *Visual C++ 2010*, *gcc 4.5-4.7* and *clang 3.1*. Please [contact me](#contact) if you have any problems, suggestions or even just success testing it on other platforms.
 

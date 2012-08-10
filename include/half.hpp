@@ -24,18 +24,18 @@
 
 //check C++11 language features
 #define HALF_GNUC_VERSION (__GNUC__*100+__GNUC_MINOR__)
-#if defined(__clang__)
+#if defined(__clang__)										//clang
 	#if __has_feature(cxx_static_assert) && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
 		#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
 	#endif
 	#if __has_feature(cxx_user_literals) && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
 		#define HALF_ENABLE_CPP11_USER_LITERALS 1
 	#endif
-#elif defined(__INTEL_COMPILER)
+#elif defined(__INTEL_COMPILER)								//Intel C++
 	#if __INTEL_COMPILER >= 1100 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
 		#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
 	#endif
-#elif defined(__GNUC__)
+#elif defined(__GNUC__)										//gcc
 	#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
 		#if HALF_GNUC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
 			#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
@@ -44,16 +44,25 @@
 			#define HALF_ENABLE_CPP11_USER_LITERALS 1
 		#endif
 	#endif
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER)										//Visual C++
 	#if _MSC_VER >= 1600 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
 		#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
 	#endif
 #endif
 
 //check C++11 library features
-#include <utility>
-#if defined(_LIBCPP_VERSION)
-#elif defined(__GLIBCXX__)
+#include <ciso646>
+#if defined(_LIBCPP_VERSION)								//libc++
+	#ifndef HALF_ENABLE_CPP11_CSTDINT
+		#define HALF_ENABLE_CPP11_CSTDINT 1
+	#endif
+	#ifndef HALF_ENABLE_CPP11_CMATH
+		#define HALF_ENABLE_CPP11_CMATH 1
+	#endif
+	#ifndef HALF_ENABLE_CPP11_HASH
+		#define HALF_ENABLE_CPP11_HASH 1
+	#endif
+#elif defined(__GLIBCXX__)									//libstdc++
 	#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103
 		#ifdef __clang__
 			#if __GLIBCXX__ >= 20080606 && !defined(HALF_ENABLE_CPP11_CSTDINT)
@@ -77,7 +86,7 @@
 			#endif
 		#endif
 	#endif
-#elif defined(_CPPLIB_VER)
+#elif defined(_CPPLIB_VER)									//Dinkumware/Visual C++
 	#if _CPPLIB_VER >= 520
 		#ifndef HALF_ENABLE_CPP11_CSTDINT
 			#define HALF_ENABLE_CPP11_CSTDINT 1
