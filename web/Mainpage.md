@@ -39,12 +39,12 @@ The library needs an IEEE-754-conformant single-precision `float` type, but this
 -	Hash functor `std::hash` from `<functional>` (automatically enabled for *VC++ 2010* and up, overridable with `HALF_ENABLE_CPP11_HASH`).
 
 C++11 feature                        | Used for                     | Enabled for (and newer)             | Override with
--------------------------------------|------------------------------|-------------------------------------|---------
-sized integer types from `<cstdint>` | more flexible type sizes     | *VC++ 2010*                         | `HALF_ENABLE_CPP11_CSTDINT`
-certain new `<cmath>` functions      | corresponding half functions |     b       | c
+-------------------------------------|------------------------------|-------------------------------------|----------------------------------
 static assertions                    | extended compile-time checks | *VC++ 2010*, *gcc 4.3*, *clang 2.9* | `HALF_ENABLE_CPP11_STATIC_ASSERT`
 user-defined literals                | half-precision literals      | *gcc 4.7*, *clang 3.1*              | `HALF_ENABLE_CPP11_USER_LITERALS`
-`std::hash` from `<functional>`      | hash function for halfs      | *VC++ 2010*                         | `HALF_ENABLE_CPP11_HASH`
+sized integer types from `<cstdint>` | more flexible type sizes     | *VC++ 2010*, *libstdc++ 4.3*        | `HALF_ENABLE_CPP11_CSTDINT`
+certain new `<cmath>` functions      | corresponding half functions | *libstdc++ 4.3*                     | `HALF_ENABLE_CPP11_CMATH`
+`std::hash` from `<functional>`      | hash function for halfs      | *VC++ 2010*, *libstdc++ 4.3*        | `HALF_ENABLE_CPP11_HASH`
 
 The library has been tested successfully with *Visual C++ 2010*, *gcc 4.5-4.7* and *clang 3.1*. Please [contact me](#contact) if you have any problems, suggestions or even just success testing it on other platforms.
 

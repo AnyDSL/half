@@ -227,7 +227,7 @@ public:
 			(comp(a, b) && comp(b, c)) || ((d==1||d==0x7FFF) && (a<b)==(a<c)); });
 		binary_test("copysign", [](half a, half b) -> bool { half h = copysign(a, b); 
 			return comp(abs(h), abs(a)) && signbit(h)==signbit(b); });
-#ifdef HAVE_CPP11_MATH
+#if HALF_ENABLE_CPP11_CMATH
 		//test basic functions
 		binary_test("remainder", [](half a, half b) { return comp(remainder(a, b), 
 			static_cast<half>(std::remainder(static_cast<float>(a), static_cast<float>(b)))); });

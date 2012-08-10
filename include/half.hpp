@@ -22,41 +22,72 @@
 #ifndef HALF_HALF_H
 #define HALF_HALF_H
 
-#if defined(_MSC_VER)
-	#if _MSC_VER >= 1600
-		#ifndef HALF_ENABLE_CPP11_CSTDINT
-			#define HALF_ENABLE_CPP11_CSTDINT 1
-		#endif
-		#ifndef HALF_ENABLE_CPP11_STATIC_ASSERT
-			#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
-		#endif
-		#ifndef HALF_ENABLE_CPP11_HASH
-			#define HALF_ENABLE_CPP11_HASH 1
-		#endif
-	#endif
-#elif defined(__INTEL_COMPILER)
-	#if __INTEL_COMPILER >= 1100 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
-		#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
-	#endif
-#elif defined(__clang__)
-	#if __has_include(<cstdint>) && !defined(HALF_ENABLE_CPP11_CSTDINT)
-		#define HALF_ENABLE_CPP11_CSTDINT 1
-	#endif
+//check C++11 language features
+#define HALF_GNUC_VERSION (__GNUC__*100+__GNUC_MINOR__)
+#if defined(__clang__)
 	#if __has_feature(cxx_static_assert) && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
 		#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
 	#endif
 	#if __has_feature(cxx_user_literals) && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
 		#define HALF_ENABLE_CPP11_USER_LITERALS 1
 	#endif
-#elif defined(__GNUC__)
-	#define __GNUC_VERSION__ (__GNUC__*100+__GNUC_MINOR__)
-	#if __GNUC_VERSION__ >= 403 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
+#elif defined(__INTEL_COMPILER)
+	#if __INTEL_COMPILER >= 1100 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
 		#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
 	#endif
-	#if __GNUC_VERSION__ >= 407 && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
-		#define HALF_ENABLE_CPP11_USER_LITERALS 1
+#elif defined(__GNUC__)
+	#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
+		#if HALF_GNUC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
+			#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
+		#endif
+		#if HALF_GNUC_VERSION >= 407 && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
+			#define HALF_ENABLE_CPP11_USER_LITERALS 1
+		#endif
+	#endif
+#elif defined(_MSC_VER)
+	#if _MSC_VER >= 1600 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
+		#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
 	#endif
 #endif
+
+//check C++11 library features
+#include <utility>
+#if defined(_LIBCPP_VERSION)
+#elif defined(__GLIBCXX__)
+	#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103
+		#ifdef __clang__
+			#if __GLIBCXX__ >= 20080606 && !defined(HALF_ENABLE_CPP11_CSTDINT)
+				#define HALF_ENABLE_CPP11_CSTDINT 1
+			#endif
+			#if __GLIBCXX__ >= 20080606 && !defined(HALF_ENABLE_CPP11_CMATH)
+				#define HALF_ENABLE_CPP11_CMATH 1
+			#endif
+			#if __GLIBCXX__ >= 20080606 && !defined(HALF_ENABLE_CPP11_HASH)
+				#define HALF_ENABLE_CPP11_HASH 1
+			#endif
+		#else
+			#if HALF_GNUC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_CSTDINT)
+				#define HALF_ENABLE_CPP11_CSTDINT 1
+			#endif
+			#if HALF_GNUC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_CMATH)
+				#define HALF_ENABLE_CPP11_CMATH 1
+			#endif
+			#if HALF_GNUC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_HASH)
+				#define HALF_ENABLE_CPP11_HASH 1
+			#endif
+		#endif
+	#endif
+#elif defined(_CPPLIB_VER)
+	#if _CPPLIB_VER >= 520
+		#ifndef HALF_ENABLE_CPP11_CSTDINT
+			#define HALF_ENABLE_CPP11_CSTDINT 1
+		#endif
+		#ifndef HALF_ENABLE_CPP11_HASH
+			#define HALF_ENABLE_CPP11_HASH 1
+		#endif
+	#endif
+#endif
+#undef HALF_GNUC_VERSION
 
 #include <iostream>
 #include <limits>
@@ -286,9 +317,11 @@ namespace half_float
 		template<typename X,typename Y> float_half_expr remainder(const half_expr<X> &x, const half_expr<Y> &y);
 		template<typename X,typename Y> float_half_expr remquo(const half_expr<X> &x, const half_expr<Y> &y, int *quo);
 		template<typename X,typename Y,typename Z> float_half_expr fma(const half_expr<X> &x, const half_expr<Y> &y, const half_expr<Y> &z);
+		template<typename X,typename Y> float_half_expr fdim(const half_expr<X> &x, const half_expr<Y> &y);
+#if HALF_ENABLE_CPP11_CMATH
 		template<typename X,typename Y> float_half_expr fmin(const half_expr<X> &x, const half_expr<Y> &y);
 		template<typename X,typename Y> float_half_expr fmax(const half_expr<X> &x, const half_expr<Y> &y);
-		template<typename X,typename Y> float_half_expr fdim(const half_expr<X> &x, const half_expr<Y> &y);
+#endif
 		/// \}
 
 		/// \name Exponential functions
@@ -341,12 +374,14 @@ namespace half_float
 
 		/// \name Rounding
 		/// \{
+#if HALF_ENABLE_CPP11_CMATH
 		template<typename E> float_half_expr ceil(const half_expr<E> &arg);
 		template<typename E> float_half_expr floor(const half_expr<E> &arg);
 		template<typename E> float_half_expr trunc(const half_expr<E> &arg);
 		template<typename E> float_half_expr round(const half_expr<E> &arg);
 		template<typename E> long lround(const half_expr<E> &arg);
 		template<typename E> long long llround(const half_expr<E> &arg);
+#endif
 		template<typename E> float_half_expr nearbyint(const half_expr<E> &arg);
 		template<typename E> float_half_expr rint(const half_expr<E> &arg);
 		template<typename E> long lrint(const half_expr<E> &arg);
@@ -365,8 +400,6 @@ namespace half_float
 	using detail::remainder;
 	using detail::remquo;
 	using detail::fma;
-	using detail::fmin;
-	using detail::fmax;
 	using detail::fdim;
 	using detail::exp;
 	using detail::exp2;
@@ -396,16 +429,20 @@ namespace half_float
 	using detail::erfc;
 	using detail::lgamma;
 	using detail::tgamma;
+	using detail::nearbyint;
+	using detail::rint;
+	using detail::lrint;
+	using detail::llrint;
+#if HALF_ENABLE_CPP11_CMATH
+	using detail::fmin;
+	using detail::fmax;
 	using detail::ceil;
 	using detail::floor;
 	using detail::trunc;
 	using detail::round;
 	using detail::lround;
 	using detail::llround;
-	using detail::nearbyint;
-	using detail::rint;
-	using detail::lrint;
-	using detail::llrint;
+#endif
 
 
 	/// Half-precision floating point type.
@@ -1642,7 +1679,7 @@ namespace half_float
 		{
 			return float_half_expr(std::fma(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z)));
 		}
-
+#if HALF_ENABLE_CPP11_CMATH
 		/// Minimum of half expressions.
 		/// \tparam X type of first expression
 		/// \tparam Y type of second expression
@@ -1664,7 +1701,7 @@ namespace half_float
 		{
 			return float_half_expr(std::fmax(static_cast<float>(x), static_cast<float>(y)));
 		}
-
+#endif
 		/// Positive difference.
 		/// \tparam X type of first expression
 		/// \tparam Y type of second expression
@@ -1933,7 +1970,7 @@ namespace half_float
 		{
 			return float_half_expr(std::tgamma(static_cast<float>(arg)));
 		}
-
+#if HALF_ENABLE_CPP11_CMATH
 		/// Nearest integer not less than half value.
 		/// \tparam E type of half expression
 		/// \param arg half expression to round
@@ -1987,7 +2024,7 @@ namespace half_float
 		{
 			return std::llround(static_cast<float>(arg));
 		}
-
+#endif
 		/// Nearest integer.
 		/// \tparam E type of half expression
 		/// \param arg half expression to round
