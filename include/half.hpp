@@ -51,16 +51,18 @@
 #endif
 
 //check C++11 library features
-#include <ciso646>
+#include <utility>
 #if defined(_LIBCPP_VERSION)								//libc++
-	#ifndef HALF_ENABLE_CPP11_CSTDINT
-		#define HALF_ENABLE_CPP11_CSTDINT 1
-	#endif
-	#ifndef HALF_ENABLE_CPP11_CMATH
-		#define HALF_ENABLE_CPP11_CMATH 1
-	#endif
-	#ifndef HALF_ENABLE_CPP11_HASH
-		#define HALF_ENABLE_CPP11_HASH 1
+	#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103
+		#ifndef HALF_ENABLE_CPP11_CSTDINT
+			#define HALF_ENABLE_CPP11_CSTDINT 1
+		#endif
+		#ifndef HALF_ENABLE_CPP11_CMATH
+			#define HALF_ENABLE_CPP11_CMATH 1
+		#endif
+		#ifndef HALF_ENABLE_CPP11_HASH
+			#define HALF_ENABLE_CPP11_HASH 1
+		#endif
 	#endif
 #elif defined(__GLIBCXX__)									//libstdc++
 	#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103

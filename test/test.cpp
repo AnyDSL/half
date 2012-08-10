@@ -47,27 +47,7 @@ bool comp(half a, half b)
 {
 	return (isnan(a) && isnan(b)) || a == b;
 }
-/*
-bool checkmodf(half arg)
-{
-	half h;
-	float f;
-	bool eq = comp(modf(arg, &h), static_cast<half>(std::modf(arg, &f)));
-	return eq && comp(h, static_cast<half>(f));
-}
 
-bool outmodf(half arg)
-{
-	half h;
-	float f, farg = static_cast<float>(arg);
-	std::cout << std::hex << *reinterpret_cast<std::uint32_t*>(&farg) << std::dec << std::endl;
-	float ff = std::modf(farg, &f);
-	half a = modf(arg, &h), b = static_cast<half>(ff);//std::modf(arg, &f));
-	bool eq = comp(a, b);
-	std::cout << "arg: " << farg << " eq: " << eq << " a: " << a << " b: " << b << " ff: " << ff << std::endl;
-	return eq && comp(h, static_cast<half>(f));
-}
-*/
 
 class half_test
 {
@@ -324,14 +304,7 @@ public:
 			static_cast<double>(b); return !isfinite(a) || !isfinite(b) || std::abs(c-static_cast<double>(
 			static_cast<half>(c)))<=std::ldexp(static_cast<double>(std::numeric_limits<half>::round_error()), 
 			ilogb(static_cast<half>(c))-std::numeric_limits<half>::digits+1); });
-/*
-		half hi, hf = modf(b2h(0xFC00), &hi);
-		std::cout << hi << " . " << hf << std::endl;
-		float fi, ff = std::modf(b2h(0xFC00), &fi);
-		std::cout << fi << " . " << ff << std::endl;
-		std::cout << comp(hf, static_cast<half>(ff)) << " - " << comp(hi, static_cast<half>(fi)) << std::endl;
-		std::cout << outmodf(b2h(0xFC00)) << std::endl;
-*/
+
 		bool passed = passed_ == tests_;
 		if(passed)
 			log_ << "ALL TESTS PASSED\n";
