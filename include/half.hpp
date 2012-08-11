@@ -499,7 +499,7 @@ namespace half_float
 		friend bool operator>(half, half);
 		friend bool operator<=(half, half);
 		friend bool operator>=(half, half);
-		friend half operator-(half h);
+		friend HALF_CONSTEXPR half operator-(half h);
 		friend half fabs(half);
 		friend half nanh(const char*);
 		friend half ceil(half);
