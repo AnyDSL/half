@@ -1368,8 +1368,8 @@ namespace half_float
 			if(R == std::round_to_nearest)
 				hbits += (((bits&0x7FFFFF)>>(shift_table[bits>>23]-1))|(((bits>>23)&0xFF)==102)) & 1 & ((hbits&0x7FFF)<0x7BFF);
 			else if(R == std::round_toward_infinity || R == std::round_toward_neg_infinity)
-				hbits += (((bits&0x7FFFFF&((static_cast<uint32>(1)<<(shift_table[bits>>23]))-1))!=0)|((((bits>>23)&0xFF)<=102)&(((bits>>23)&0xFF)!=0))) & 
-					((hbits&0x7C00)!=0x7C00) & ((bits>>31)^(R==std::round_toward_infinity));
+				hbits += (((bits&0x7FFFFF&((static_cast<uint32>(1)<<(shift_table[bits>>23]))-1))!=0)|((((bits>>23)&0xFF)<=102)&
+					(((bits>>23)&0xFF)!=0))) & ((hbits&0x7C00)!=0x7C00) & ((bits>>31)^(R==std::round_toward_infinity));
 			return hbits;
 		}
 /*
