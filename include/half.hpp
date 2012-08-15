@@ -321,13 +321,13 @@ namespace half_float
 		/// \tparam T destination type
 		/// \tparam U source type
 		/// \tparam R rounding mode to use
-		template<typename T,typename U,std::float_round_style R> struct half_caster
-		{
+		template<typename T,typename U,std::float_round_style R> struct half_caster;
+/*		{
 		#if HALF_ENABLE_CPP11_STATIC_ASSERT
 			static T cast(const U &arg);
 		#endif
 		};
-
+*/
 		/// Helper class for half casts specialized for casting to half.
 		/// \tparam U source type
 		/// \tparam R rounding mode to use
@@ -1689,7 +1689,7 @@ namespace half_float
 		{
 			return value;
 		}
-
+/*
 		#if HALF_ENABLE_CPP11_STATIC_ASSERT
 			/// Cast between unknown types.
 			/// This is just a no-op function to issue a compiler error when trying to cast between non-half types.
@@ -1700,7 +1700,7 @@ namespace half_float
 				static_assert(false, "unsupported half cast");
 			}
 		#endif
-
+*/
 		/// Cast to half.
 		/// \param arg value to cast
 		/// \return \a arg converted to half-precision (via single-precision)

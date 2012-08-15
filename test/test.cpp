@@ -293,21 +293,21 @@ public:
 		simple_test("round_to_nearest", [&rand32]() mutable -> bool { unsigned int passed = 0; for(unsigned int i=0; i<1e6; ++i) {
 			std::uint32_t u=rand32(); float f = *reinterpret_cast<float*>(&u); half a(f), b(nextafter(a, 
 			copysign(std::numeric_limits<half>::infinity(), a))), h = half_cast<half,std::round_to_nearest>(f);
-			float af(a), bf(b), hf(h); passed += (isnan(a) && isnan(b) && isnan(h)) || 
+			float af(a), bf(b), hf(h); passed += half_float::detail::isnan(f) || 
 			(std::abs(hf)>std::abs(f)&&comp(h, b)&&(std::abs(f-af)>=std::abs(bf-f)||isinf(h))) || 
 			(std::abs(hf)<=std::abs(f)&&comp(h, a)&&(std::abs(f-af)<std::abs(bf-f)||isinf(h))); } return passed == 1e6; });
 		simple_test("round_toward_zero", [&rand32]() mutable -> bool { unsigned int passed = 0; for(unsigned int i=0; i<1e6; ++i) {
 			std::uint32_t u=rand32(); float f = *reinterpret_cast<float*>(&u); half a(f), h = half_cast<half,std::round_toward_zero>(f);
-			float af(a), hf(h); passed += (isnan(a) && isnan(h)) || isinf(a) || af == hf; } return passed == 1e6; });
+			float af(a), hf(h); passed += half_float::detail::isnan(f) || isinf(a) || af == hf; } return passed == 1e6; });
 		simple_test("round_toward_infinity", [&rand32]() mutable -> bool { unsigned int passed = 0; for(unsigned int i=0; i<1e6; ++i) {
 			std::uint32_t u=rand32(); float f = *reinterpret_cast<float*>(&u); half a = half_cast<half,std::round_toward_zero>(f), 
 			b(nextafter(a, copysign(std::numeric_limits<half>::infinity(), a))), h = half_cast<half,std::round_toward_infinity>(f);
-			float af(a), bf(b), hf(h); passed += (isnan(a) && isnan(b) && isnan(h)) || (comp(h, a)&&(signbit(h)||hf==f)) || 
+			float hf(h); passed += half_float::detail::isnan(f) || (comp(h, a)&&(signbit(h)||hf==f)) || 
 			(comp(h, b)&&!signbit(h)&&hf>f); } return passed == 1e6; });
 		simple_test("round_toward_neg_infinity", [&rand32]() mutable -> bool { unsigned int passed = 0; for(unsigned int i=0; i<1e6; ++i) {
 			std::uint32_t u=rand32(); float f = *reinterpret_cast<float*>(&u); half a = half_cast<half,std::round_toward_zero>(f), 
 			b(nextafter(a, copysign(std::numeric_limits<half>::infinity(), a))), h = half_cast<half,std::round_toward_neg_infinity>(f);
-			float af(a), bf(b), hf(h); passed += (isnan(a) && isnan(b) && isnan(h)) || (comp(h, a)&&(!signbit(h)||hf==f)) || 
+			float hf(h); passed += half_float::detail::isnan(f) || (comp(h, a)&&(!signbit(h)||hf==f)) || 
 			(comp(h, b)&&signbit(h)&&hf<f); } return passed == 1e6; });
 
 		//test casting
