@@ -1418,10 +1418,15 @@ namespace half_float
 			std::memcpy(&bits, &value, sizeof(float));
 			uint16 hbits = base_table[bits>>23] + ((bits&0x7FFFFF)>>shift_table[bits>>23]);
 			if(R == std::round_to_nearest)
-				hbits += (((bits&0x7FFFFF)>>(shift_table[bits>>23]-1))|(((bits>>23)&0xFF)==102)) & 1 & ((hbits&0x7FFF)<0x7BFF);
-			else if(R == std::round_toward_infinity || R == std::round_toward_neg_infinity)
-				hbits += (((bits&0x7FFFFF&((static_cast<uint32>(1)<<(shift_table[bits>>23]))-1))!=0)|((((bits>>23)&0xFF)<=102)&
-					(((bits>>23)&0xFF)!=0))) & ((hbits&0x7C00)!=0x7C00) & ((bits>>31)^(R==std::round_toward_infinity));
+				hbits += (((bits&0x7FFFFF)>>(shift_table[bits>>23]-1))|(((bits>>23)&0xFF)==102)) & 1 & ((hbits&0x7C00)!=0x7C00);
+			else if(R == std::round_toward_zero)
+				hbits -= ((hbits&0x7FFF)==0x7C00) & (shift_table[bits>>23]!=13);
+			else if(R == std::round_toward_infinity)
+				hbits += ((((bits&0x7FFFFF&((static_cast<uint32>(1)<<(shift_table[bits>>23]))-1))!=0)|(((bits>>23)<=102)&
+					((bits>>23)!=0)))&(hbits<0x7C00)) - ((hbits==0xFC00)&((bits>>23)!=511));
+			else if(R == std::round_toward_neg_infinity)
+				hbits += ((((bits&0x7FFFFF&((static_cast<uint32>(1)<<(shift_table[bits>>23]))-1))!=0)|(((bits>>23)<=358)&
+					((bits>>23)!=256)))&(hbits<0xFC00)&(hbits>>15)) - ((hbits==0x7C00)&((bits>>23)!=255));
 			return hbits;
 		}
 /*
