@@ -507,6 +507,7 @@ int main(int argc, char *argv[])
 	int i = rand();
 	half h = half_cast<half>(i);
 	unsigned int u = half_cast<unsigned int>(h);
+	half a = half_cast<half>(h), b = half_cast<half>(h+a);
 
 	std::unique_ptr<std::ostream> file;
 	if(argc > 1)

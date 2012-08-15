@@ -317,22 +317,48 @@ namespace half_float
 			float value;
 		};
 
-		template<typename T,typename U,std::float_round_style R> struct half_caster;
+		/// Helper class for half casts.
+		/// \tparam T destination type
+		/// \tparam U source type
+		/// \tparam R rounding mode to use
+		template<typename T,typename U,std::float_round_style R> struct half_caster
+		{
+		#if HALF_ENABLE_CPP11_STATIC_ASSERT
+			static T cast(const U &arg);
+		#endif
+		};
 
+		/// Helper class for half casts specialized for casting to half.
+		/// \tparam U source type
+		/// \tparam R rounding mode to use
 		template<typename U,std::float_round_style R> struct half_caster<half,U,R>
 		{
 			static half cast(const U &arg);
 		};
 
+		/// Helper class for half casts specialized for casting from half.
+		/// \tparam T destination type
+		/// \tparam R rounding mode to use
 		template<typename T,std::float_round_style R> struct half_caster<T,half,R>
 		{
-			static T cast(half arg);
+			template<typename E> static T cast(const half_expr<E> &arg);
 		};
 
-		template<typename T,std::float_round_style R> struct half_caster<T,float_half_expr,R>
+		/// Helper class for half casts specialized for casting from half-precision expressions.
+		/// \tparam T destination type
+		/// \tparam R rounding mode to use
+		template<typename T,std::float_round_style R> struct half_caster<T,float_half_expr,R> : public half_caster<T,half,R> {};
+
+		/// Helper class for half casts specialized for casting between halfs.
+		/// \tparam R rounding mode to use
+		template<std::float_round_style R> struct half_caster<half,half,R>
 		{
-			static T cast(float_half_expr arg);
+			template<typename E> static half cast(const half_expr<E> &arg);
 		};
+
+		/// Helper class for half casts specialized for casting half-precision expressions to halfs.
+		/// \tparam R rounding mode to use
+		template<std::float_round_style R> struct half_caster<half,float_half_expr,R> : public half_caster<half,half,R> {};
 
 		/// \name Classification helpers
 		/// \{
@@ -1247,11 +1273,37 @@ namespace half_float
 		return isnan(x) || isnan(y);
 	}
 
+	/// Cast to or from half-precision floating point number.
+	/// This casts between [half](\ref half_float::half) and any type convertible to/from `float` via an explicit cast of this 
+	/// type to/from `float`. It uses the fastest rounding possible when performing a float-to-half conversion (if any) and is 
+	/// thus equivalent to half_cast<T,std::round_indeterminate,U>() or a simple `static_cast`, but suppressing any possible 
+	/// warnings due to an otherwise implicit conversion to/from `float`.
+	///
+	/// Using this cast with neither of the two types being a [half](\ref half_float::half) results in a compiler error and 
+	/// casting between [half](\ref half_float::half)s is just a no-op.
+	/// \tparam T destination type
+	/// \tparam U source type
+	/// \param arg value to cast
+	/// \return \a arg converted to destination type
 	template<typename T,typename U> T half_cast(const U &arg)
 	{
 		return detail::half_caster<T,U,std::round_indeterminate>::cast(arg);
 	}
 
+	/// Cast to or from half-precision floating point number with specified rounding.
+	/// This casts between [half](\ref half_float::half) and any type convertible to/from `float` via an explicit cast of this 
+	/// type to/from `float`. The rounding mode used for the internal float-to-half conversion (if any) can be specified 
+	/// explicitly, or chosen to be the fastest possible rounding using `std::round_indeterminate`, which would be equivalent 
+	/// to half_cast<T,U>() or a simple `static_cast`, but suppressing any possible warnings due to an otherwise implicit 
+	/// conversion to/from `float`.
+	///
+	/// Using this cast with neither of the two types being a [half](\ref half_float::half) results in a compiler error and 
+	/// casting between [half](\ref half_float::half)s is just a no-op.
+	/// \tparam T destination type
+	/// \tparam R rounding mode to use
+	/// \tparam U source type
+	/// \param arg value to cast
+	/// \return \a arg converted to destination type
 	template<typename T,std::float_round_style R,typename U> T half_cast(const U &arg)
 	{
 		return detail::half_caster<T,U,R>::cast(arg);
@@ -1633,19 +1685,39 @@ namespace half_float
 			return value;
 		}
 
+		#if HALF_ENABLE_CPP11_STATIC_ASSERT
+			/// Cast between unknown types.
+			/// This is just a no-op function to issue a compiler error when trying to cast between non-half types.
+			/// \param arg value to cast
+			/// \return nothing
+			template<typename T,typename U,std::float_round_style R> T half_caster<T,U,R>::cast(const U &arg)
+			{
+				static_assert(false, "unsupported half cast");
+			}
+		#endif
+
+		/// Cast to half.
+		/// \param arg value to cast
+		/// \return \a arg converted to half-precision (via single-precision)
 		template<typename U,std::float_round_style R> half half_caster<half,U,R>::cast(const U &arg)
 		{
 			return half(float2half<R>(static_cast<float>(arg)), true);
 		}
 
-		template<typename T,std::float_round_style R> T half_caster<T,half,R>::cast(half arg)
+		/// Cast from half.
+		/// \param arg expression to cast
+		/// \return \a arg converted to destination type (via single-precision)
+		template<typename T,std::float_round_style R> template<typename E> T half_caster<T,half,R>::cast(const half_expr<E> &arg)
 		{
 			return static_cast<T>(static_cast<float>(arg));
 		}
 
-		template<typename T,std::float_round_style R> T half_caster<T,float_half_expr,R>::cast(float_half_expr arg)
+		/// Cast between halfs.
+		/// \param arg expression to cast
+		/// \return unchanged value
+		template<std::float_round_style R> template<typename E> half half_caster<half,half,R>::cast(const half_expr<E> &arg)
 		{
-			return static_cast<T>(static_cast<float>(arg));
+			return arg;
 		}
 
 		/// Add halfs.

@@ -83,6 +83,12 @@ The [half](\ref half_float::half) is explicitly constructible/convertible from a
 
 In contrast to the float-to-half conversion, which reduces precision, the conversion from [half](\ref half_float::half) to `float` (and thus to any other type implicitly convertible to `float`) is implicit, because all values represetable with half-precision are also representable with single-precision. This way the half-to-float conversion behaves similar to the builtin float-to-double conversion and all arithmetic expressions involving both half-precision and single-precision arguments will be of single-precision type. This way you can also directly use the mathematical functions of the C++ standard library, though in this case you will invoke the single-precision versions which will also return single-precision values, which is (even if maybe performing the exact same computation, see below) not as conceptually clean when working in a half-precision environment.
 
+For performance reasons the conversion from `float` to [half](\ref half_float::half) uses truncation (round toward zero) for rounding values not representable exactly in half-precision. If you are in need for other rounding behaviour (though this should rarely be the case), you can use the half_cast(). In addition to performning an explicit cast between [half](\ref half_float::half) and any other type convertible to/from `float` via an explicit cast to/from `float` (and thus without any warnings due to possible precision-loss), it let's you explicitly specify the rounding mode to use for the float-to-half conversion. You can even synchronize it with the bultin single-precision implementation's rounding mode:
+
+~~~~{.cpp}
+half a = half_float::half_cast<half,std::numeric_limits<float>::round_style>(4.2);
+~~~~
+
 You may also specificy explicit half-precision literals, since the library provides a user-defined literal inside the half_float::literal namespace, which you just need to import (assuming support for C++11 user-defined literals):
 
 ~~~~{.cpp}
@@ -121,7 +127,7 @@ The [half](\ref half_float::half) type uses the standard IEEE representation wit
 -	Because of this truncation it may also be that certain single-precision NaNs will be wrongly converted to half-precision infinity, though this is very unlikely to happen, since most single-precision implementations don't tend to only set the lowest bits of a NaN mantissa.
 -	The implementation does not provide any floating point exceptions, thus arithmetic operations or mathematical functions are not specified to invoke proper floating point exceptions. But due to many functions implemented in single-precision, those may still invoke floating point exceptions of the underlying single-precision implementation.
 
-Some of those points could have been circumvented by controlling the floating point environment using `<cfenv>` or implementing a similar exception mechanism. But this would have required excessive runtime checks giving two high an impact on performance for something that is rarely ever needed. If you really need to rely on proper floating point exceptions, it is recommended to explicitly perform computations using the builtin floating point types to be on the safe side.
+Some of those points could have been circumvented by controlling the floating point environment using `<cfenv>` or implementing a similar exception mechanism. But this would have required excessive runtime checks giving two high an impact on performance for something that is rarely ever needed. If you really need to rely on proper floating point exceptions, it is recommended to explicitly perform computations using the builtin floating point types to be on the safe side. In the same way, if you really need to rely on a particular rounding behaviour other than round-toward-zero, it is recommended to use single-precision computations and explicitly convert the result to half-precision using half_cast() and specifying the required rounding mode. But those are really considered expert-scenarios rarely encountered in practice, since actually working with half-precision usually comes with a certain tolerance/ignorance of exactness considerations.
 
 --------------------------------------------------------------------------------
 

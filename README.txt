@@ -116,6 +116,18 @@ also return single-precision values, which is (even if maybe performing the
 exact same computation, see below) not as conceptually clean when working in a 
 half-precision environment.
 
+For performance reasons the conversion from float to half uses truncation 
+(round toward zero) for rounding values not representable exactly in 
+half-precision. If you are in need for other rounding behaviour (though this 
+should rarely be the case), you can use the 'half_cast'. In addition to 
+performning an explicit cast between half and any other type convertible 
+to/from float via an explicit cast to/from float (and thus without any warnings 
+due to possible precision-loss), it let's you explicitly specify the rounding 
+mode to use for the float-to-half conversion. You can even synchronize it with 
+the bultin single-precision implementation's rounding mode:
+
+	half a = half_float::half_cast<half,std::numeric_limits<float>::round_style>(4.2);
+
 You may also specify explicit half-precision literals, since the library 
 provides a user-defined literal inside the 'half_float::literal' namespace, 
 which you just need to import (assuming support for C++11 user-defined literals):
@@ -206,7 +218,13 @@ But this would have required excessive runtime checks giving two high an impact
 on performance for something that is rarely ever needed. If you really need to 
 rely on proper floating point exceptions, it is recommended to explicitly 
 perform computations using the builtin floating point types to be on the safe 
-side.
+side. In the same way, if you really need to rely on a particular rounding 
+behaviour other than round-toward-zero, it is recommended to use 
+single-precision computations and explicitly convert the result to 
+half-precision using 'half_cast' and specifying the required rounding mode. But 
+those are really considered expert-scenarios rarely encountered in practice, 
+since actually working with half-precision usually comes with a certain 
+tolerance/ignorance of exactness considerations.
 
 
 CREDITS AND CONTACT
