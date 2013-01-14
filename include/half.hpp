@@ -360,7 +360,7 @@ namespace half_float
 			static bool isunordered(half x, half y);
 		#if HALF_ENABLE_CPP11_CMATH
 			static float_expr remainder(float x, float y);
-			static float_expr remquo(float x, float y);
+			static float_expr remquo(float x, float y, int *quo);
 			static float_expr hypot(float x, float y);
 		#endif
 		};
@@ -550,7 +550,7 @@ namespace half_float
 		template<typename T> typename unary_result<function::fabs,T>::type fabs(T arg);
 		template<typename T,typename U> typename binary_result<function::fmod,T,U>::type fmod(T x, U y);
 		template<typename T,typename U> typename binary_result<function::remainder,T,U>::type remainder(T x, U y);
-		template<typename T,typename U> typename binary_result<function::remquo,T,U>::type remquo(T x, U y);
+		template<typename T,typename U> typename binary_result<function::remquo,T,U>::type remquo(T x, U y, int *quo);
 		template<typename T,typename U,typename V> typename ternary_result<function::fma,T,U,V>::type fma(T x, U y, V z);
 		template<typename T,typename U> typename binary_result<function::fmax,T,U>::type fmax(T x, U y);
 		template<typename T,typename U> typename binary_result<function::fmin,T,U>::type fmin(T x, U y);
@@ -604,8 +604,8 @@ namespace half_float
 		template<typename T> typename unary_result<function::frexp,T>::type frexp(T arg, int *exp);
 		template<typename T> typename unary_result<function::scalbln,T>::type ldexp(T arg, int exp);
 		template<typename T> typename unary_result<function::modf,T>::type modf(T arg, half *iptr);
-		template<typename T> typename unary_result<function::scalbln,T>::type scalbn(T arg, long exp);
-		template<typename T> typename unary_result<function::scalbln,T>::type scalbln(T arg, long long exp);
+		template<typename T> typename unary_result<function::scalbln,T>::type scalbn(T arg, int exp);
+		template<typename T> typename unary_result<function::scalbln,T>::type scalbln(T arg, long exp);
 		template<typename T> typename unary_enable<T,int>::type ilogb(T arg);
 		template<typename T> typename unary_result<function::logb,T>::type logb(T arg);
 		template<typename T,typename U> typename binary_result<function::nextafter,T,U>::type nextafter(T from, U to);
@@ -1763,13 +1763,13 @@ namespace half_float
 		template<typename T> typename unary_result<function::negate,T>::type operator-(T arg) { return functions<T>::negate(arg); }
 
 		template<typename T,typename charT,typename traits> typename unary_enable<T,std::basic_ostream<charT,traits>&>::type operator<<(std::basic_ostream<charT,traits> &out, T arg) { return functions<T>::write(out, arg); }
-		template<typename charT,typename traits> std::basic_istream<charT,traits>& operator>>(std::basic_istream<charT,traits> &in, half &arg) { return functions<>::read(out, arg); }
+		template<typename charT,typename traits> std::basic_istream<charT,traits>& operator>>(std::basic_istream<charT,traits> &in, half &arg) { return functions<>::read(in, arg); }
 
 		template<typename T> typename unary_result<function::fabs,T>::type abs(T arg) { return functions<T>::fabs(arg); }
 		template<typename T> typename unary_result<function::fabs,T>::type fabs(T arg) { return functions<T>::fabs(arg); }
 		template<typename T,typename U> typename binary_result<function::fmod,T,U>::type fmod(T x, U y) { return functions<T,U>::fmod(x, y); }
 		template<typename T,typename U> typename binary_result<function::remainder,T,U>::type remainder(T x, U y) { return functions<T,U>::remainder(x, y); }
-		template<typename T,typename U> typename binary_result<function::remquo,T,U>::type remquo(T x, U y) { return functions<T,U>::remquo(x, y); }
+		template<typename T,typename U> typename binary_result<function::remquo,T,U>::type remquo(T x, U y, int *quo) { return functions<T,U>::remquo(x, y, quo); }
 		template<typename T,typename U,typename V> typename ternary_result<function::fma,T,U,V>::type fma(T x, U y, V z) { return functions<T,U,V>::fma(x, y, z); }
 		template<typename T,typename U> typename binary_result<function::fmax,T,U>::type fmax(T x, U y) { return functions<T,U>::fmax(x, y); }
 		template<typename T,typename U> typename binary_result<function::fmin,T,U>::type fmin(T x, U y) { return functions<T,U>::fmin(x, y); }
@@ -1823,8 +1823,8 @@ namespace half_float
 		template<typename T> typename unary_result<function::frexp,T>::type frexp(T arg, int *exp) { return functions<T>::frexp(arg, exp); }
 		template<typename T> typename unary_result<function::scalbln,T>::type ldexp(T arg, int exp) { return functions<T>::scalbln(arg, exp); }
 		template<typename T> typename unary_result<function::modf,T>::type modf(T arg, half *iptr) { return functions<T>::modf(arg, iptr); }
-		template<typename T> typename unary_result<function::scalbln,T>::type scalbn(T arg, long exp) { return functions<T>::scalbln(arg, exp); }
-		template<typename T> typename unary_result<function::scalbln,T>::type scalbln(T arg, long long exp) { return functions<T>::scalbln(arg, exp); }
+		template<typename T> typename unary_result<function::scalbln,T>::type scalbn(T arg, int exp) { return functions<T>::scalbln(arg, exp); }
+		template<typename T> typename unary_result<function::scalbln,T>::type scalbln(T arg, long exp) { return functions<T>::scalbln(arg, exp); }
 		template<typename T> typename unary_enable<T,int>::type ilogb(T arg) { return functions<T>::ilogb(arg); }
 		template<typename T> typename unary_result<function::logb,T>::type logb(T arg) { return functions<T>::logb(arg); }
 		template<typename T,typename U> typename binary_result<function::nextafter,T,U>::type nextafter(T from, U to) { return functions<T,U>::nextafter(from, to); }
