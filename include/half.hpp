@@ -127,6 +127,14 @@
 #endif
 #undef HALF_GNUC_VERSION
 
+//C++11 cmath functions always need long long
+#if HALF_ENABLE_CPP11_CMATH
+	#ifdef HALF_ENABLE_CPP11_LONG_LONG
+		#undef HALF_ENABLE_CPP11_LONG_LONG
+	#endif
+	#define HALF_ENABLE_CPP11_LONG_LONG 1
+#endif
+
 //support constexpr
 #if HALF_ENABLE_CPP11_CONSTEXPR
 	#define HALF_CONSTEXPR			constexpr
@@ -198,21 +206,6 @@
 /// This namespace contains all the functionality provided by the library.
 namespace half_float
 {
-	class half;
-
-#if HALF_ENABLE_CPP11_USER_LITERALS
-	/// Library-defined half-precision literals.
-	/// Import this namespace to enable half-precision floating point literals:
-	/// ~~~~{.cpp}
-	/// using namespace half_float::literal;
-	/// half_float::half = 4.2_h;
-	/// ~~~~
-	namespace literal
-	{
-		half operator "" _h(long double d);
-	}
-#endif
-
 	/// \internal
 	/// \brief Implementation details.
 	namespace detail
@@ -231,9 +224,7 @@ namespace half_float
 		typedef unsigned short uint16;
 
 		/// Conditional type.
-		template<bool B,typename T,typename F> struct conditional { typedef T type; };
-
-		/// Conditional type.
+		template<bool,typename T,typename> struct conditional { typedef T type; };
 		template<typename T,typename F> struct conditional<false,T,F> { typedef F type; };
 
 		/// Unsigned integer of (at least) 32 bits width.
@@ -253,7 +244,7 @@ namespace half_float
 		{
 			/// Conversion to single-precision.
 			/// \return single precision value representing expression value
-			operator float() const { return static_cast<float>(*static_cast<const E*>(this)); }
+			HALF_CONSTEXPR operator float() const { return static_cast<float>(*static_cast<const E*>(this)); }
 		};
 
 		/// Temporary half expression with internal float.
@@ -262,701 +253,19 @@ namespace half_float
 		{
 			/// Conversion constructor.
 			/// \param f single-precision value to convert
-			explicit float_expr(float f) : value(f) {}
+			explicit HALF_CONSTEXPR float_expr(float f) : value(f) {}
 
 			/// Conversion to single-precision.
 			/// \return single precision value representing expression value
-			operator float() const { return value; }
+			HALF_CONSTEXPR operator float() const { return value; }
 
 			/// Internal expression value stored in single-precision.
 			float value;
 		};
 
-		struct functions
-		{
-			static float_expr plus(float x, float y);
-			static float_expr minus(float x, float y);
-			static float_expr multiplies(float x, float y);
-			static float_expr divides(float x, float y);
-			template<typename charT,typename traits> static std::basic_ostream<charT,traits>& 
-				write(std::basic_ostream<charT,traits> &out, float arg);
-			template<typename charT,typename traits> static std::basic_istream<charT,traits>& 
-				read(std::basic_istream<charT,traits> &in, half &h);
-			static float_expr fmod(float x, float y);
-			static float_expr fdim(float x, float y);
-			static float_expr fma(float x, float y, float z);
-			static half nanh(const char *arg);
-			static float_expr exp(float arg);
-			static float_expr log(float arg);
-			static float_expr log10(float arg);
-			static float_expr sqrt(float arg);
-			static float_expr pow(float base, float exp);
-			static float_expr sin(float arg);
-			static float_expr cos(float arg);
-			static float_expr tan(float arg);
-			static float_expr asin(float arg);
-			static float_expr acos(float arg);
-			static float_expr atan(float arg);
-			static float_expr atan2(float x, float y);
-			static float_expr sinh(float arg);
-			static float_expr cosh(float arg);
-			static float_expr tanh(float arg);
-			static half floor(half arg);
-			static half ceil(half arg);
-			static half trunc(half arg);
-			static half round(half arg);
-			static long lround(half arg);
-			static long long llround(half arg);
-			static half frexp(half arg, int *exp);
-			static half modf(half x, half *iptr);
-			static half scalbln(half x, long exp);
-			static int ilogb(half arg);
-			static half logb(half arg);
-			static half nextafter(half from, half to);
-			static half nexttoward(half from, long double to);
-			static half copysign(half x, half y);
-			static int fpclassify(half arg);
-			static bool isfinite(half arg);
-			static bool isinf(half arg);
-			static bool isnan(half arg);
-			static bool isnormal(half arg);
-			static bool signbit(half arg);
-			static bool isequal(half x, half y);
-			static bool isnotequal(half x, half y);
-			static bool isgreater(half x, half y);
-			static bool isgreaterequal(half x, half y);
-			static bool isless(half x, half y);
-			static bool islessequal(half x, half y);
-			static bool islessgreater(half x, half y);
-			static bool isunordered(half x, half y);
-		#if HALF_ENABLE_CPP11_CMATH
-			static float_expr remainder(float x, float y);
-			static float_expr remquo(float x, float y, int *quo);
-			static float_expr exp2(float arg);
-			static float_expr expm1(float arg);
-			static float_expr log1p(float arg);
-			static float_expr log2(float arg);
-			static float_expr cbrt(float arg);
-			static float_expr hypot(float x, float y);
-			static float_expr asinh(float arg);
-			static float_expr acosh(float arg);
-			static float_expr atanh(float arg);
-			static float_expr erf(float arg);
-			static float_expr erfc(float arg);
-			static float_expr lgamma(float arg);
-			static float_expr tgamma(float arg);
-			static float_expr nearbyint(float arg);
-			static float_expr rint(float arg);
-			static long lrint(float arg);
-			static long long llrint(float arg);
-		#endif
-		};
-
-		template<typename T> struct unary_specialized {};
-
-		template<> struct unary_specialized<half>
-		{
-			static half negate(half arg);
-			static half fabs(half arg);
-		};
-
-		template<> struct unary_specialized<float_expr>
-		{
-			static float_expr negate(float arg);
-			static float_expr fabs(float arg);
-		};
-
-		template<typename T,typename U> struct binary_specialized
-		{
-			static float_expr fmin(float x, float y);
-			static float_expr fmax(float x, float y);
-		};
-
-		template<> struct binary_specialized<half,half>
-		{
-			static half fmin(half x, half y);
-			static half fmax(half x, half y);
-		};
-
-		template<typename T,typename=void,typename=void,typename=void> struct enable {};
-		template<typename T> struct enable<T,half,void,void> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,void,void> { typedef T type; };
-		template<typename T> struct enable<T,half,half,void> { typedef T type; };
-		template<typename T> struct enable<T,half,float_expr,void> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,half,void> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,float_expr,void> { typedef T type; };
-		template<typename T> struct enable<T,half,half,half> { typedef T type; };
-		template<typename T> struct enable<T,half,half,float_expr> { typedef T type; };
-		template<typename T> struct enable<T,half,float_expr,half> { typedef T type; };
-		template<typename T> struct enable<T,half,float_expr,float_expr> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,half,half> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,half,float_expr> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,float_expr,half> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,float_expr,float_expr> { typedef T type; };
-
-		namespace function
-		{
-			enum type
-			{
-				identity, negate, plus, minus, multiplies, divides, write, read,
-				fabs, fmod, remainder, remquo, fma, fmin, fmax, fdim,
-				exp, log, log10, exp2, expm1, log1p, log2,
-				sqrt, cbrt, hypot, pow,
-				sin, cos, tan, asin, acos, atan, atan2,
-				sinh, cosh, tanh, asinh, acosh, atanh,
-				erf, erfc, lgamma, tgamma,
-				floor, ceil, trunc, round, lround, llround, nearbyint, rint, lrint, llrint,
-				frexp, modf, scalbln, ilogb, logb, nextafter, nexttoward, copysign,
-				fpclassify, isfinite, isinf, isnan, isnormal, signbit,
-				isequal, isnotequal, isgreater, isgreaterequal, isless, islessequal, islessgreater, isunordered
-			};
-		}
-
-		template<typename,typename> struct unary_enable {};
-		template<typename T> struct unary_enable<half,T> { typedef T type; };
-		template<typename T> struct unary_enable<float_expr,T> { typedef T type; };
-
-		template<function::type,typename> struct unary_result {};
-		template<> struct unary_result<function::negate,half> : unary_enable<half,half> {};
-		template<> struct unary_result<function::negate,float_expr> : unary_enable<float_expr,float_expr> {};
-		template<> struct unary_result<function::fabs,half> : unary_enable<half,half> {};
-		template<> struct unary_result<function::fabs,float_expr> : unary_enable<float_expr,float_expr> {};
-		template<typename T> struct unary_result<function::exp,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::log,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::log10,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::sqrt,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::sin,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::cos,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::tan,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::asin,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::acos,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::atan,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::sinh,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::cosh,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::tanh,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::floor,T> : unary_enable<T,half> {};
-		template<typename T> struct unary_result<function::ceil,T> : unary_enable<T,half> {};
-		template<typename T> struct unary_result<function::trunc,T> : unary_enable<T,half> {};
-		template<typename T> struct unary_result<function::round,T> : unary_enable<T,half> {};
-		template<typename T> struct unary_result<function::frexp,T> : unary_enable<T,half> {};
-		template<typename T> struct unary_result<function::modf,T> : unary_enable<T,half> {};
-		template<typename T> struct unary_result<function::scalbln,T> : unary_enable<T,half> {};
-		template<typename T> struct unary_result<function::logb,T> : unary_enable<T,half> {};
-		template<typename T> struct unary_result<function::nexttoward,T> : unary_enable<T,half> {};
-	#if HALF_ENABLE_CPP11_CMATH
-		template<typename T> struct unary_result<function::exp2,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::expm1,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::log1p,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::log2,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::cbrt,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::asinh,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::acosh,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::atanh,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::erf,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::erfc,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::lgamma,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::tgamma,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::nearbyint,T> : unary_enable<T,float_expr> {};
-		template<typename T> struct unary_result<function::rint,T> : unary_enable<T,float_expr> {};
-	#endif
-
-		template<typename,typename,typename> struct binary_enable {};
-		template<typename T> struct binary_enable<half,half,T> { typedef T type; };
-		template<typename T> struct binary_enable<half,float_expr,T> { typedef T type; };
-		template<typename T> struct binary_enable<float_expr,half,T> { typedef T type; };
-		template<typename T> struct binary_enable<float_expr,float_expr,T> { typedef T type; };
-
-		template<function::type,typename,typename> struct binary_result {};
-		template<typename T,typename U> struct binary_result<function::plus,T,U> : binary_enable<T,U,float_expr> {};
-		template<typename T,typename U> struct binary_result<function::minus,T,U> : binary_enable<T,U,float_expr> {};
-		template<typename T,typename U> struct binary_result<function::multiplies,T,U> : binary_enable<T,U,float_expr> {};
-		template<typename T,typename U> struct binary_result<function::divides,T,U> : binary_enable<T,U,float_expr> {};
-		template<typename T,typename U> struct binary_result<function::fmin,T,U> : binary_enable<T,U,half> {};
-		template<typename T,typename U> struct binary_result<function::fmax,T,U> : binary_enable<T,U,half> {};
-		template<typename T,typename U> struct binary_result<function::fmod,T,U> : binary_enable<T,U,float_expr> {};
-		template<typename T,typename U> struct binary_result<function::fdim,T,U> : binary_enable<T,U,float_expr> {};
-		template<typename T,typename U> struct binary_result<function::pow,T,U> : binary_enable<T,U,float_expr> {};
-		template<typename T,typename U> struct binary_result<function::atan2,T,U> : binary_enable<T,U,float_expr> {};
-		template<typename T,typename U> struct binary_result<function::nextafter,T,U> : binary_enable<T,U,half> {};
-		template<typename T,typename U> struct binary_result<function::copysign,T,U> : binary_enable<T,U,half> {};
-	#if HALF_ENABLE_CPP11_CMATH
-		template<typename T,typename U> struct binary_result<function::remainder,T,U> : binary_enable<T,U,float_expr> {};
-		template<typename T,typename U> struct binary_result<function::remquo,T,U> : binary_enable<T,U,float_expr> {};
-		template<typename T,typename U> struct binary_result<function::hypot,T,U> : binary_enable<T,U,float_expr> {};
-	#endif
-
-		template<typename,typename,typename,typename> struct ternary_enable {};
-		template<typename T> struct ternary_enable<half,half,half,T> { typedef T type; };
-		template<typename T> struct ternary_enable<half,half,float_expr,T> { typedef T type; };
-		template<typename T> struct ternary_enable<half,float_expr,half,T> { typedef T type; };
-		template<typename T> struct ternary_enable<half,float_expr,float_expr,T> { typedef T type; };
-		template<typename T> struct ternary_enable<float_expr,half,half,T> { typedef T type; };
-		template<typename T> struct ternary_enable<float_expr,half,float_expr,T> { typedef T type; };
-		template<typename T> struct ternary_enable<float_expr,float_expr,half,T> { typedef T type; };
-		template<typename T> struct ternary_enable<float_expr,float_expr,float_expr,T> { typedef T type; };
-
-		template<function::type,typename,typename,typename> struct ternary_result {};
-		template<typename T,typename U,typename V> struct ternary_result<function::fma,T,U,V> : ternary_enable<T,U,V,float_expr> {};
-
-		/// Helper class for half casts.
-		/// \tparam T destination type
-		/// \tparam U source type
-		/// \tparam R rounding mode to use
-		template<typename T,typename U,std::float_round_style R> struct half_caster;
-
-		/// Helper class for half casts specialized for casting to half.
-		/// \tparam U source type
-		/// \tparam R rounding mode to use
-		template<typename U,std::float_round_style R> struct half_caster<half,U,R>
-		{
-			static half cast(const U &arg);
-		};
-
-		/// Helper class for half casts specialized for casting from half.
-		/// \tparam T destination type
-		/// \tparam R rounding mode to use
-		template<typename T,std::float_round_style R> struct half_caster<T,half,R>
-		{
-			template<typename E> static T cast(const half_expr<E> &arg);
-		};
-
-		/// Helper class for half casts specialized for casting from half-precision expressions.
-		/// \tparam T destination type
-		/// \tparam R rounding mode to use
-		template<typename T,std::float_round_style R> struct half_caster<T,float_expr,R> : public half_caster<T,half,R> {};
-
-		/// Helper class for half casts specialized for casting between halfs.
-		/// \tparam R rounding mode to use
-		template<std::float_round_style R> struct half_caster<half,half,R>
-		{
-			template<typename E> static half cast(const half_expr<E> &arg);
-		};
-
-		/// Helper class for half casts specialized for casting half-precision expressions to halfs.
-		/// \tparam R rounding mode to use
-		template<std::float_round_style R> struct half_caster<half,float_expr,R> : public half_caster<half,half,R> {};
-
 		/// \name Classification helpers
 		/// \{
-		template<typename T> bool builtin_isnan(T arg);
-		template<typename T> bool builtin_isinf(T arg);
-		template<typename T> bool builtin_signbit(T arg);
-		/// \}
 
-		/// \name Conversion
-		/// \{
-		template<std::float_round_style R> uint16 float2half(float value);
-		float half2float(uint16 value);
-		template<typename T,std::float_round_style R> T half2int(uint16 value);
-		/// \}
-
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type operator==(T x, U y);
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type operator!=(T x, U y);
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type operator<(T x, U y);
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type operator>(T x, U y);
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type operator<=(T x, U y);
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type operator>=(T x, U y);
-
-		template<typename T,typename U> typename binary_result<function::plus,T,U>::type operator+(T x, U y);
-		template<typename T,typename U> typename binary_result<function::minus,T,U>::type operator-(T x, U y);
-		template<typename T,typename U> typename binary_result<function::multiplies,T,U>::type operator*(T x, U y);
-		template<typename T,typename U> typename binary_result<function::divides,T,U>::type operator/(T x, U y);
-		template<typename T> typename unary_enable<T,T>::type operator+(T arg);
-		template<typename T> typename unary_result<function::negate,T>::type operator-(T arg);
-
-		template<typename T,typename charT,typename traits> typename unary_enable<T,std::basic_ostream<charT,traits>&>::type operator<<(std::basic_ostream<charT,traits> &out, T arg);
-		template<typename charT,typename traits> std::basic_istream<charT,traits>& operator>>(std::basic_istream<charT,traits> &in, half &arg);
-
-		template<typename T> typename unary_result<function::fabs,T>::type abs(T arg);
-		template<typename T> typename unary_result<function::fabs,T>::type fabs(T arg);
-		template<typename T,typename U> typename binary_result<function::fmod,T,U>::type fmod(T x, U y);
-		template<typename T,typename U> typename binary_result<function::remainder,T,U>::type remainder(T x, U y);
-		template<typename T,typename U> typename binary_result<function::remquo,T,U>::type remquo(T x, U y, int *quo);
-		template<typename T,typename U,typename V> typename ternary_result<function::fma,T,U,V>::type fma(T x, U y, V z);
-		template<typename T,typename U> typename binary_result<function::fmax,T,U>::type fmax(T x, U y);
-		template<typename T,typename U> typename binary_result<function::fmin,T,U>::type fmin(T x, U y);
-		template<typename T,typename U> typename binary_result<function::fdim,T,U>::type fdim(T x, U y);
-		half nanh(const char *arg);
-
-		template<typename T> typename unary_result<function::exp,T>::type exp(T arg);
-		template<typename T> typename unary_result<function::exp2,T>::type exp2(T arg);
-		template<typename T> typename unary_result<function::expm1,T>::type expm1(T arg);
-		template<typename T> typename unary_result<function::log,T>::type log(T arg);
-		template<typename T> typename unary_result<function::log10,T>::type log10(T arg);
-		template<typename T> typename unary_result<function::log1p,T>::type log1p(T arg);
-		template<typename T> typename unary_result<function::log2,T>::type log2(T arg);
-
-		template<typename T> typename unary_result<function::sqrt,T>::type sqrt(T arg);
-		template<typename T> typename unary_result<function::cbrt,T>::type cbrt(T arg);
-		template<typename T,typename U> typename binary_result<function::hypot,T,U>::type hypot(T x, U y);
-		template<typename T,typename U> typename binary_result<function::pow,T,U>::type pow(T base, U exp);
-
-		template<typename T> typename unary_result<function::sin,T>::type sin(T arg);
-		template<typename T> typename unary_result<function::cos,T>::type cos(T arg);
-		template<typename T> typename unary_result<function::tan,T>::type tan(T arg);
-		template<typename T> typename unary_result<function::asin,T>::type asin(T arg);
-		template<typename T> typename unary_result<function::acos,T>::type acos(T arg);
-		template<typename T> typename unary_result<function::atan,T>::type atan(T arg);
-		template<typename T,typename U> typename binary_result<function::atan2,T,U>::type atan2(T x, U y);
-
-		template<typename T> typename unary_result<function::sinh,T>::type sinh(T arg);
-		template<typename T> typename unary_result<function::cosh,T>::type cosh(T arg);
-		template<typename T> typename unary_result<function::tanh,T>::type tanh(T arg);
-		template<typename T> typename unary_result<function::asinh,T>::type asinh(T arg);
-		template<typename T> typename unary_result<function::acosh,T>::type acosh(T arg);
-		template<typename T> typename unary_result<function::atanh,T>::type atanh(T arg);
-
-		template<typename T> typename unary_result<function::erf,T>::type erf(T arg);
-		template<typename T> typename unary_result<function::erfc,T>::type erfc(T arg);
-		template<typename T> typename unary_result<function::lgamma,T>::type lgamma(T arg);
-		template<typename T> typename unary_result<function::tgamma,T>::type tgamma(T arg);
-
-		template<typename T> typename unary_result<function::ceil,T>::type ceil(T arg);
-		template<typename T> typename unary_result<function::floor,T>::type floor(T arg);
-		template<typename T> typename unary_result<function::trunc,T>::type trunc(T arg);
-		template<typename T> typename unary_result<function::round,T>::type round(T arg);
-		template<typename T> typename unary_enable<T,long>::type lround(T arg);
-		template<typename T> typename unary_enable<T,long long>::type llround(T arg);
-		template<typename T> typename unary_result<function::nearbyint,T>::type nearbyint(T arg);
-		template<typename T> typename unary_result<function::rint,T>::type rint(T arg);
-		template<typename T> typename unary_enable<T,long>::type lrint(T arg);
-		template<typename T> typename unary_enable<T,long long>::type llrint(T arg);
-
-		template<typename T> typename unary_result<function::frexp,T>::type frexp(T arg, int *exp);
-		template<typename T> typename unary_result<function::scalbln,T>::type ldexp(T arg, int exp);
-		template<typename T> typename unary_result<function::modf,T>::type modf(T arg, half *iptr);
-		template<typename T> typename unary_result<function::scalbln,T>::type scalbn(T arg, int exp);
-		template<typename T> typename unary_result<function::scalbln,T>::type scalbln(T arg, long exp);
-		template<typename T> typename unary_enable<T,int>::type ilogb(T arg);
-		template<typename T> typename unary_result<function::logb,T>::type logb(T arg);
-		template<typename T,typename U> typename binary_result<function::nextafter,T,U>::type nextafter(T from, U to);
-		template<typename T> typename unary_result<function::nexttoward,T>::type nexttoward(T from, long double to);
-		template<typename T,typename U> typename binary_result<function::copysign,T,U>::type copysign(T x, U y);
-
-		template<typename T> typename unary_enable<T,int>::type fpclassify(T arg);
-		template<typename T> typename unary_enable<T,bool>::type isfinite(T arg);
-		template<typename T> typename unary_enable<T,bool>::type isinf(T arg);
-		template<typename T> typename unary_enable<T,bool>::type isnan(T arg);
-		template<typename T> typename unary_enable<T,bool>::type isnormal(T arg);
-		template<typename T> typename unary_enable<T,bool>::type signbit(T arg);
-
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type isgreater(T x, U y);
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type isgreaterequal(T x, U y);
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type isless(T x, U y);
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type islessequal(T x, U y);
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type islessgreater(T x, U y);
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type isunordered(T x, U y);
-
-		/// \name Casting
-		/// \{
-		template<typename T,typename U> T half_cast(const U &arg);
-		template<typename T,std::float_round_style R,typename U> T half_cast(const U &arg);
-		/// \}
-	}
-
-	using detail::operator==;
-	using detail::operator!=;
-	using detail::operator<;
-	using detail::operator>;
-	using detail::operator<=;
-	using detail::operator>=;
-
-	using detail::operator+;
-	using detail::operator-;
-	using detail::operator*;
-	using detail::operator/;
-
-	using detail::operator<<;
-	using detail::operator>>;
-
-	using detail::abs;
-	using detail::fabs;
-	using detail::fmod;
-	using detail::remainder;
-	using detail::remquo;
-	using detail::fma;
-	using detail::fmax;
-	using detail::fmin;
-	using detail::fdim;
-	using detail::nanh;
-
-	using detail::exp;
-	using detail::exp2;
-	using detail::expm1;
-	using detail::log;
-	using detail::log10;
-	using detail::log1p;
-	using detail::log2;
-
-	using detail::sqrt;
-	using detail::cbrt;
-	using detail::hypot;
-	using detail::pow;
-
-	using detail::sin;
-	using detail::cos;
-	using detail::tan;
-	using detail::asin;
-	using detail::acos;
-	using detail::atan;
-	using detail::atan2;
-
-	using detail::sinh;
-	using detail::cosh;
-	using detail::tanh;
-	using detail::asinh;
-	using detail::acosh;
-	using detail::atanh;
-
-	using detail::erf;
-	using detail::erfc;
-	using detail::lgamma;
-	using detail::tgamma;
-
-	using detail::ceil;
-	using detail::floor;
-	using detail::trunc;
-	using detail::round;
-	using detail::lround;
-	using detail::llround;
-	using detail::nearbyint;
-	using detail::rint;
-	using detail::lrint;
-	using detail::llrint;
-
-	using detail::frexp;
-	using detail::ldexp;
-	using detail::modf;
-	using detail::scalbn;
-	using detail::scalbln;
-	using detail::ilogb;
-	using detail::logb;
-	using detail::nextafter;
-	using detail::nexttoward;
-	using detail::copysign;
-
-	using detail::fpclassify;
-	using detail::isfinite;
-	using detail::isinf;
-	using detail::isnan;
-	using detail::isnormal;
-	using detail::signbit;
-
-	using detail::isgreater;
-	using detail::isgreaterequal;
-	using detail::isless;
-	using detail::islessequal;
-	using detail::islessgreater;
-	using detail::isunordered;
-
-	using detail::half_cast;
-
-	/// Half-precision floating point type.
-	/// This class implements an IEEE-conformant half-precision floating point type with the usual arithmetic operators and 
-	/// conversions. It is implicitly convertible to single-precision floating point, which makes artihmetic expressions and 
-	/// functions with mixed-type operands to be of the most precise operand type. Additionally all arithmetic operations 
-	/// (and many mathematical functions) are carried out in single-precision internally. All conversions from single- to 
-	/// half-precision are done using truncation (round towards zero), but temporary results inside chained arithmetic 
-	/// expressions are kept in single-precision as long as possible (while of course still maintaining a strong half-precision type).
-	///
-	/// According to the C++98/03 definition, the half type is not a POD type. But according to C++11's less strict and 
-	/// extended definitions it is both a standard layout type and a trivially copyable type (even if not a POD type), which 
-	/// means it can be standard-conformantly copied using raw binary copies. But in this context some more words about the 
-	/// actual size of the type. Although the half is representing an IEEE 16-bit type, it does not neccessarily have to be of 
-	/// exactly 16-bits size. But on any reasonable implementation the actual binary representation of this type will most 
-	/// probably not ivolve any additional "magic" or padding beyond the simple binary representation of the underlying 16-bit 
-	/// IEEE number, even if not strictly guaranteed by the standard. But even then it only has an actual size of 16 bits if 
-	/// your C++ implementation supports an unsigned integer type of exactly 16 bits width. But this should be the case on 
-	/// nearly any reasonable platform.
-	///
-	/// So if your C++ implementation is not totally exotic or imposes special alignment requirements, it is a reasonable 
-	/// assumption that the data of a half is just comprised of the 2 bytes of the underlying IEEE representation.
-	class half : public detail::half_expr<half>
-	{
-		friend struct detail::functions;
-		friend struct detail::unary_specialized<half>;
-		friend struct detail::binary_specialized<half,half>;
-		template<typename,typename,std::float_round_style> friend struct detail::half_caster;
-		friend class std::numeric_limits<half>;
-	#if HALF_ENABLE_CPP11_HASH
-		friend struct std::hash<half>;
-	#endif
-
-	public:
-		/// Default constructor.
-		/// This initializes the half to 0. Although this does not match the builtin types' default-initialization semantics 
-		/// and may be less efficient than no initialization, it is needed to provide proper value-initialization semantics.
-		HALF_CONSTEXPR half() : data_() {}
-
-		/// Conversion constructor.
-		/// \param rhs float to convert
-		explicit half(float rhs) : data_(detail::float2half<round_style>(rhs)) {}
-
-		/// Copy constructor.
-		/// \tparam E type of concrete half expression
-		/// \param rhs half expression to copy from
-		template<typename E> half(const detail::half_expr<E> &rhs) : data_(detail::float2half<round_style>(static_cast<float>(rhs))) {}
-	
-		/// Conversion to single-precision.
-		/// \return single precision value representing expression value
-		operator float() const { return detail::half2float(data_); }
-
-		/// Assignment operator.
-		/// \tparam E type of concrete half expression
-		/// \param rhs half expression to copy from
-		/// \return reference to this half
-		template<typename E> half& operator=(const detail::half_expr<E> &rhs)
-		{
-			data_ = detail::float2half<round_style>(static_cast<float>(rhs));
-			return *this;
-		}
-
-		/// Arithmetic assignment.
-		/// \tparam E type of concrete half expression
-		/// \param rhs half expression to add
-		/// \return reference to this half
-		template<typename E> half& operator+=(const detail::half_expr<E> &rhs)
-		{
-			data_ = detail::float2half<round_style>(detail::half2float(data_)+static_cast<float>(rhs));
-			return *this;
-		}
-
-		/// Arithmetic assignment.
-		/// \tparam E type of concrete half expression
-		/// \param rhs half expression to subtract
-		/// \return reference to this half
-		template<typename E> half& operator-=(const detail::half_expr<E> &rhs)
-		{
-			data_ = detail::float2half<round_style>(detail::half2float(data_)-static_cast<float>(rhs));
-			return *this;
-		}
-
-		/// Arithmetic assignment.
-		/// \tparam E type of concrete half expression
-		/// \param rhs half expression to multiply with
-		/// \return reference to this half
-		template<typename E> half& operator*=(const detail::half_expr<E> &rhs)
-		{
-			data_ = detail::float2half<round_style>(detail::half2float(data_)*static_cast<float>(rhs));
-			return *this;
-		}
-
-		/// Arithmetic assignment.
-		/// \tparam E type of concrete half expression
-		/// \param rhs half expression to divide by
-		/// \return reference to this half
-		template<typename E> half& operator/=(const detail::half_expr<E> &rhs)
-		{
-			data_ = detail::float2half<round_style>(detail::half2float(data_)/static_cast<float>(rhs));
-			return *this;
-		}
-
-		/// Assignment operator.
-		/// \param rhs single-precision value to copy from
-		/// \return reference to this half
-		half& operator=(float rhs)
-		{
-			data_ = detail::float2half<round_style>(rhs);
-			return *this;
-		}
-
-		/// Arithmetic assignment.
-		/// \param rhs single-precision value to add
-		/// \return reference to this half
-		half& operator+=(float rhs)
-		{
-			data_ = detail::float2half<round_style>(detail::half2float(data_)+rhs);
-			return *this;
-		}
-
-		/// Arithmetic assignment.
-		/// \param rhs single-precision value to subtract
-		/// \return reference to this half
-		half& operator-=(float rhs)
-		{
-			data_ = detail::float2half<round_style>(detail::half2float(data_)-rhs);
-			return *this;
-		}
-
-		/// Arithmetic assignment.
-		/// \param rhs single-precision value to multiply with
-		/// \return reference to this half
-		half& operator*=(float rhs)
-		{
-			data_ = detail::float2half<round_style>(detail::half2float(data_)*rhs);
-			return *this;
-		}
-
-		/// Arithmetic assignment.
-		/// \param rhs single-precision value to divide by
-		/// \return reference to this half
-		half& operator/=(float rhs)
-		{
-			data_ = detail::float2half<round_style>(detail::half2float(data_)/rhs);
-			return *this;
-		}
-
-		/// Prefix increment.
-		/// \return incremented half value
-		half& operator++()
-		{
-			data_ = detail::float2half<round_style>(detail::half2float(data_)+1.0f);
-			return *this;
-		}
-
-		/// Prefix decrement.
-		/// \return decremented half value
-		half& operator--()
-		{
-			data_ = detail::float2half<round_style>(detail::half2float(data_)-1.0f);
-			return *this;
-		}
-
-		/// Postfix increment.
-		/// \return non-incremented half value
-		half operator++(int)
-		{
-			detail::uint16 out = data_;
-			data_ = detail::float2half<round_style>(detail::half2float(data_)+1.0f);
-			return half(out, true);
-		}
-
-		/// Postfix decrement.
-		/// \return non-decremented half value
-		half operator--(int)
-		{
-			detail::uint16 out = data_;
-			data_ = detail::float2half<round_style>(detail::half2float(data_)-1.0f);
-			return half(out, true);
-		}
-	
-	private:
-		/// Rounding mode to use (always `std::round_indeterminate`)
-		static const std::float_round_style round_style = std::round_indeterminate;
-
-		/// Constructor.
-		/// \param bits binary representation to set half to
-		HALF_CONSTEXPR half(detail::uint16 bits, bool) : data_(bits) {}
-
-		/// Internal binary representation
-		detail::uint16 data_;
-	};
-
-#if HALF_ENABLE_CPP11_USER_LITERALS
-	namespace literal
-	{
-		/// Half literal.
-		/// \param d literal value
-		/// \return half with given value (if representable)
-		inline half operator "" _h(long double d)
-		{
-			return half(static_cast<float>(d));
-		}
-	}
-#endif
-
-	namespace detail
-	{
 		/// Check for NaN.
 		/// \tparam T argument type (builtin floating point type)
 		/// \param arg value to query
@@ -1002,6 +311,10 @@ namespace half_float
 			return arg < T();
 		#endif
 		}
+
+		/// \}
+		/// \name Conversion
+		/// \{
 
 		/// Convert IEEE single-precision to half-precision.
 		/// \tparam R rounding mode to use, `std::round_indeterminate` for fastest rounding
@@ -1126,7 +439,7 @@ namespace half_float
 		/// \return binary representation of half-precision value
 		template<std::float_round_style R> uint16 float2half(float value)
 		{
-			return float2half_impl<R>(value, booltype<std::numeric_limits<float>::is_iec559>());
+			return float2half_impl<R>(value, booltype<std::numeric_limits<float>::is_iec559&&sizeof(uint32)==sizeof(float)>());
 		}
 */
 		/// Convert half-precision to IEEE single-precision.
@@ -1320,7 +633,7 @@ namespace half_float
 		/// \return single-precision value
 		inline float half2float(uint16 value)
 		{
-			return half2float_impl(value, booltype<std::numeric_limits<float>::is_iec559>());
+			return half2float_impl(value, booltype<std::numeric_limits<float>::is_iec559&&sizeof(uint32)==sizeof(float)>());
 		}
 */
 		/// Convert half-precision floating point to integer.
@@ -1331,7 +644,7 @@ namespace half_float
 		template<typename T,std::float_round_style R> T half2int(uint16 value)
 		{
 		#if HALF_ENABLE_CPP11_STATIC_ASSERT
-			static_assert(std::numeric_limits<T>::digits>=16, "half only convertible to integers with at least 16 bits precision (exluding sign)");
+			static_assert(std::numeric_limits<T>::digits>=16, "half only convertible to integers with at least 16 bits precision (excluding sign)");
 		#endif
 			unsigned int e = value & 0x7C00;
 			if(e == 0x7C00)
@@ -1360,405 +673,1182 @@ namespace half_float
 				m <<= e - 25;
 			return (value&0x8000) ? -m : m;
 		}
+		/// \}
 
-		/// Cast to half.
-		/// \param arg value to cast
-		/// \return \a arg converted to half-precision (via single-precision)
-		template<typename U,std::float_round_style R> half half_caster<half,U,R>::cast(const U &arg)
+		struct functions;
+		template<typename> struct unary_specialized;
+		template<typename,typename> struct binary_specialized;
+		template<typename,typename,std::float_round_style> struct half_caster;
+	}
+
+	/// Half-precision floating point type.
+	/// This class implements an IEEE-conformant half-precision floating point type with the usual arithmetic operators and 
+	/// conversions. It is implicitly convertible to single-precision floating point, which makes artihmetic expressions and 
+	/// functions with mixed-type operands to be of the most precise operand type. Additionally all arithmetic operations 
+	/// (and many mathematical functions) are carried out in single-precision internally. All conversions from single- to 
+	/// half-precision are done using truncation (round towards zero), but temporary results inside chained arithmetic 
+	/// expressions are kept in single-precision as long as possible (while of course still maintaining a strong half-precision type).
+	///
+	/// According to the C++98/03 definition, the half type is not a POD type. But according to C++11's less strict and 
+	/// extended definitions it is both a standard layout type and a trivially copyable type (even if not a POD type), which 
+	/// means it can be standard-conformantly copied using raw binary copies. But in this context some more words about the 
+	/// actual size of the type. Although the half is representing an IEEE 16-bit type, it does not neccessarily have to be of 
+	/// exactly 16-bits size. But on any reasonable implementation the actual binary representation of this type will most 
+	/// probably not ivolve any additional "magic" or padding beyond the simple binary representation of the underlying 16-bit 
+	/// IEEE number, even if not strictly guaranteed by the standard. But even then it only has an actual size of 16 bits if 
+	/// your C++ implementation supports an unsigned integer type of exactly 16 bits width. But this should be the case on 
+	/// nearly any reasonable platform.
+	///
+	/// So if your C++ implementation is not totally exotic or imposes special alignment requirements, it is a reasonable 
+	/// assumption that the data of a half is just comprised of the 2 bytes of the underlying IEEE representation.
+	class half : public detail::half_expr<half>
+	{
+		friend struct detail::functions;
+		friend struct detail::unary_specialized<half>;
+		friend struct detail::binary_specialized<half,half>;
+		template<typename,typename,std::float_round_style> friend struct detail::half_caster;
+		friend class std::numeric_limits<half>;
+	#if HALF_ENABLE_CPP11_HASH
+		friend struct std::hash<half>;
+	#endif
+
+	public:
+		/// Default constructor.
+		/// This initializes the half to 0. Although this does not match the builtin types' default-initialization semantics 
+		/// and may be less efficient than no initialization, it is needed to provide proper value-initialization semantics.
+		HALF_CONSTEXPR half() : data_() {}
+
+		/// Conversion constructor.
+		/// \param rhs float to convert
+		explicit half(float rhs) : data_(detail::float2half<round_style>(rhs)) {}
+
+		/// Copy constructor.
+		/// \tparam E type of concrete half expression
+		/// \param rhs half expression to copy from
+		template<typename E> half(const detail::half_expr<E> &rhs) : data_(detail::float2half<round_style>(static_cast<float>(rhs))) {}
+	
+		/// Conversion to single-precision.
+		/// \return single precision value representing expression value
+		operator float() const { return detail::half2float(data_); }
+
+		/// Assignment operator.
+		/// \tparam E type of concrete half expression
+		/// \param rhs half expression to copy from
+		/// \return reference to this half
+		template<typename E> half& operator=(const detail::half_expr<E> &rhs)
 		{
-			return half(float2half<R>(static_cast<float>(arg)), true);
+			data_ = detail::float2half<round_style>(static_cast<float>(rhs));
+			return *this;
 		}
 
-		/// Cast from half.
-		/// \param arg expression to cast
-		/// \return \a arg converted to destination type (via single-precision)
-		template<typename T,std::float_round_style R> template<typename E> T half_caster<T,half,R>::cast(const half_expr<E> &arg)
+		/// Arithmetic assignment.
+		/// \tparam E type of concrete half expression
+		/// \param rhs half expression to add
+		/// \return reference to this half
+		template<typename E> half& operator+=(const detail::half_expr<E> &rhs)
 		{
-			return static_cast<T>(static_cast<float>(arg));
+			data_ = detail::float2half<round_style>(detail::half2float(data_)+static_cast<float>(rhs));
+			return *this;
 		}
 
-		/// Cast between halfs.
-		/// \param arg expression to cast
-		/// \return unchanged value
-		template<std::float_round_style R> template<typename E> half half_caster<half,half,R>::cast(const half_expr<E> &arg)
+		/// Arithmetic assignment.
+		/// \tparam E type of concrete half expression
+		/// \param rhs half expression to subtract
+		/// \return reference to this half
+		template<typename E> half& operator-=(const detail::half_expr<E> &rhs)
 		{
-			return arg;
+			data_ = detail::float2half<round_style>(detail::half2float(data_)-static_cast<float>(rhs));
+			return *this;
 		}
 
-
-		inline float_expr functions::plus(float x, float y) { return float_expr(x+y); }
-
-		inline float_expr functions::minus(float x, float y) { return float_expr(x-y); }
-
-		inline float_expr functions::multiplies(float x, float y) { return float_expr(x*y); }
-
-		inline float_expr functions::divides(float x, float y) { return float_expr(x/y); }
-
-		template<typename charT,typename traits> std::basic_ostream<charT,traits>& 
-			functions::write(std::basic_ostream<charT,traits> &out, float arg) { return out << arg; }
-
-		template<typename charT,typename traits> std::basic_istream<charT,traits>& functions::read(std::basic_istream<charT,traits> &in, half &h)
+		/// Arithmetic assignment.
+		/// \tparam E type of concrete half expression
+		/// \param rhs half expression to multiply with
+		/// \return reference to this half
+		template<typename E> half& operator*=(const detail::half_expr<E> &rhs)
 		{
-			float f;
-			if(in >> f)
-				h = f;
-			return in;
+			data_ = detail::float2half<round_style>(detail::half2float(data_)*static_cast<float>(rhs));
+			return *this;
 		}
 
-		inline float_expr functions::fmod(float x, float y) { return float_expr(std::fmod(x, y)); }
-
-		inline float_expr functions::fdim(float x, float y)
+		/// Arithmetic assignment.
+		/// \tparam E type of concrete half expression
+		/// \param rhs half expression to divide by
+		/// \return reference to this half
+		template<typename E> half& operator/=(const detail::half_expr<E> &rhs)
 		{
-		#if HALF_ENABLE_CPP11_CMATH
-			return float_expr(std::fdim(x, y));
-		#else
-			return float_expr(std::max(x-y, 0.0f));
-		#endif
+			data_ = detail::float2half<round_style>(detail::half2float(data_)/static_cast<float>(rhs));
+			return *this;
 		}
 
-		inline float_expr functions::fma(float x, float y, float z)
+		/// Assignment operator.
+		/// \param rhs single-precision value to copy from
+		/// \return reference to this half
+		half& operator=(float rhs)
 		{
-		#if HALF_ENABLE_CPP11_CMATH && defined(FP_FAST_FMAF)
-			return float_expr(std::fma(x, y, z));
-		#else
-			return float_expr(x*y+z);
-		#endif
+			data_ = detail::float2half<round_style>(rhs);
+			return *this;
 		}
 
-		inline half functions::nanh(const char*) { return half(0x7FFF, true); }
-
-		inline float_expr functions::exp(float arg) { return float_expr(std::exp(arg)); }
-
-		inline float_expr functions::log(float arg) { return float_expr(std::log(arg)); }
-
-		inline float_expr functions::log10(float arg) { return float_expr(std::log10(arg)); }
-
-		inline float_expr functions::sqrt(float arg) { return float_expr(std::sqrt(arg)); }
-
-		inline float_expr functions::pow(float base, float exp) { return float_expr(std::pow(base, exp)); }
-
-		inline float_expr functions::sin(float arg) { return float_expr(std::sin(arg)); }
-
-		inline float_expr functions::cos(float arg) { return float_expr(std::cos(arg)); }
-
-		inline float_expr functions::tan(float arg) { return float_expr(std::tan(arg)); }
-
-		inline float_expr functions::asin(float arg) { return float_expr(std::asin(arg)); }
-
-		inline float_expr functions::acos(float arg) { return float_expr(std::acos(arg)); }
-
-		inline float_expr functions::atan(float arg) { return float_expr(std::atan(arg)); }
-
-		inline float_expr functions::atan2(float x, float y) { return float_expr(std::atan2(x, y)); }
-
-		inline float_expr functions::sinh(float arg) { return float_expr(std::sinh(arg)); }
-
-		inline float_expr functions::cosh(float arg) { return float_expr(std::cosh(arg)); }
-
-		inline float_expr functions::tanh(float arg) { return float_expr(std::tanh(arg)); }
-
-		inline half functions::floor(half arg)
+		/// Arithmetic assignment.
+		/// \param rhs single-precision value to add
+		/// \return reference to this half
+		half& operator+=(float rhs)
 		{
-			unsigned int e = arg.data_ & 0x7C00;
-			if(e > 0x6000)
-				return arg;
-			if(e < 0x3C00)
-				return half((arg.data_&0x8000)|(0x3C00&-static_cast<uint16>((arg.data_>>15)&((arg.data_&0x7FFF)!=0))), true);
-			e = 25 - (e>>10);
-			unsigned int mask = (1<<e) - 1;
-			return half((arg.data_&~mask)+(((arg.data_>>15)&((arg.data_&mask)!=0))<<e), true);
+			data_ = detail::float2half<round_style>(detail::half2float(data_)+rhs);
+			return *this;
 		}
 
-		inline half functions::ceil(half arg)
+		/// Arithmetic assignment.
+		/// \param rhs single-precision value to subtract
+		/// \return reference to this half
+		half& operator-=(float rhs)
 		{
-			unsigned int e = arg.data_ & 0x7C00;
-			if(e > 0x6000)
-				return arg;
-			if(e < 0x3C00)
-				return half((arg.data_&0x8000)|(0x3C00&-static_cast<uint16>(~(arg.data_>>15)&((arg.data_&0x7FFF)!=0))), true);
-			e = 25 - (e>>10);
-			unsigned int mask = (1<<e) - 1;
-			return half((arg.data_&~mask)+((~(arg.data_>>15)&((arg.data_&mask)!=0))<<e), true);
+			data_ = detail::float2half<round_style>(detail::half2float(data_)-rhs);
+			return *this;
 		}
 
-		inline half functions::trunc(half arg)
+		/// Arithmetic assignment.
+		/// \param rhs single-precision value to multiply with
+		/// \return reference to this half
+		half& operator*=(float rhs)
 		{
-			unsigned int e = arg.data_ & 0x7C00;
-			if(e > 0x6000)
-				return arg;
-			if(e < 0x3C00)
-				return half(arg.data_&0x8000, true);
-			return half(arg.data_&~((1<<(25-(e>>10)))-1), true);
+			data_ = detail::float2half<round_style>(detail::half2float(data_)*rhs);
+			return *this;
 		}
 
-		inline half functions::round(half arg)
+		/// Arithmetic assignment.
+		/// \param rhs single-precision value to divide by
+		/// \return reference to this half
+		half& operator/=(float rhs)
 		{
-			unsigned int e = arg.data_ & 0x7C00;
-			if(e > 0x6000)
-				return arg;
-			if(e < 0x3C00)
-				return half((arg.data_&0x8000)|(0x3C00&-static_cast<uint16>((arg.data_&0x7FFF)>=0x3800)), true);
-			e >>= 10;
-			return half((arg.data_+(1<<(24-e)))&~((1<<(25-e))-1), true);
+			data_ = detail::float2half<round_style>(detail::half2float(data_)/rhs);
+			return *this;
 		}
 
-		inline long functions::lround(half arg)
+		/// Prefix increment.
+		/// \return incremented half value
+		half& operator++()
 		{
-			return detail::half2int<long,std::round_to_nearest>(arg.data_);
+			data_ = detail::float2half<round_style>(detail::half2float(data_)+1.0f);
+			return *this;
 		}
 
-		inline long long functions::llround(half arg)
+		/// Prefix decrement.
+		/// \return decremented half value
+		half& operator--()
 		{
-			return detail::half2int<long long,std::round_to_nearest>(arg.data_);
+			data_ = detail::float2half<round_style>(detail::half2float(data_)-1.0f);
+			return *this;
 		}
 
-		inline half functions::frexp(half arg, int *exp)
+		/// Postfix increment.
+		/// \return non-incremented half value
+		half operator++(int)
 		{
-			int e = arg.data_ & 0x7C00;
-			if(e == 0x7C00 || !(arg.data_&0x7FFF))
-				return *exp = 0, arg;
-			unsigned int m = arg.data_ & 0x3FF;
-			e >>= 10;
-			if(!e)
-			{
-				for(m<<=1; m<0x400; m<<=1)
-					--e;
-				m &= 0x3FF;
-			}
-			*exp = e - 14;
-			return half((arg.data_&0x8000) | 0x3800 | m, true);
+			detail::uint16 out = data_;
+			data_ = detail::float2half<round_style>(detail::half2float(data_)+1.0f);
+			return half(out, true);
 		}
 
-		inline half functions::modf(half x, half *iptr)
+		/// Postfix decrement.
+		/// \return non-decremented half value
+		half operator--(int)
 		{
-			*iptr = x;
-			unsigned int e = x.data_ & 0x7C00;
-			if(e > 0x6000)
-				return (e==0x7C00&&(x.data_&0x3FF)) ? x : half(x.data_&0x8000, true);
-			if(e < 0x3C00)
-				return iptr->data_ &= 0x8000, x;
-			e >>= 10;
-			unsigned int mask = (1<<(25-e)) - 1;
-			unsigned int m = x.data_ & mask;
-			iptr->data_ &= ~mask;
-			if(!m)
-				return half(x.data_&0x8000, true);
-			for(; m<0x400; m<<=1)
-				--e;
-			return half((x.data_&0x8000) | (e<<10) | (m&0x3FF), true);
+			detail::uint16 out = data_;
+			data_ = detail::float2half<round_style>(detail::half2float(data_)-1.0f);
+			return half(out, true);
 		}
+	
+	private:
+		/// Rounding mode to use (always `std::round_indeterminate`)
+		static const std::float_round_style round_style = std::round_indeterminate;
 
-		inline half functions::scalbln(half x, long exp)
+		/// Constructor.
+		/// \param bits binary representation to set half to
+		HALF_CONSTEXPR half(detail::uint16 bits, bool) : data_(bits) {}
+
+		/// Internal binary representation
+		detail::uint16 data_;
+	};
+
+#if HALF_ENABLE_CPP11_USER_LITERALS
+	/// Library-defined half-precision literals.
+	/// Import this namespace to enable half-precision floating point literals:
+	/// ~~~~{.cpp}
+	/// using namespace half_float::literal;
+	/// half_float::half = 4.2_h;
+	/// ~~~~
+	namespace literal
+	{
+		/// Half literal.
+		/// \param d literal value
+		/// \return half with given value (if representable)
+		inline half operator "" _h(long double d)
 		{
-			long e = x.data_ & 0x7C00;
-			if(e == 0x7C00)
-				return x;
-			unsigned int m = x.data_ & 0x3FF;
-			if(e >>= 10)
-				m |= 0x400;
-			else
-			{
-				if(!m)
-					return x;
-				for(m<<=1; m<0x400; m<<=1)
-					--e;
-			}
-			e += exp;
-			unsigned int sign = x.data_ & 0x8000;
-			return (e>30) ? half(sign|0x7C00, true) : half((e>0) ? (sign|(e<<10)|(m&0x3FF)) : ((e<-9) ? sign : (sign|(m>>(1-e)))), true);
+			return half(static_cast<float>(d));
 		}
-
-		inline int functions::ilogb(half arg)
-		{
-			if(!(arg.data_&0x7FFF))
-				return FP_ILOGB0;
-			int e = arg.data_ & 0x7C00;
-			if(e == 0x7C00)
-				return (arg.data_&0x3FF) ? FP_ILOGBNAN : INT_MAX;
-			e >>= 10;
-			if(!e)
-				for(unsigned int m=(arg.data_&0x3FF)<<1; m<0x400; m<<=1)
-					--e;
-			return e - 15;
-		}
-
-		inline half functions::logb(half arg)
-		{
-			if(!(arg.data_&0x7FFF))
-				return half(0xFC00, true);
-			int e = arg.data_ & 0x7C00;
-			if(e == 0x7C00)
-				return (arg.data_&0x3FF) ? arg : half(0x7C00, true);
-			e >>= 10;
-			if(!e)
-				for(unsigned int m=(arg.data_&0x3FF)<<1; m<0x400; m<<=1)
-					--e;
-			return half(static_cast<float>(e-15));
-		}
-
-		inline half functions::nextafter(half from, half to)
-		{
-			uint16 fabs = from.data_ & 0x7FFF, tabs = to.data_ & 0x7FFF;
-			if(fabs > 0x7C00)
-				return from;
-			if(tabs > 0x7C00 || from.data_==to.data_ || !(fabs|tabs))
-				return to;
-			if(!fabs)
-				return half((to.data_&0x8000)+1, true);
-			bool lt = (signbit(from) ? (static_cast<int17>(0x8000)-from.data_) : static_cast<int17>(from.data_)) < 
-				(signbit(to) ? (static_cast<int17>(0x8000)-to.data_) : static_cast<int17>(to.data_));
-			return half(from.data_+(((from.data_>>15)^static_cast<uint16>(lt))<<1)-1, true);
-		}
-
-		inline half functions::nexttoward(half from, long double to)
-		{
-			if(isnan(from))
-				return from;
-			long double lfrom = static_cast<long double>(from);
-			if(builtin_isnan(to) || lfrom == to)
-				return half(static_cast<float>(to));
-			if(!(from.data_&0x7FFF))
-				return half((static_cast<detail::uint16>(builtin_signbit(to))<<15)+1, true);
-			return half(from.data_+(((from.data_>>15)^static_cast<uint16>(lfrom<to))<<1)-1, true);
-		}
-
-		inline half functions::copysign(half x, half y) { return half(x.data_^((x.data_^y.data_)&0x8000), true); }
-
-		inline int functions::fpclassify(half arg)
-		{
-			unsigned int e = arg.data_ & 0x7C00;
-			if(e == 0)
-				return (arg.data_&0x3FF) ? FP_SUBNORMAL : FP_ZERO;
-			if(e == 0x7C00)
-				return (arg.data_&0x3FF) ? FP_NAN : FP_INFINITE;
-			return FP_NORMAL;
-		}
-
-		inline bool functions::isfinite(half arg) { return (arg.data_&0x7C00) != 0x7C00; }
-
-		inline bool functions::isinf(half arg) { return (arg.data_&0x7FFF) == 0x7C00; }
-
-		inline bool functions::isnan(half arg) { return (arg.data_&0x7FFF) > 0x7C00; }
-
-		inline bool functions::isnormal(half arg) { return ((arg.data_&0x7C00)!=0) & ((arg.data_&0x7C00)!=0x7C00); }
-		
-		inline bool functions::signbit(half arg) { return (arg.data_&0x8000) != 0; }
-
-		inline bool functions::isequal(half x, half y)
-		{
-			return (x.data_==y.data_ || !((x.data_|y.data_)&0x7FFF)) && !isnan(x);
-		}
-
-		inline bool functions::isnotequal(half x, half y)
-		{
-			return (x.data_!=y.data_ && ((x.data_|y.data_)&0x7FFF)) || isnan(x);
-		}
-
-		inline bool functions::isgreater(half x, half y)
-		{
-			if(isnan(x) || isnan(y))
-				return false;
-			return (signbit(x) ? (static_cast<int17>(0x8000)-x.data_) : static_cast<int17>(x.data_)) > 
-				(signbit(y) ? (static_cast<int17>(0x8000)-y.data_) : static_cast<int17>(y.data_));
-		}
-
-		inline bool functions::isgreaterequal(half x, half y)
-		{
-			if(isnan(x) || isnan(y))
-				return false;
-			return (signbit(x) ? (static_cast<int17>(0x8000)-x.data_) : static_cast<int17>(x.data_)) >= 
-				(signbit(y) ? (static_cast<int17>(0x8000)-y.data_) : static_cast<int17>(y.data_));
-		}
-
-		inline bool functions::isless(half x, half y)
-		{
-			if(isnan(x) || isnan(y))
-				return false;
-			return (signbit(x) ? (static_cast<int17>(0x8000)-x.data_) : static_cast<int17>(x.data_)) < 
-				(signbit(y) ? (static_cast<int17>(0x8000)-y.data_) : static_cast<int17>(y.data_));
-		}
-
-		inline bool functions::islessequal(half x, half y)
-		{
-			if(isnan(x) || isnan(y))
-				return false;
-			return (signbit(x) ? (static_cast<int17>(0x8000)-x.data_) : static_cast<int17>(x.data_)) <= 
-				(signbit(y) ? (static_cast<int17>(0x8000)-y.data_) : static_cast<int17>(y.data_));
-		}
-
-		inline bool functions::islessgreater(half x, half y) { return isless(x, y) || isgreater(x, y); }
-
-		inline bool functions::isunordered(half x, half y) { return isnan(x) || isnan(y); }
-#if HALF_ENABLE_CPP11_CMATH
-		inline float_expr functions::remainder(float x, float y) { return float_expr(std::remainder(x, y)); }
-
-		inline float_expr functions::remquo(float x, float y, int *quo) { return float_expr(std::remquo(x, y, quo)); }
-
-		inline float_expr functions::exp2(float arg) { return float_expr(std::exp2(arg)); }
-
-		inline float_expr functions::expm1(float arg) { return float_expr(std::expm1(arg)); }
-
-		inline float_expr functions::log1p(float arg) { return float_expr(std::log1p(arg)); }
-
-		inline float_expr functions::log2(float arg) { return float_expr(std::log2(arg)); }
-
-		inline float_expr functions::cbrt(float arg) { return float_expr(std::cbrt(arg)); }
-
-		inline float_expr functions::hypot(float x, float y) { return float_expr(std::hypot(x, y)); }
-
-		inline float_expr functions::asinh(float arg) { return float_expr(std::asinh(arg)); }
-
-		inline float_expr functions::acosh(float arg) { return float_expr(std::acosh(arg)); }
-
-		inline float_expr functions::atanh(float arg) { return float_expr(std::atanh(arg)); }
-
-		inline float_expr functions::erf(float arg) { return float_expr(std::erf(arg)); }
-
-		inline float_expr functions::erfc(float arg) { return float_expr(std::erfc(arg)); }
-
-		inline float_expr functions::lgamma(float arg) { return float_expr(std::lgamma(arg)); }
-
-		inline float_expr functions::tgamma(float arg) { return float_expr(std::tgamma(arg)); }
-
-		inline float_expr functions::nearbyint(float arg) { return float_expr(std::nearbyint(arg)); }
-
-		inline float_expr functions::rint(float arg) { return float_expr(std::rint(arg)); }
-
-		inline long functions::lrint(float arg) { return float_expr(std::lrint(arg)); }
-
-		inline long long functions::llrint(float arg) { return float_expr(std::llrint(arg)); }
+	}
 #endif
 
-		inline half unary_specialized<half>::negate(half arg) { return half(arg.data_^0x8000, true); }
-
-		inline half unary_specialized<half>::fabs(half arg) { return half(arg.data_&0x7FFF, true); }
-
-		inline float_expr unary_specialized<float_expr>::negate(float arg) { return float_expr(-arg); }
-
-		inline float_expr unary_specialized<float_expr>::fabs(float arg) { return float_expr(std::fabs(arg)); }
-
-
-		template<typename T,typename U> float_expr binary_specialized<T,U>::fmin(float x, float y)
+	namespace detail
+	{
+		/// Wrapper for unspecialized half-precision functions.
+		struct functions
 		{
-		#if HALF_ENABLE_CPP11_CMATH
-			return std::fmin(x, y);
-		#else
-			return std::min(x, y);
-		#endif
-		}
+			static float_expr plus(float x, float y) { return float_expr(x+y); }
 
-		template<typename T,typename U> float_expr binary_specialized<T,U>::fmax(float x, float y)
+			static float_expr minus(float x, float y) { return float_expr(x-y); }
+
+			static float_expr multiplies(float x, float y) { return float_expr(x*y); }
+
+			static float_expr divides(float x, float y) { return float_expr(x/y); }
+
+			template<typename charT,typename traits> static std::basic_ostream<charT,traits>& write(std::basic_ostream<charT,traits> &out, float arg) { return out << arg; }
+
+			template<typename charT,typename traits> static std::basic_istream<charT,traits>& read(std::basic_istream<charT,traits> &in, half &h)
+			{
+				float f;
+				if(in >> f)
+					h = f;
+				return in;
+			}
+
+			static float_expr fmod(float x, float y) { return float_expr(std::fmod(x, y)); }
+
+			static float_expr fdim(float x, float y)
+			{
+			#if HALF_ENABLE_CPP11_CMATH
+				return float_expr(std::fdim(x, y));
+			#else
+				return float_expr(std::max(x-y, 0.0f));
+			#endif
+			}
+
+			static float_expr fma(float x, float y, float z)
+			{
+			#if HALF_ENABLE_CPP11_CMATH && defined(FP_FAST_FMAF)
+				return float_expr(std::fma(x, y, z));
+			#else
+				return float_expr(x*y+z);
+			#endif
+			}
+
+			static half nanh(const char*) { return half(0x7FFF, true); }
+
+			static float_expr exp(float arg) { return float_expr(std::exp(arg)); }
+
+			static float_expr log(float arg) { return float_expr(std::log(arg)); }
+
+			static float_expr log10(float arg) { return float_expr(std::log10(arg)); }
+
+			static float_expr sqrt(float arg) { return float_expr(std::sqrt(arg)); }
+
+			static float_expr pow(float base, float exp) { return float_expr(std::pow(base, exp)); }
+
+			static float_expr sin(float arg) { return float_expr(std::sin(arg)); }
+
+			static float_expr cos(float arg) { return float_expr(std::cos(arg)); }
+
+			static float_expr tan(float arg) { return float_expr(std::tan(arg)); }
+
+			static float_expr asin(float arg) { return float_expr(std::asin(arg)); }
+
+			static float_expr acos(float arg) { return float_expr(std::acos(arg)); }
+
+			static float_expr atan(float arg) { return float_expr(std::atan(arg)); }
+
+			static float_expr atan2(float x, float y) { return float_expr(std::atan2(x, y)); }
+
+			static float_expr sinh(float arg) { return float_expr(std::sinh(arg)); }
+
+			static float_expr cosh(float arg) { return float_expr(std::cosh(arg)); }
+
+			static float_expr tanh(float arg) { return float_expr(std::tanh(arg)); }
+
+			static half floor(half arg)
+			{
+				unsigned int e = arg.data_ & 0x7C00;
+				if(e > 0x6000)
+					return arg;
+				if(e < 0x3C00)
+					return half((arg.data_&0x8000)|(0x3C00&-static_cast<uint16>((arg.data_>>15)&((arg.data_&0x7FFF)!=0))), true);
+				e = 25 - (e>>10);
+				unsigned int mask = (1<<e) - 1;
+				return half((arg.data_&~mask)+(((arg.data_>>15)&((arg.data_&mask)!=0))<<e), true);
+			}
+
+			static half ceil(half arg)
+			{
+				unsigned int e = arg.data_ & 0x7C00;
+				if(e > 0x6000)
+					return arg;
+				if(e < 0x3C00)
+					return half((arg.data_&0x8000)|(0x3C00&-static_cast<uint16>(~(arg.data_>>15)&((arg.data_&0x7FFF)!=0))), true);
+				e = 25 - (e>>10);
+				unsigned int mask = (1<<e) - 1;
+				return half((arg.data_&~mask)+((~(arg.data_>>15)&((arg.data_&mask)!=0))<<e), true);
+			}
+
+			static half trunc(half arg)
+			{
+				unsigned int e = arg.data_ & 0x7C00;
+				if(e > 0x6000)
+					return arg;
+				if(e < 0x3C00)
+					return half(arg.data_&0x8000, true);
+				return half(arg.data_&~((1<<(25-(e>>10)))-1), true);
+			}
+
+			static half round(half arg)
+			{
+				unsigned int e = arg.data_ & 0x7C00;
+				if(e > 0x6000)
+					return arg;
+				if(e < 0x3C00)
+					return half((arg.data_&0x8000)|(0x3C00&-static_cast<uint16>((arg.data_&0x7FFF)>=0x3800)), true);
+				e >>= 10;
+				return half((arg.data_+(1<<(24-e)))&~((1<<(25-e))-1), true);
+			}
+
+			static long lround(half arg) { return detail::half2int<long,std::round_to_nearest>(arg.data_); }
+
+			static half frexp(half arg, int *exp)
+			{
+				int e = arg.data_ & 0x7C00;
+				if(e == 0x7C00 || !(arg.data_&0x7FFF))
+					return *exp = 0, arg;
+				unsigned int m = arg.data_ & 0x3FF;
+				e >>= 10;
+				if(!e)
+				{
+					for(m<<=1; m<0x400; m<<=1)
+						--e;
+					m &= 0x3FF;
+				}
+				*exp = e - 14;
+				return half((arg.data_&0x8000) | 0x3800 | m, true);
+			}
+
+			static half modf(half x, half *iptr)
+			{
+				*iptr = x;
+				unsigned int e = x.data_ & 0x7C00;
+				if(e > 0x6000)
+					return (e==0x7C00&&(x.data_&0x3FF)) ? x : half(x.data_&0x8000, true);
+				if(e < 0x3C00)
+					return iptr->data_ &= 0x8000, x;
+				e >>= 10;
+				unsigned int mask = (1<<(25-e)) - 1;
+				unsigned int m = x.data_ & mask;
+				iptr->data_ &= ~mask;
+				if(!m)
+					return half(x.data_&0x8000, true);
+				for(; m<0x400; m<<=1)
+					--e;
+				return half((x.data_&0x8000) | (e<<10) | (m&0x3FF), true);
+			}
+
+			static half scalbln(half x, long exp)
+			{
+				long e = x.data_ & 0x7C00;
+				if(e == 0x7C00)
+					return x;
+				unsigned int m = x.data_ & 0x3FF;
+				if(e >>= 10)
+					m |= 0x400;
+				else
+				{
+					if(!m)
+						return x;
+					for(m<<=1; m<0x400; m<<=1)
+						--e;
+				}
+				e += exp;
+				unsigned int sign = x.data_ & 0x8000;
+				return (e>30) ? half(sign|0x7C00, true) : half((e>0) ? (sign|(e<<10)|(m&0x3FF)) : ((e<-9) ? sign : (sign|(m>>(1-e)))), true);
+			}
+
+			static int ilogb(half arg)
+			{
+				if(!(arg.data_&0x7FFF))
+					return FP_ILOGB0;
+				int e = arg.data_ & 0x7C00;
+				if(e == 0x7C00)
+					return (arg.data_&0x3FF) ? FP_ILOGBNAN : INT_MAX;
+				e >>= 10;
+				if(!e)
+					for(unsigned int m=(arg.data_&0x3FF)<<1; m<0x400; m<<=1)
+						--e;
+				return e - 15;
+			}
+
+			static half logb(half arg)
+			{
+				if(!(arg.data_&0x7FFF))
+					return half(0xFC00, true);
+				int e = arg.data_ & 0x7C00;
+				if(e == 0x7C00)
+					return (arg.data_&0x3FF) ? arg : half(0x7C00, true);
+				e >>= 10;
+				if(!e)
+					for(unsigned int m=(arg.data_&0x3FF)<<1; m<0x400; m<<=1)
+						--e;
+				return half(static_cast<float>(e-15));
+			}
+
+			static half nextafter(half from, half to)
+			{
+				uint16 fabs = from.data_ & 0x7FFF, tabs = to.data_ & 0x7FFF;
+				if(fabs > 0x7C00)
+					return from;
+				if(tabs > 0x7C00 || from.data_==to.data_ || !(fabs|tabs))
+					return to;
+				if(!fabs)
+					return half((to.data_&0x8000)+1, true);
+				bool lt = (signbit(from) ? (static_cast<int17>(0x8000)-from.data_) : static_cast<int17>(from.data_)) < 
+					(signbit(to) ? (static_cast<int17>(0x8000)-to.data_) : static_cast<int17>(to.data_));
+				return half(from.data_+(((from.data_>>15)^static_cast<uint16>(lt))<<1)-1, true);
+			}
+
+			static half nexttoward(half from, long double to)
+			{
+				if(isnan(from))
+					return from;
+				long double lfrom = static_cast<long double>(from);
+				if(builtin_isnan(to) || lfrom == to)
+					return half(static_cast<float>(to));
+				if(!(from.data_&0x7FFF))
+					return half((static_cast<detail::uint16>(builtin_signbit(to))<<15)+1, true);
+				return half(from.data_+(((from.data_>>15)^static_cast<uint16>(lfrom<to))<<1)-1, true);
+			}
+
+			static half copysign(half x, half y) { return half(x.data_^((x.data_^y.data_)&0x8000), true); }
+
+			static int fpclassify(half arg)
+			{
+				unsigned int e = arg.data_ & 0x7C00;
+				if(e == 0)
+					return (arg.data_&0x3FF) ? FP_SUBNORMAL : FP_ZERO;
+				if(e == 0x7C00)
+					return (arg.data_&0x3FF) ? FP_NAN : FP_INFINITE;
+				return FP_NORMAL;
+			}
+
+			static bool isfinite(half arg) { return (arg.data_&0x7C00) != 0x7C00; }
+
+			static bool isinf(half arg) { return (arg.data_&0x7FFF) == 0x7C00; }
+
+			static bool isnan(half arg) { return (arg.data_&0x7FFF) > 0x7C00; }
+
+			static bool isnormal(half arg) { return ((arg.data_&0x7C00)!=0) & ((arg.data_&0x7C00)!=0x7C00); }
+		
+			static bool signbit(half arg) { return (arg.data_&0x8000) != 0; }
+
+			static bool isequal(half x, half y) { return (x.data_==y.data_ || !((x.data_|y.data_)&0x7FFF)) && !isnan(x); }
+
+			static bool isnotequal(half x, half y) { return (x.data_!=y.data_ && ((x.data_|y.data_)&0x7FFF)) || isnan(x); }
+
+			static bool isgreater(half x, half y) { return !isnan(x) && !isnan(y) && ((signbit(x) ? (static_cast<int17>(0x8000)-x.data_) : 
+				static_cast<int17>(x.data_)) > (signbit(y) ? (static_cast<int17>(0x8000)-y.data_) : static_cast<int17>(y.data_))); }
+
+			static bool isgreaterequal(half x, half y) { return !isnan(x) && !isnan(y) && ((signbit(x) ? (static_cast<int17>(0x8000)-x.data_) : 
+				static_cast<int17>(x.data_)) >= (signbit(y) ? (static_cast<int17>(0x8000)-y.data_) : static_cast<int17>(y.data_))); }
+
+			static bool isless(half x, half y) { return !isnan(x) && !isnan(y) && ((signbit(x) ? (static_cast<int17>(0x8000)-x.data_) : 
+				static_cast<int17>(x.data_)) < (signbit(y) ? (static_cast<int17>(0x8000)-y.data_) : static_cast<int17>(y.data_))); }
+
+			static bool islessequal(half x, half y) { return !isnan(x) && !isnan(y) && ((signbit(x) ? (static_cast<int17>(0x8000)-x.data_) : 
+				static_cast<int17>(x.data_)) <= (signbit(y) ? (static_cast<int17>(0x8000)-y.data_) : static_cast<int17>(y.data_))); }
+
+			static bool islessgreater(half x, half y) { return isless(x, y) || isgreater(x, y); }
+
+			static bool isunordered(half x, half y) { return isnan(x) || isnan(y); }
+		#if HALF_ENABLE_CPP11_CMATH
+			static float_expr remainder(float x, float y) { return float_expr(std::remainder(x, y)); }
+
+			static float_expr remquo(float x, float y, int *quo) { return float_expr(std::remquo(x, y, quo)); }
+
+			static float_expr exp2(float arg) { return float_expr(std::exp2(arg)); }
+
+			static float_expr expm1(float arg) { return float_expr(std::expm1(arg)); }
+
+			static float_expr log1p(float arg) { return float_expr(std::log1p(arg)); }
+
+			static float_expr log2(float arg) { return float_expr(std::log2(arg)); }
+
+			static float_expr cbrt(float arg) { return float_expr(std::cbrt(arg)); }
+
+			static float_expr hypot(float x, float y) { return float_expr(std::hypot(x, y)); }
+
+			static float_expr asinh(float arg) { return float_expr(std::asinh(arg)); }
+
+			static float_expr acosh(float arg) { return float_expr(std::acosh(arg)); }
+
+			static float_expr atanh(float arg) { return float_expr(std::atanh(arg)); }
+
+			static float_expr erf(float arg) { return float_expr(std::erf(arg)); }
+
+			static float_expr erfc(float arg) { return float_expr(std::erfc(arg)); }
+
+			static float_expr lgamma(float arg) { return float_expr(std::lgamma(arg)); }
+
+			static float_expr tgamma(float arg) { return float_expr(std::tgamma(arg)); }
+
+			static float_expr nearbyint(float arg) { return float_expr(std::nearbyint(arg)); }
+
+			static float_expr rint(float arg) { return float_expr(std::rint(arg)); }
+
+			static long lrint(float arg) { return float_expr(std::lrint(arg)); }
+
+			static long long llrint(float arg) { return float_expr(std::llrint(arg)); }
+		#elif HALF_ENABLE_CPP11_LONG_LONG
+			static long long llround(half arg) { return detail::half2int<long long,std::round_to_nearest>(arg.data_); }
+		#endif
+		};
+
+		/// Wrapper for unary half-precision functions needing specialization for individual argument types.
+		/// \tparam T argument type
+		template<typename T> struct unary_specialized
 		{
-		#if HALF_ENABLE_CPP11_CMATH
-			return std::fmax(x, y);
-		#else
-			return std::max(x, y);
-		#endif
-		}
+			static HALF_CONSTEXPR half negate(half arg) { return half(arg.data_^0x8000, true); }
 
-		inline half binary_specialized<half,half>::fmin(half x, half y) { return std::min(x, y); }
+			static half fabs(half arg) { return half(arg.data_&0x7FFF, true); }
+		};
+		template<> struct unary_specialized<float_expr>
+		{
+			static HALF_CONSTEXPR float_expr negate(float arg) { return float_expr(-arg); }
+			static float_expr fabs(float arg) { return float_expr(std::fabs(arg)); }
+		};
 
-		inline half binary_specialized<half,half>::fmax(half x, half y) { return std::max(x, y); }
+		/// Wrapper for binary half-precision functions needing specialization for individual argument types.
+		/// \tparam T first argument type
+		/// \tparam U first argument type
+		template<typename T,typename U> struct binary_specialized
+		{
+			static float_expr fmin(float x, float y)
+			{
+			#if HALF_ENABLE_CPP11_CMATH
+				return std::fmin(x, y);
+			#else
+				return std::min(x, y);
+			#endif
+			}
+
+			static float_expr fmax(float x, float y)
+			{
+			#if HALF_ENABLE_CPP11_CMATH
+				return std::fmax(x, y);
+			#else
+				return std::max(x, y);
+			#endif
+			}
+		};
+		template<> struct binary_specialized<half,half>
+		{
+			static half fmin(half x, half y) { return std::min(x, y); }
+			static half fmax(half x, half y) { return std::max(x, y); }
+		};
+
+		/// Helper class for half casts.
+		/// This class template has to be specialized for all valid cast argument to define an appropriate static `cast` member 
+		/// function and a corresponding `type` member denoting its return type.
+		/// \tparam T destination type
+		/// \tparam U source type
+		/// \tparam R rounding mode to use
+		template<typename T,typename U,std::float_round_style R> struct half_caster {};
+		template<typename U,std::float_round_style R> struct half_caster<half,U,R>
+		{
+			typedef half type;
+			static half cast(const U &arg) { return half(float2half<R>(static_cast<float>(arg)), true); };
+		};
+		template<typename T,std::float_round_style R> struct half_caster<T,half,R>
+		{
+			typedef T type;
+			template<typename E> static T cast(const half_expr<E> &arg) { return static_cast<T>(static_cast<float>(arg)); }
+		};
+		template<typename T,std::float_round_style R> struct half_caster<T,float_expr,R> : public half_caster<T,half,R> {};
+		template<std::float_round_style R> struct half_caster<half,half,R>
+		{
+			typedef half type;
+			template<typename E> static half cast(const half_expr<E> &arg) { return arg; }
+		};
+		template<std::float_round_style R> struct half_caster<half,float_expr,R> : public half_caster<half,half,R> {};
+
+		/// SFINAE helper for generic half-precision functions.
+		/// This class template has to be specialized for each valid combination of argument types to provide a corresponding 
+		/// `type` member equivalent to \a T.
+		/// \tparam T type to return
+		template<typename T,typename,typename=void,typename=void> struct enable {};
+		template<typename T> struct enable<T,half,void,void> { typedef T type; };
+		template<typename T> struct enable<T,float_expr,void,void> { typedef T type; };
+		template<typename T> struct enable<T,half,half,void> { typedef T type; };
+		template<typename T> struct enable<T,half,float_expr,void> { typedef T type; };
+		template<typename T> struct enable<T,float_expr,half,void> { typedef T type; };
+		template<typename T> struct enable<T,float_expr,float_expr,void> { typedef T type; };
+		template<typename T> struct enable<T,half,half,half> { typedef T type; };
+		template<typename T> struct enable<T,half,half,float_expr> { typedef T type; };
+		template<typename T> struct enable<T,half,float_expr,half> { typedef T type; };
+		template<typename T> struct enable<T,half,float_expr,float_expr> { typedef T type; };
+		template<typename T> struct enable<T,float_expr,half,half> { typedef T type; };
+		template<typename T> struct enable<T,float_expr,half,float_expr> { typedef T type; };
+		template<typename T> struct enable<T,float_expr,float_expr,half> { typedef T type; };
+		template<typename T> struct enable<T,float_expr,float_expr,float_expr> { typedef T type; };
+
+		/// Return type for specialized generic 2-argument half-precision functions.
+		/// This class template has to be specialized for each valid combination of argument types to provide a corresponding 
+		/// `type` member denoting the appropriate return type.
+		/// \tparam T first argument type
+		/// \tparam U first argument type
+		template<typename T,typename U> struct result : enable<float_expr,T,U> {};
+		template<> struct result<half,half> { typedef half type; };
+
+		/// SFINAE helper for generic half-precision functions available only when C++11 `<cmath>` functions are supported.
+	#if HALF_ENABLE_CPP11_CMATH
+		template<typename T,typename U,typename V=void> struct enable11 : enable<T,U,V> {};
+	#else
+		template<typename,typename,typename=void> struct enable11 {};
+	#endif
+
+		/// \name Comparison operators
+		/// \{
+
+		/// Comparison for equality.
+		/// \param x first operand
+		/// \param y second operand
+		/// \retval true if operands equal
+		/// \retval false else
+		template<typename T,typename U> typename enable<bool,T,U>::type operator==(T x, U y) { return functions::isequal(x, y); }
+
+		/// Comparison for inequality.
+		/// \param x first operand
+		/// \param y second operand
+		/// \retval true if operands not equal
+		/// \retval false else
+		template<typename T,typename U> typename enable<bool,T,U>::type operator!=(T x, U y) { return functions::isnotequal(x, y); }
+
+		/// Comparison for less than.
+		/// \param x first operand
+		/// \param y second operand
+		/// \retval true if \a x less than \a y
+		/// \retval false else
+		template<typename T,typename U> typename enable<bool,T,U>::type operator<(T x, U y) { return functions::isless(x, y); }
+
+		/// Comparison for greater than.
+		/// \param x first operand
+		/// \param y second operand
+		/// \retval true if \a x greater than \a y
+		/// \retval false else
+		template<typename T,typename U> typename enable<bool,T,U>::type operator>(T x, U y) { return functions::isgreater(x, y); }
+
+		/// Comparison for less equal.
+		/// \param x first operand
+		/// \param y second operand
+		/// \retval true if \a x less equal \a y
+		/// \retval false else
+		template<typename T,typename U> typename enable<bool,T,U>::type operator<=(T x, U y) { return functions::islessequal(x, y); }
+
+		/// Comparison for greater equal.
+		/// \param x first operand
+		/// \param y second operand
+		/// \retval true if \a x greater equal \a y
+		/// \retval false else
+		template<typename T,typename U> typename enable<bool,T,U>::type operator>=(T x, U y) { return functions::isgreaterequal(x, y); }
+
+		/// \}
+		/// \name Arithmetic operators
+		/// \{
+
+		/// Add halfs.
+		/// \param x left operand
+		/// \param y right operand
+		/// \return sum of half expressions
+		template<typename T,typename U> typename enable<float_expr,T,U>::type operator+(T x, U y) { return functions::plus(x, y); }
+
+		/// Subtract halfs.
+		/// \param x left operand
+		/// \param y right operand
+		/// \return difference of half expressions
+		template<typename T,typename U> typename enable<float_expr,T,U>::type operator-(T x, U y) { return functions::minus(x, y); }
+
+		/// Multiply halfs.
+		/// \param x left operand
+		/// \param y right operand
+		/// \return product of half expressions
+		template<typename T,typename U> typename enable<float_expr,T,U>::type operator*(T x, U y) { return functions::multiplies(x, y); }
+
+		/// Divide halfs.
+		/// \param x left operand
+		/// \param y right operand
+		/// \return quotient of half expressions
+		template<typename T,typename U> typename enable<float_expr,T,U>::type operator/(T x, U y) { return functions::divides(x, y); }
+
+		/// Identity.
+		/// \param arg operand
+		/// \return uncahnged operand
+		template<typename T> typename enable<T,T>::type HALF_CONSTEXPR operator+(T arg) { return arg; }
+
+		/// Negation.
+		/// \param arg operand
+		/// \return negated operand
+		template<typename T> typename enable<T,T>::type HALF_CONSTEXPR operator-(T arg) { return unary_specialized<T>::negate(arg); }
+
+		/// \}
+		/// \name Input and output
+		/// \{
+
+		/// Output operator.
+		/// \param out output stream to write into
+		/// \param arg half expression to write
+		/// \return reference to output stream
+		template<typename T,typename charT,typename traits> typename enable<std::basic_ostream<charT,traits>&,T>::type
+			operator<<(std::basic_ostream<charT,traits> &out, T arg) { return functions::write(out, arg); }
+
+		/// Input operator.
+		/// \param in input stream to read from
+		/// \param arg half to read into
+		/// \return reference to input stream
+		template<typename charT,typename traits> std::basic_istream<charT,traits>&
+			operator>>(std::basic_istream<charT,traits> &in, half &arg) { return functions::read(in, arg); }
+
+		/// \}
+		/// \name Basic mathematical operations
+		/// \{
+
+		/// Absolute value.
+		/// \param arg operand
+		/// \return absolute value of \a arg
+		template<typename T> typename enable<T,T>::type abs(T arg) { return unary_specialized<T>::fabs(arg); }
+
+		/// Absolute value.
+		/// \param arg operand
+		/// \return absolute value of \a arg
+		template<typename T> typename enable<T,T>::type fabs(T arg) { return unary_specialized<T>::fabs(arg); }
+
+		/// Remainder of division.
+		/// \param x first operand
+		/// \param y second operand
+		/// \return remainder of floating point division.
+		template<typename T,typename U> typename enable<float_expr,T,U>::type fmod(T x, U y) { return functions::fmod(x, y); }
+
+		/// Remainder of division.
+		/// \param x first operand
+		/// \param y second operand
+		/// \return remainder of floating point division.
+		template<typename T,typename U> typename enable11<float_expr,T,U>::type remainder(T x, U y) { return functions::remainder(x, y); }
+
+		/// Remainder of division.
+		/// \param x first operand
+		/// \param y second operand
+		/// \param quo address to store some bits of quotient at
+		/// \return remainder of floating point division.
+		template<typename T,typename U> typename enable11<float_expr,T,U>::type remquo(T x, U y, int *quo) { return functions::remquo(x, y, quo); }
+
+		/// Fused multiply add.
+		/// \param x first operand
+		/// \param y second operand
+		/// \param z third operand
+		/// \return ( \a x * \a y ) + \a z rounded as one operation.
+		template<typename T,typename U,typename V> typename enable<float_expr,T,U,V>::type fma(T x, U y, V z) { return functions::fma(x, y, z); }
+
+		/// Maximum of half expressions.
+		/// \param x first operand
+		/// \param y second operand
+		/// \return maximum of operands
+		template<typename T,typename U> typename result<T,U>::type fmax(T x, U y) { return binary_specialized<T,U>::fmax(x, y); }
+
+		/// Minimum of half expressions.
+		/// \param x first operand
+		/// \param y second operand
+		/// \return minimum of operands
+		template<typename T,typename U> typename result<T,U>::type fmin(T x, U y) { return binary_specialized<T,U>::fmin(x, y); }
+
+		/// Positive difference.
+		/// \param x first operand
+		/// \param y second operand
+		/// \return \a x - \a y or 0 if difference negative
+		template<typename T,typename U> typename enable<float_expr,T,U>::type fdim(T x, U y) { return functions::fdim(x, y); }
+
+		/// Get NaN value.
+		/// \param arg descriptive string (ignored)
+		/// \return quiet NaN
+		half nanh(const char *arg) { return functions::nanh(arg); }
+
+		/// \}
+		/// \name Exponential functions
+		/// \{
+
+		/// Exponential function.
+		/// \param arg operand
+		/// \return e raised to \a arg
+		template<typename T> typename enable<float_expr,T>::type exp(T arg) { return functions::exp(arg); }
+
+		/// Binary exponential.
+		/// \param arg operand
+		/// \return 2 raised to \a arg
+		template<typename T> typename enable11<float_expr,T>::type exp2(T arg) { return functions::exp2(arg); }
+
+		/// Exponential minus one.
+		/// \param arg operand
+		/// \return e raised to \a arg subtracted by 1
+		template<typename T> typename enable11<float_expr,T>::type expm1(T arg) { return functions::expm1(arg); }
+
+		/// Natural logorithm.
+		/// \param arg operand
+		/// \return logarithm of \a arg to base e
+		template<typename T> typename enable<float_expr,T>::type log(T arg) { return functions::log(arg); }
+
+		/// Common logorithm.
+		/// \param arg operand
+		/// \return logarithm of \a arg to base 10
+		template<typename T> typename enable<float_expr,T>::type log10(T arg) { return functions::log10(arg); }
+
+		/// Natural logorithm.
+		/// \param arg operand
+		/// \return logarithm of \a arg plus 1 to base e
+		template<typename T> typename enable11<float_expr,T>::type log1p(T arg) { return functions::log1p(arg); }
+
+		/// Binary logorithm.
+		/// \param arg operand
+		/// \return logarithm of \a arg to base 2
+		template<typename T> typename enable11<float_expr,T>::type log2(T arg) { return functions::log2(arg); }
+
+		/// \}
+		/// \name Power functions
+		/// \{
+
+		/// Square root.
+		/// \param arg operand
+		/// \return square root of \a arg
+		template<typename T> typename enable<float_expr,T>::type sqrt(T arg) { return functions::sqrt(arg); }
+
+		/// Cubic root.
+		/// \param arg operand
+		/// \return cubic root of \a arg
+		template<typename T> typename enable11<float_expr,T>::type cbrt(T arg) { return functions::cbrt(arg); }
+
+		/// Hypotenuse function.
+		/// \param x first operand
+		/// \param y second operand
+		/// \return square root of sum of squares
+		template<typename T,typename U> typename enable11<float_expr,T,U>::type hypot(T x, U y) { return functions::hypot(x, y); }
+
+		/// Power function.
+		/// \param base first operand
+		/// \param exp second operand
+		/// \return \a base raised to \a exp
+		template<typename T,typename U> typename enable<float_expr,T,U>::type pow(T base, U exp) { return functions::pow(base, exp); }
+
+		/// \}
+		/// \name Trigonometric functions
+		/// \{
+
+		/// Sine function.
+		/// \param arg operand
+		/// \return sine value of \a arg
+		template<typename T> typename enable<float_expr,T>::type sin(T arg) { return functions::sin(arg); }
+
+		/// Cosine function.
+		/// \param arg operand
+		/// \return cosine value of \a arg
+		template<typename T> typename enable<float_expr,T>::type cos(T arg) { return functions::cos(arg); }
+
+		/// Tangent function.
+		/// \param arg operand
+		/// \return tangent value of \a arg
+		template<typename T> typename enable<float_expr,T>::type tan(T arg) { return functions::tan(arg); }
+
+		/// Arc sine.
+		/// \param arg operand
+		/// \return arc sine value of \a arg
+		template<typename T> typename enable<float_expr,T>::type asin(T arg) { return functions::asin(arg); }
+
+		/// Arc cosine function.
+		/// \param arg operand
+		/// \return arc cosine value of \a arg
+		template<typename T> typename enable<float_expr,T>::type acos(T arg) { return functions::acos(arg); }
+
+		/// Arc tangent function.
+		/// \param arg operand
+		/// \return arc tangent value of \a arg
+		template<typename T> typename enable<float_expr,T>::type atan(T arg) { return functions::atan(arg); }
+
+		/// Arc tangent function.
+		/// \param x first operand
+		/// \param y second operand
+		/// \return arc tangent value
+		template<typename T,typename U> typename enable<float_expr,T,U>::type atan2(T x, U y) { return functions::atan2(x, y); }
+
+		/// \}
+		/// \name Hyperbolic functions
+		/// \{
+
+		/// Hyperbolic sine.
+		/// \param arg operand
+		/// \return hyperbolic sine value of \a arg
+		template<typename T> typename enable<float_expr,T>::type sinh(T arg) { return functions::sinh(arg); }
+
+		/// Hyperbolic cosine.
+		/// \param arg operand
+		/// \return hyperbolic cosine value of \a arg
+		template<typename T> typename enable<float_expr,T>::type cosh(T arg) { return functions::cosh(arg); }
+
+		/// Hyperbolic tangent.
+		/// \param arg operand
+		/// \return hyperbolic tangent value of \a arg
+		template<typename T> typename enable<float_expr,T>::type tanh(T arg) { return functions::tanh(arg); }
+
+		/// Area sine.
+		/// \param arg operand
+		/// \return area sine value of \a arg
+		template<typename T> typename enable11<float_expr,T>::type asinh(T arg) { return functions::asinh(arg); }
+
+		/// Area cosine.
+		/// \param arg operand
+		/// \return area cosine value of \a arg
+		template<typename T> typename enable11<float_expr,T>::type acosh(T arg) { return functions::acosh(arg); }
+
+		/// Area tangent.
+		/// \param arg operand
+		/// \return area tangent value of \a arg
+		template<typename T> typename enable11<float_expr,T>::type atanh(T arg) { return functions::atanh(arg); }
+
+		/// \}
+		/// \name Error and gamma functions
+		/// \{
+
+		/// Error function.
+		/// \param arg operand
+		/// \return error function value of \a arg
+		template<typename T> typename enable11<float_expr,T>::type erf(T arg) { return functions::erf(arg); }
+
+		/// Complementary error function.
+		/// \param arg operand
+		/// \return 1 minus error function value of \a arg
+		template<typename T> typename enable11<float_expr,T>::type erfc(T arg) { return functions::erfc(arg); }
+
+		/// Natural logarithm of gamma function.
+		/// \param arg operand
+		/// \return natural logarith of gamma function for \a arg
+		template<typename T> typename enable11<float_expr,T>::type lgamma(T arg) { return functions::lgamma(arg); }
+
+		/// Gamma function.
+		/// \param arg operand
+		/// \return gamma function value of \a arg
+		template<typename T> typename enable11<float_expr,T>::type tgamma(T arg) { return functions::tgamma(arg); }
+
+		/// \}
+		/// \name Rounding
+		/// \{
+
+		/// Nearest integer not less than half value.
+		/// \param arg half to round
+		/// \return nearest integer not less than \a arg
+		template<typename T> typename enable<half,T>::type ceil(T arg) { return functions::ceil(arg); }
+
+		/// Nearest integer not greater than half value.
+		/// \param arg half to round
+		/// \return nearest integer not greater than \a arg
+		template<typename T> typename enable<half,T>::type floor(T arg) { return functions::floor(arg); }
+
+		/// Nearest integer not greater in magnitude than half value.
+		/// \param arg half to round
+		/// \return nearest integer not greater in magnitude than \a arg
+		template<typename T> typename enable<half,T>::type trunc(T arg) { return functions::trunc(arg); }
+
+		/// Nearest integer.
+		/// \param arg half to round
+		/// \return nearest integer, rounded away from zero in half-way cases
+		template<typename T> typename enable<half,T>::type round(T arg) { return functions::round(arg); }
+
+		/// Nearest integer.
+		/// \param arg half to round
+		/// \return nearest integer, rounded away from zero in half-way cases
+		template<typename T> typename enable<long,T>::type lround(T arg) { return functions::lround(arg); }
+
+		/// Nearest integer.
+		/// \param arg half expression to round
+		/// \return nearest integer using current rounding mode
+		template<typename T> typename enable11<half,T>::type nearbyint(T arg) { return functions::nearbyint(arg); }
+
+		/// Nearest integer.
+		/// \param arg half expression to round
+		/// \return nearest integer using current rounding mode
+		template<typename T> typename enable11<half,T>::type rint(T arg) { return functions::rint(arg); }
+
+		/// Nearest integer.
+		/// \param arg half expression to round
+		/// \return nearest integer using current rounding mode
+		template<typename T> typename enable11<long,T>::type lrint(T arg) { return functions::lrint(arg); }
+	#if HALF_ENABLE_CPP11_LONG_LONG
+		/// Nearest integer.
+		/// \param arg half to round
+		/// \return nearest integer, rounded away from zero in half-way cases
+		template<typename T> typename enable<long long,T>::type llround(T arg) { return functions::llround(arg); }
+
+		/// Nearest integer.
+		/// \param arg half expression to round
+		/// \return nearest integer using current rounding mode
+		template<typename T> typename enable11<long long,T>::type llrint(T arg) { return functions::llrint(arg); }
+	#endif
+
+		/// \}
+		/// \name Floating point manipulation
+		/// \{
+
+		/// Decompress floating point number.
+		/// \param arg number to decompress
+		/// \param exp address to store exponent at
+		/// \return significant in range [0.5, 1)
+		template<typename T> typename enable<half,T>::type frexp(T arg, int *exp) { return functions::frexp(arg, exp); }
+
+		/// Multiply by power of two.
+		/// \param arg number to modify
+		/// \param exp power of two to multiply with
+		/// \return \a arg multplied by 2 raised to \a exp
+		template<typename T> typename enable<half,T>::type ldexp(T arg, int exp) { return functions::scalbln(arg, exp); }
+
+		/// Extract integer and fractional parts.
+		/// \param x number to decompress
+		/// \param iptr address to store integer part at
+		/// \return fractional part
+		template<typename T> typename enable<half,T>::type modf(T arg, half *iptr) { return functions::modf(arg, iptr); }
+
+		/// Multiply by power of two.
+		/// \param x number to modify
+		/// \param exp power of two to multiply with
+		/// \return \a arg multplied by 2 raised to \a exp
+		template<typename T> typename enable<half,T>::type scalbn(T arg, int exp) { return functions::scalbln(arg, exp); }
+
+		/// Multiply by power of two.
+		/// \param x number to modify
+		/// \param exp power of two to multiply with
+		/// \return \a arg multplied by 2 raised to \a exp	
+		template<typename T> typename enable<half,T>::type scalbln(T arg, long exp) { return functions::scalbln(arg, exp); }
+
+		/// Extract exponent.
+		/// \param arg number to query
+		/// \return floating point exponent
+		/// \retval FP_ILOGB0 for zero
+		/// \retval FP_ILOGBNAN for NaN
+		/// \retval MAX_INT for infinity
+		template<typename T> typename enable<int,T>::type ilogb(T arg) { return functions::ilogb(arg); }
+
+		/// Extract exponent.
+		/// \param arg number to query
+		/// \return floating point exponent
+		template<typename T> typename enable<half,T>::type logb(T arg) { return functions::logb(arg); }
+
+		/// Next representable value.
+		/// \param from value to compute next representable value for
+		/// \param to direction towards which to compute next value
+		/// \return next representable value after \a from in direction towards \a to
+		template<typename T,typename U> typename enable<half,T,U>::type nextafter(T from, U to) { return functions::nextafter(from, to); }
+
+		/// Next representable value.
+		/// \param from value to compute next representable value for
+		/// \param to direction towards which to compute next value
+		/// \return next representable value after \a from in direction towards \a to
+		template<typename T> typename enable<half,T>::type nexttoward(T from, long double to) { return functions::nexttoward(from, to); }
+
+		/// Take sign.
+		/// \param x value to change sign for
+		/// \param y value to take sign from
+		/// \return value equal to \a x in magnitude and to \a y in sign
+		template<typename T,typename U> typename enable<half,T,U>::type copysign(T x, U y) { return functions::copysign(x, y); }
+
+		/// \}
+		/// \name Floating point classification
+		/// \{
+
+
+		/// Classify floating point value.
+		/// \param arg number to classify
+		/// \retval FP_ZERO for positive and negative zero
+		/// \retval FP_SUBNORMAL for subnormal numbers
+		/// \retval FP_INFINITY for positive and negative infinity
+		/// \retval FP_NAN for NaNs
+		/// \retval FP_NORMAL for all other (normal) values
+		template<typename T> typename enable<int,T>::type fpclassify(T arg) { return functions::fpclassify(arg); }
+
+		/// Check if finite number.
+		/// \param arg number to check
+		/// \retval true if neither infinity nor NaN
+		/// \retval false else
+		template<typename T> typename enable<bool,T>::type isfinite(T arg) { return functions::isfinite(arg); }
+
+		/// Check for infinity.
+		/// \param arg number to check
+		/// \retval true for positive or negative infinity
+		/// \retval false else
+		template<typename T> typename enable<bool,T>::type isinf(T arg) { return functions::isinf(arg); }
+
+		/// Check for NaN.
+		/// \param arg number to check
+		/// \retval true for NaNs
+		/// \retval false else
+		template<typename T> typename enable<bool,T>::type isnan(T arg) { return functions::isnan(arg); }
+
+		/// Check if normal number.
+		/// \param arg number to check
+		/// \retval true if normal number
+		/// \retval false if either subnormal, zero, infinity or NaN
+		template<typename T> typename enable<bool,T>::type isnormal(T arg) { return functions::isnormal(arg); }
+
+		/// Check sign.
+		/// \param arg number to check
+		/// \retval true for negative number
+		/// \retval false for positive number
+		template<typename T> typename enable<bool,T>::type signbit(T arg) { return functions::signbit(arg); }
+
+		/// \}
+		/// \name Comparison
+		/// \{
+
+		/// Comparison for greater than.
+		/// \param x first operand
+		/// \param y second operand
+		/// \retval true if \a x greater than \a y
+		/// \retval false else
+		template<typename T,typename U> typename enable<bool,T,U>::type isgreater(T x, U y) { return functions::isgreater(x, y); }
+
+		/// Comparison for greater equal.
+		/// \param x first operand
+		/// \param y second operand
+		/// \retval true if \a x greater equal \a y
+		/// \retval false else
+		template<typename T,typename U> typename enable<bool,T,U>::type isgreaterequal(T x, U y) { return functions::isgreaterequal(x, y); }
+
+		/// Comparison for less than.
+		/// \param x first operand
+		/// \param y second operand
+		/// \retval true if \a x less than \a y
+		/// \retval false else
+		template<typename T,typename U> typename enable<bool,T,U>::type isless(T x, U y) { return functions::isless(x, y); }
+
+		/// Comparison for less equal.
+		/// \param x first operand
+		/// \param y second operand
+		/// \retval true if \a x less equal \a y
+		/// \retval false else
+		template<typename T,typename U> typename enable<bool,T,U>::type islessequal(T x, U y) { return functions::islessequal(x, y); }
+
+		/// Comarison for less or greater.
+		/// \param x first operand
+		/// \param y second operand
+		/// \retval true if either less or greater
+		/// \retval false else
+		template<typename T,typename U> typename enable<bool,T,U>::type islessgreater(T x, U y) { return functions::islessgreater(x, y); }
+
+		/// Check if unordered.
+		/// \param x first operand
+		/// \param y second operand
+		/// \retval true if unordered (one or two NaN operands)
+		/// \retval false else
+		template<typename T,typename U> typename enable<bool,T,U>::type isunordered(T x, U y) { return functions::isunordered(x, y); }
+
+		/// \name Casting
+		/// \{
 
 		/// Cast to or from half-precision floating point number.
 		/// This casts between [half](\ref half_float::half) and any type convertible to/from `float` via an explicit cast of this 
@@ -1772,10 +1862,8 @@ namespace half_float
 		/// \tparam U source type
 		/// \param arg value to cast
 		/// \return \a arg converted to destination type
-		template<typename T,typename U> T half_cast(const U &arg)
-		{
-			return half_caster<T,U,std::round_indeterminate>::cast(arg);
-		}
+		template<typename T,typename U> typename half_caster<T,U,std::round_indeterminate>::type
+			half_cast(const U &arg) { return half_caster<T,U,std::round_indeterminate>::cast(arg); }
 
 		/// Cast to or from half-precision floating point number with specified rounding.
 		/// This casts between [half](\ref half_float::half) and any type convertible to/from `float` via an explicit cast of this 
@@ -1791,108 +1879,96 @@ namespace half_float
 		/// \tparam U source type
 		/// \param arg value to cast
 		/// \return \a arg converted to destination type
-		template<typename T,std::float_round_style R,typename U> T half_cast(const U &arg)
-		{
-			return half_caster<T,U,R>::cast(arg);
-		}
-
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type operator==(T x, U y) { return functions::isequal(x, y); }
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type operator!=(T x, U y) { return functions::isnotequal(x, y); }
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type operator<(T x, U y) { return functions::isless(x, y); }
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type operator>(T x, U y) { return functions::isgreater(x, y); }
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type operator<=(T x, U y) { return functions::islessequal(x, y); }
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type operator>=(T x, U y) { return functions::isgreaterequal(x, y); }
-
-		template<typename T,typename U> typename binary_result<function::plus,T,U>::type operator+(T x, U y) { return functions::plus(x, y); }
-		template<typename T,typename U> typename binary_result<function::minus,T,U>::type operator-(T x, U y) { return functions::minus(x, y); }
-		template<typename T,typename U> typename binary_result<function::multiplies,T,U>::type operator*(T x, U y) { return functions::multiplies(x, y); }
-		template<typename T,typename U> typename binary_result<function::divides,T,U>::type operator/(T x, U y) { return functions::divides(x, y); }
-		template<typename T> typename unary_enable<T,T>::type operator+(T arg) { return arg; }
-		template<typename T> typename unary_result<function::negate,T>::type operator-(T arg) { return unary_specialized<T>::negate(arg); }
-
-		template<typename T,typename charT,typename traits> typename unary_enable<T,std::basic_ostream<charT,traits>&>::type operator<<(std::basic_ostream<charT,traits> &out, T arg) { return functions::write(out, arg); }
-		template<typename charT,typename traits> std::basic_istream<charT,traits>& operator>>(std::basic_istream<charT,traits> &in, half &arg) { return functions::read(in, arg); }
-
-		template<typename T> typename unary_result<function::fabs,T>::type abs(T arg) { return unary_specialized<T>::fabs(arg); }
-		template<typename T> typename unary_result<function::fabs,T>::type fabs(T arg) { return unary_specialized<T>::fabs(arg); }
-		template<typename T,typename U> typename binary_result<function::fmod,T,U>::type fmod(T x, U y) { return functions::fmod(x, y); }
-		template<typename T,typename U> typename binary_result<function::remainder,T,U>::type remainder(T x, U y) { return functions::remainder(x, y); }
-		template<typename T,typename U> typename binary_result<function::remquo,T,U>::type remquo(T x, U y, int *quo) { return functions::remquo(x, y, quo); }
-		template<typename T,typename U,typename V> typename ternary_result<function::fma,T,U,V>::type fma(T x, U y, V z) { return functions::fma(x, y, z); }
-		template<typename T,typename U> typename binary_result<function::fmax,T,U>::type fmax(T x, U y) { return binary_specialized<T,U>::fmax(x, y); }
-		template<typename T,typename U> typename binary_result<function::fmin,T,U>::type fmin(T x, U y) { return binary_specialized<T,U>::fmin(x, y); }
-		template<typename T,typename U> typename binary_result<function::fdim,T,U>::type fdim(T x, U y) { return functions::fdim(x, y); }
-		half nanh(const char *arg) { return functions::nanh(arg); }
-
-		template<typename T> typename unary_result<function::exp,T>::type exp(T arg) { return functions::exp(arg); }
-		template<typename T> typename unary_result<function::exp2,T>::type exp2(T arg) { return functions::exp2(arg); }
-		template<typename T> typename unary_result<function::expm1,T>::type expm1(T arg) { return functions::expm1(arg); }
-		template<typename T> typename unary_result<function::log,T>::type log(T arg) { return functions::log(arg); }
-		template<typename T> typename unary_result<function::log10,T>::type log10(T arg) { return functions::log10(arg); }
-		template<typename T> typename unary_result<function::log1p,T>::type log1p(T arg) { return functions::log1p(arg); }
-		template<typename T> typename unary_result<function::log2,T>::type log2(T arg) { return functions::log2(arg); }
-
-		template<typename T> typename unary_result<function::sqrt,T>::type sqrt(T arg) { return functions::sqrt(arg); }
-		template<typename T> typename unary_result<function::cbrt,T>::type cbrt(T arg) { return functions::cbrt(arg); }
-		template<typename T,typename U> typename binary_result<function::hypot,T,U>::type hypot(T x, U y) { return functions::hypot(x, y); }
-		template<typename T,typename U> typename binary_result<function::pow,T,U>::type pow(T base, U exp) { return functions::pow(base, exp); }
-
-		template<typename T> typename unary_result<function::sin,T>::type sin(T arg) { return functions::sin(arg); }
-		template<typename T> typename unary_result<function::cos,T>::type cos(T arg) { return functions::cos(arg); }
-		template<typename T> typename unary_result<function::tan,T>::type tan(T arg) { return functions::tan(arg); }
-		template<typename T> typename unary_result<function::asin,T>::type asin(T arg) { return functions::asin(arg); }
-		template<typename T> typename unary_result<function::acos,T>::type acos(T arg) { return functions::acos(arg); }
-		template<typename T> typename unary_result<function::atan,T>::type atan(T arg) { return functions::atan(arg); }
-		template<typename T,typename U> typename binary_result<function::atan2,T,U>::type atan2(T x, U y) { return functions::atan2(x, y); }
-
-		template<typename T> typename unary_result<function::sinh,T>::type sinh(T arg) { return functions::sinh(arg); }
-		template<typename T> typename unary_result<function::cosh,T>::type cosh(T arg) { return functions::cosh(arg); }
-		template<typename T> typename unary_result<function::tanh,T>::type tanh(T arg) { return functions::tanh(arg); }
-		template<typename T> typename unary_result<function::asinh,T>::type asinh(T arg) { return functions::asinh(arg); }
-		template<typename T> typename unary_result<function::acosh,T>::type acosh(T arg) { return functions::acosh(arg); }
-		template<typename T> typename unary_result<function::atanh,T>::type atanh(T arg) { return functions::atanh(arg); }
-
-		template<typename T> typename unary_result<function::erf,T>::type erf(T arg) { return functions::erf(arg); }
-		template<typename T> typename unary_result<function::erfc,T>::type erfc(T arg) { return functions::erfc(arg); }
-		template<typename T> typename unary_result<function::lgamma,T>::type lgamma(T arg) { return functions::lgamma(arg); }
-		template<typename T> typename unary_result<function::tgamma,T>::type tgamma(T arg) { return functions::tgamma(arg); }
-
-		template<typename T> typename unary_result<function::ceil,T>::type ceil(T arg) { return functions::ceil(arg); }
-		template<typename T> typename unary_result<function::floor,T>::type floor(T arg) { return functions::floor(arg); }
-		template<typename T> typename unary_result<function::trunc,T>::type trunc(T arg) { return functions::trunc(arg); }
-		template<typename T> typename unary_result<function::round,T>::type round(T arg) { return functions::round(arg); }
-		template<typename T> typename unary_enable<T,long>::type lround(T arg) { return functions::lround(arg); }
-		template<typename T> typename unary_enable<T,long long>::type llround(T arg) { return functions::llround(arg); }
-		template<typename T> typename unary_result<function::nearbyint,T>::type nearbyint(T arg) { return functions::nearbyint(arg); }
-		template<typename T> typename unary_result<function::rint,T>::type rint(T arg) { return functions::rint(arg); }
-		template<typename T> typename unary_enable<T,long>::type lrint(T arg) { return functions::lrint(arg); }
-		template<typename T> typename unary_enable<T,long long>::type llrint(T arg) { return functions::llrint(arg); }
-
-		template<typename T> typename unary_result<function::frexp,T>::type frexp(T arg, int *exp) { return functions::frexp(arg, exp); }
-		template<typename T> typename unary_result<function::scalbln,T>::type ldexp(T arg, int exp) { return functions::scalbln(arg, exp); }
-		template<typename T> typename unary_result<function::modf,T>::type modf(T arg, half *iptr) { return functions::modf(arg, iptr); }
-		template<typename T> typename unary_result<function::scalbln,T>::type scalbn(T arg, int exp) { return functions::scalbln(arg, exp); }
-		template<typename T> typename unary_result<function::scalbln,T>::type scalbln(T arg, long exp) { return functions::scalbln(arg, exp); }
-		template<typename T> typename unary_enable<T,int>::type ilogb(T arg) { return functions::ilogb(arg); }
-		template<typename T> typename unary_result<function::logb,T>::type logb(T arg) { return functions::logb(arg); }
-		template<typename T,typename U> typename binary_result<function::nextafter,T,U>::type nextafter(T from, U to) { return functions::nextafter(from, to); }
-		template<typename T> typename unary_result<function::nexttoward,T>::type nexttoward(T from, long double to) { return functions::nexttoward(from, to); }
-		template<typename T,typename U> typename binary_result<function::copysign,T,U>::type copysign(T x, U y) { return functions::copysign(x, y); }
-
-		template<typename T> typename unary_enable<T,int>::type fpclassify(T arg) { return functions::fpclassify(arg); }
-		template<typename T> typename unary_enable<T,bool>::type isfinite(T arg) { return functions::isfinite(arg); }
-		template<typename T> typename unary_enable<T,bool>::type isinf(T arg) { return functions::isinf(arg); }
-		template<typename T> typename unary_enable<T,bool>::type isnan(T arg) { return functions::isnan(arg); }
-		template<typename T> typename unary_enable<T,bool>::type isnormal(T arg) { return functions::isnormal(arg); }
-		template<typename T> typename unary_enable<T,bool>::type signbit(T arg) { return functions::signbit(arg); }
-
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type isgreater(T x, U y) { return functions::isgreater(x, y); }
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type isgreaterequal(T x, U y) { return functions::isgreaterequal(x, y); }
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type isless(T x, U y) { return functions::isless(x, y); }
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type islessequal(T x, U y) { return functions::islessequal(x, y); }
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type islessgreater(T x, U y) { return functions::islessgreater(x, y); }
-		template<typename T,typename U> typename binary_enable<T,U,bool>::type isunordered(T x, U y) { return functions::isunordered(x, y); }
+		template<typename T,std::float_round_style R,typename U> typename half_caster<T,U,R>::type
+			half_cast(const U &arg) { return half_caster<T,U,R>::cast(arg); }
+		/// \}
 	}
+
+	using detail::operator==;
+	using detail::operator!=;
+	using detail::operator<;
+	using detail::operator>;
+	using detail::operator<=;
+	using detail::operator>=;
+	using detail::operator+;
+	using detail::operator-;
+	using detail::operator*;
+	using detail::operator/;
+	using detail::operator<<;
+	using detail::operator>>;
+	using detail::abs;
+	using detail::fabs;
+	using detail::fmod;
+	using detail::remainder;
+	using detail::remquo;
+	using detail::fma;
+	using detail::fmax;
+	using detail::fmin;
+	using detail::fdim;
+	using detail::nanh;
+	using detail::exp;
+	using detail::exp2;
+	using detail::expm1;
+	using detail::log;
+	using detail::log10;
+	using detail::log1p;
+	using detail::log2;
+	using detail::sqrt;
+	using detail::cbrt;
+	using detail::hypot;
+	using detail::pow;
+	using detail::sin;
+	using detail::cos;
+	using detail::tan;
+	using detail::asin;
+	using detail::acos;
+	using detail::atan;
+	using detail::atan2;
+	using detail::sinh;
+	using detail::cosh;
+	using detail::tanh;
+	using detail::asinh;
+	using detail::acosh;
+	using detail::atanh;
+	using detail::erf;
+	using detail::erfc;
+	using detail::lgamma;
+	using detail::tgamma;
+	using detail::ceil;
+	using detail::floor;
+	using detail::trunc;
+	using detail::round;
+	using detail::lround;
+	using detail::nearbyint;
+	using detail::rint;
+	using detail::lrint;
+#if HALF_ENABLE_CPP11_LONG_LONG
+	using detail::llround;
+	using detail::llrint;
+#endif
+	using detail::frexp;
+	using detail::ldexp;
+	using detail::modf;
+	using detail::scalbn;
+	using detail::scalbln;
+	using detail::ilogb;
+	using detail::logb;
+	using detail::nextafter;
+	using detail::nexttoward;
+	using detail::copysign;
+	using detail::fpclassify;
+	using detail::isfinite;
+	using detail::isinf;
+	using detail::isnan;
+	using detail::isnormal;
+	using detail::signbit;
+	using detail::isgreater;
+	using detail::isgreaterequal;
+	using detail::isless;
+	using detail::islessequal;
+	using detail::islessgreater;
+	using detail::isunordered;
+	using detail::half_cast;
 }
 
 

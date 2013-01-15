@@ -494,22 +494,22 @@ namespace half_float
 	/// \return hyperbolic tangent value of \a arg
 	half tanh(half arg);
 
-	/// Hyperbolic arc sine.
+	/// Area sine.
 	/// This function uses the underlying single-precision implementation and requires support for C++11 `<cmath>` functions.
 	/// \param arg operand
-	/// \return hyperbolic arc sine value of \a arg
+	/// \return area sine value of \a arg
 	half asinh(half arg);
 
-	/// Hyperbolic arc cosine.
+	/// Area cosine.
 	/// This function uses the underlying single-precision implementation and requires support for C++11 `<cmath>` functions.
 	/// \param arg operand
-	/// \return hyperbolic arc cosine value of \a arg
+	/// \return area cosine value of \a arg
 	half acosh(half arg);
 
-	/// Hyperbolic arc tangent.
+	/// Area tangent.
 	/// This function uses the underlying single-precision implementation and requires support for C++11 `<cmath>` functions.
 	/// \param arg operand
-	/// \return hyperbolic arc tangent value of \a arg
+	/// \return area tangent value of \a arg
 	half atanh(half arg);
 
 	/// \}
