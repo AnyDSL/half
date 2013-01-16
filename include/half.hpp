@@ -129,14 +129,6 @@
 #endif
 #undef HALF_GNUC_VERSION
 
-//C++11 cmath functions always need long long
-#if HALF_ENABLE_CPP11_CMATH
-	#ifdef HALF_ENABLE_CPP11_LONG_LONG
-		#undef HALF_ENABLE_CPP11_LONG_LONG
-	#endif
-	#define HALF_ENABLE_CPP11_LONG_LONG 1
-#endif
-
 //support constexpr
 #if HALF_ENABLE_CPP11_CONSTEXPR
 	#define HALF_CONSTEXPR			constexpr
@@ -1152,7 +1144,12 @@ namespace half_float
 			/// \param arg value to round
 			/// \return rounded value
 			static long lround(half arg) { return detail::half2int<long,std::round_to_nearest>(arg.data_); }
-
+		#if HALF_ENABLE_CPP11_LONG_LONG
+			/// Nearest integer implementation.
+			/// \param arg value to round
+			/// \return rounded value
+			static long long llround(half arg) { return detail::half2int<long long,std::round_to_nearest>(arg.data_); }
+		#endif
 			/// Decompression implementation.
 			/// \param arg number to decompress
 			/// \param exp address to store exponent at
@@ -1476,16 +1473,12 @@ namespace half_float
 			/// \param arg value to round
 			/// \return rounded value
 			static long lrint(float arg) { return float_expr(std::lrint(arg)); }
-
+		#if HALF_ENABLE_CPP11_LONG_LONG
 			/// Nearest integer implementation.
 			/// \param arg value to round
 			/// \return rounded value
 			static long long llrint(float arg) { return float_expr(std::llrint(arg)); }
-		#elif HALF_ENABLE_CPP11_LONG_LONG
-			/// Nearest integer implementation.
-			/// \param arg value to round
-			/// \return rounded value
-			static long long llround(half arg) { return detail::half2int<long long,std::round_to_nearest>(arg.data_); }
+		#endif
 		#endif
 		};
 
@@ -1598,13 +1591,6 @@ namespace half_float
 		/// \tparam U first argument type
 		template<typename T,typename U> struct result : enable<float_expr,T,U> {};
 		template<> struct result<half,half> { typedef half type; };
-
-		/// SFINAE helper for generic half-precision functions available only when C++11 `<cmath>` functions are supported.
-	#if HALF_ENABLE_CPP11_CMATH
-		template<typename T,typename U,typename V=void> struct enable11 : enable<T,U,V> {};
-	#else
-		template<typename,typename,typename=void> struct enable11 {};
-	#endif
 
 		/// \name Comparison operators
 		/// \{
@@ -1727,19 +1713,6 @@ namespace half_float
 		/// \return remainder of floating point division.
 		template<typename T,typename U> typename enable<float_expr,T,U>::type fmod(T x, U y) { return functions::fmod(x, y); }
 
-		/// Remainder of division.
-		/// \param x first operand
-		/// \param y second operand
-		/// \return remainder of floating point division.
-		template<typename T,typename U> typename enable11<float_expr,T,U>::type remainder(T x, U y) { return functions::remainder(x, y); }
-
-		/// Remainder of division.
-		/// \param x first operand
-		/// \param y second operand
-		/// \param quo address to store some bits of quotient at
-		/// \return remainder of floating point division.
-		template<typename T,typename U> typename enable11<float_expr,T,U>::type remquo(T x, U y, int *quo) { return functions::remquo(x, y, quo); }
-
 		/// Fused multiply add.
 		/// \param x first operand
 		/// \param y second operand
@@ -1769,6 +1742,20 @@ namespace half_float
 		/// \param arg descriptive string (ignored)
 		/// \return quiet NaN
 		half nanh(const char *arg) { return functions::nanh(arg); }
+	#if HALF_ENABLE_CPP11_CMATH
+		/// Remainder of division.
+		/// \param x first operand
+		/// \param y second operand
+		/// \return remainder of floating point division.
+		template<typename T,typename U> typename enable<float_expr,T,U>::type remainder(T x, U y) { return functions::remainder(x, y); }
+
+		/// Remainder of division.
+		/// \param x first operand
+		/// \param y second operand
+		/// \param quo address to store some bits of quotient at
+		/// \return remainder of floating point division.
+		template<typename T,typename U> typename enable<float_expr,T,U>::type remquo(T x, U y, int *quo) { return functions::remquo(x, y, quo); }
+	#endif
 
 		/// \}
 		/// \name Exponential functions
@@ -1779,15 +1766,10 @@ namespace half_float
 		/// \return e raised to \a arg
 		template<typename T> typename enable<float_expr,T>::type exp(T arg) { return functions::exp(arg); }
 
-		/// Binary exponential.
-		/// \param arg function argument
-		/// \return 2 raised to \a arg
-		template<typename T> typename enable11<float_expr,T>::type exp2(T arg) { return functions::exp2(arg); }
-
 		/// Exponential minus one.
 		/// \param arg function argument
 		/// \return e raised to \a arg subtracted by 1
-		template<typename T> typename enable11<float_expr,T>::type expm1(T arg) { return functions::expm1(arg); }
+		template<typename T> typename enable<float_expr,T>::type expm1(T arg) { return functions::expm1(arg); }
 
 		/// Natural logorithm.
 		/// \param arg function argument
@@ -1802,12 +1784,18 @@ namespace half_float
 		/// Natural logorithm.
 		/// \param arg function argument
 		/// \return logarithm of \a arg plus 1 to base e
-		template<typename T> typename enable11<float_expr,T>::type log1p(T arg) { return functions::log1p(arg); }
+		template<typename T> typename enable<float_expr,T>::type log1p(T arg) { return functions::log1p(arg); }
+	#if HALF_ENABLE_CPP11_CMATH
+		/// Binary exponential.
+		/// \param arg function argument
+		/// \return 2 raised to \a arg
+		template<typename T> typename enable<float_expr,T>::type exp2(T arg) { return functions::exp2(arg); }
 
 		/// Binary logorithm.
 		/// \param arg function argument
 		/// \return logarithm of \a arg to base 2
-		template<typename T> typename enable11<float_expr,T>::type log2(T arg) { return functions::log2(arg); }
+		template<typename T> typename enable<float_expr,T>::type log2(T arg) { return functions::log2(arg); }
+	#endif
 
 		/// \}
 		/// \name Power functions
@@ -1817,11 +1805,6 @@ namespace half_float
 		/// \param arg function argument
 		/// \return square root of \a arg
 		template<typename T> typename enable<float_expr,T>::type sqrt(T arg) { return functions::sqrt(arg); }
-
-		/// Cubic root.
-		/// \param arg function argument
-		/// \return cubic root of \a arg
-		template<typename T> typename enable11<float_expr,T>::type cbrt(T arg) { return functions::cbrt(arg); }
 
 		/// Hypotenuse function.
 		/// \param x first argument
@@ -1834,6 +1817,12 @@ namespace half_float
 		/// \param exp second argument
 		/// \return \a base raised to \a exp
 		template<typename T,typename U> typename enable<float_expr,T,U>::type pow(T base, U exp) { return functions::pow(base, exp); }
+	#if HALF_ENABLE_CPP11_CMATH
+		/// Cubic root.
+		/// \param arg function argument
+		/// \return cubic root of \a arg
+		template<typename T> typename enable<float_expr,T>::type cbrt(T arg) { return functions::cbrt(arg); }
+	#endif
 
 		/// \}
 		/// \name Trigonometric functions
@@ -1893,21 +1882,21 @@ namespace half_float
 		/// \param arg function argument
 		/// \return hyperbolic tangent value of \a arg
 		template<typename T> typename enable<float_expr,T>::type tanh(T arg) { return functions::tanh(arg); }
-
+	#if HALF_ENABLE_CPP11_CMATH
 		/// Area sine.
 		/// \param arg function argument
 		/// \return area sine value of \a arg
-		template<typename T> typename enable11<float_expr,T>::type asinh(T arg) { return functions::asinh(arg); }
+		template<typename T> typename enable<float_expr,T>::type asinh(T arg) { return functions::asinh(arg); }
 
 		/// Area cosine.
 		/// \param arg function argument
 		/// \return area cosine value of \a arg
-		template<typename T> typename enable11<float_expr,T>::type acosh(T arg) { return functions::acosh(arg); }
+		template<typename T> typename enable<float_expr,T>::type acosh(T arg) { return functions::acosh(arg); }
 
 		/// Area tangent.
 		/// \param arg function argument
 		/// \return area tangent value of \a arg
-		template<typename T> typename enable11<float_expr,T>::type atanh(T arg) { return functions::atanh(arg); }
+		template<typename T> typename enable<float_expr,T>::type atanh(T arg) { return functions::atanh(arg); }
 
 		/// \}
 		/// \name Error and gamma functions
@@ -1916,23 +1905,23 @@ namespace half_float
 		/// Error function.
 		/// \param arg function argument
 		/// \return error function value of \a arg
-		template<typename T> typename enable11<float_expr,T>::type erf(T arg) { return functions::erf(arg); }
+		template<typename T> typename enable<float_expr,T>::type erf(T arg) { return functions::erf(arg); }
 
 		/// Complementary error function.
 		/// \param arg function argument
 		/// \return 1 minus error function value of \a arg
-		template<typename T> typename enable11<float_expr,T>::type erfc(T arg) { return functions::erfc(arg); }
+		template<typename T> typename enable<float_expr,T>::type erfc(T arg) { return functions::erfc(arg); }
 
 		/// Natural logarithm of gamma function.
 		/// \param arg function argument
 		/// \return natural logarith of gamma function for \a arg
-		template<typename T> typename enable11<float_expr,T>::type lgamma(T arg) { return functions::lgamma(arg); }
+		template<typename T> typename enable<float_expr,T>::type lgamma(T arg) { return functions::lgamma(arg); }
 
 		/// Gamma function.
 		/// \param arg function argument
 		/// \return gamma function value of \a arg
-		template<typename T> typename enable11<float_expr,T>::type tgamma(T arg) { return functions::tgamma(arg); }
-
+		template<typename T> typename enable<float_expr,T>::type tgamma(T arg) { return functions::tgamma(arg); }
+	#endif
 		/// \}
 		/// \name Rounding
 		/// \{
@@ -1961,31 +1950,33 @@ namespace half_float
 		/// \param arg half to round
 		/// \return nearest integer, rounded away from zero in half-way cases
 		template<typename T> typename enable<long,T>::type lround(T arg) { return functions::lround(arg); }
+	#if HALF_ENABLE_CPP11_CMATH
+		/// Nearest integer.
+		/// \param arg half expression to round
+		/// \return nearest integer using current rounding mode
+		template<typename T> typename enable<half,T>::type nearbyint(T arg) { return functions::nearbyint(arg); }
 
 		/// Nearest integer.
 		/// \param arg half expression to round
 		/// \return nearest integer using current rounding mode
-		template<typename T> typename enable11<half,T>::type nearbyint(T arg) { return functions::nearbyint(arg); }
+		template<typename T> typename enable<half,T>::type rint(T arg) { return functions::rint(arg); }
 
 		/// Nearest integer.
 		/// \param arg half expression to round
 		/// \return nearest integer using current rounding mode
-		template<typename T> typename enable11<half,T>::type rint(T arg) { return functions::rint(arg); }
-
+		template<typename T> typename enable<long,T>::type lrint(T arg) { return functions::lrint(arg); }
+	#if HALF_ENABLE_CPP11_LONG_LONG
 		/// Nearest integer.
 		/// \param arg half expression to round
 		/// \return nearest integer using current rounding mode
-		template<typename T> typename enable11<long,T>::type lrint(T arg) { return functions::lrint(arg); }
+		template<typename T> typename enable<long long,T>::type llrint(T arg) { return functions::llrint(arg); }
+	#endif
+	#endif
 	#if HALF_ENABLE_CPP11_LONG_LONG
 		/// Nearest integer.
 		/// \param arg half to round
 		/// \return nearest integer, rounded away from zero in half-way cases
 		template<typename T> typename enable<long long,T>::type llround(T arg) { return functions::llround(arg); }
-
-		/// Nearest integer.
-		/// \param arg half expression to round
-		/// \return nearest integer using current rounding mode
-		template<typename T> typename enable11<long long,T>::type llrint(T arg) { return functions::llrint(arg); }
 	#endif
 
 		/// \}
@@ -2192,25 +2183,21 @@ namespace half_float
 	using detail::operator/;
 	using detail::operator<<;
 	using detail::operator>>;
+
 	using detail::abs;
 	using detail::fabs;
 	using detail::fmod;
-	using detail::remainder;
-	using detail::remquo;
 	using detail::fma;
 	using detail::fmax;
 	using detail::fmin;
 	using detail::fdim;
 	using detail::nanh;
 	using detail::exp;
-	using detail::exp2;
 	using detail::expm1;
 	using detail::log;
 	using detail::log10;
 	using detail::log1p;
-	using detail::log2;
 	using detail::sqrt;
-	using detail::cbrt;
 	using detail::hypot;
 	using detail::pow;
 	using detail::sin;
@@ -2223,24 +2210,13 @@ namespace half_float
 	using detail::sinh;
 	using detail::cosh;
 	using detail::tanh;
-	using detail::asinh;
-	using detail::acosh;
-	using detail::atanh;
-	using detail::erf;
-	using detail::erfc;
-	using detail::lgamma;
-	using detail::tgamma;
 	using detail::ceil;
 	using detail::floor;
 	using detail::trunc;
 	using detail::round;
 	using detail::lround;
-	using detail::nearbyint;
-	using detail::rint;
-	using detail::lrint;
 #if HALF_ENABLE_CPP11_LONG_LONG
 	using detail::llround;
-	using detail::llrint;
 #endif
 	using detail::frexp;
 	using detail::ldexp;
@@ -2264,6 +2240,27 @@ namespace half_float
 	using detail::islessequal;
 	using detail::islessgreater;
 	using detail::isunordered;
+#if HALF_ENABLE_CPP11_CMATH
+	using detail::remainder;
+	using detail::remquo;
+	using detail::exp2;
+	using detail::log2;
+	using detail::cbrt;
+	using detail::asinh;
+	using detail::acosh;
+	using detail::atanh;
+	using detail::erf;
+	using detail::erfc;
+	using detail::lgamma;
+	using detail::tgamma;
+	using detail::nearbyint;
+	using detail::rint;
+	using detail::lrint;
+#if HALF_ENABLE_CPP11_LONG_LONG
+	using detail::llrint;
+#endif
+#endif
+
 	using detail::half_cast;
 }
 

@@ -529,10 +529,9 @@ int main(int argc, char *argv[])
 
 	using namespace std;
 //	using namespace half_float;
-	auto f = atan2(h, 3LL);
+	auto f = atan2(h, 3);
 	auto g = h + 3LL;
 	std::cout << typeid(f).name() << ", " << typeid(g).name() << '\n';
-	return 0;
 
 	std::unique_ptr<std::ostream> file;
 	if(argc > 1)
