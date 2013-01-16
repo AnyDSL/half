@@ -1,7 +1,9 @@
 Release Notes											{#changelog}
 =============
 
-- Made `fma` function use default implementation if single-precision version 
+- Provides proper `expm1`, `log1p` and `hypot` functions even if 
+  corresponding single-precision versions are unsupported.
+- Made `fma` function use default implementation if single-precision version
   from `<cmath>` is not faster and thus `FP_FAST_FMAH` to be defined always.
 - Fixed declaration of `fma` function.
 - Fixed missing ADL-based resolution of certain functions when called with 

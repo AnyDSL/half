@@ -30,6 +30,7 @@
 #include <random>
 #include <bitset>
 #include <limits>
+#include <typeinfo>
 #include <cstdint>
 #if HALF_ENABLE_CPP11_HASH
 	#include <unordered_map>
@@ -525,6 +526,13 @@ int main(int argc, char *argv[])
 		<< " - " << std::bitset<16>(static_cast<unsigned long long>(h2b(pi))).to_string() << std::endl;
 
 	std::cout << ilogb(sin(a+b)) << '\n';			//ADL test
+
+	using namespace std;
+//	using namespace half_float;
+	auto f = atan2(h, 3LL);
+	auto g = h + 3LL;
+	std::cout << typeid(f).name() << ", " << typeid(g).name() << '\n';
+	return 0;
 
 	std::unique_ptr<std::ostream> file;
 	if(argc > 1)
