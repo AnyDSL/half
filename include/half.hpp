@@ -200,6 +200,8 @@
 /// This namespace contains all the functionality provided by the library.
 namespace half_float
 {
+	class half;
+
 	/// \internal
 	/// \brief Implementation details.
 	namespace detail
@@ -256,6 +258,34 @@ namespace half_float
 			/// Internal expression value stored in single-precision.
 			float value;
 		};
+
+		/// SFINAE helper for generic half-precision functions.
+		/// This class template has to be specialized for each valid combination of argument types to provide a corresponding 
+		/// `type` member equivalent to \a T.
+		/// \tparam T type to return
+		template<typename T,typename,typename=void,typename=void> struct enable {};
+		template<typename T> struct enable<T,half,void,void> { typedef T type; };
+		template<typename T> struct enable<T,float_expr,void,void> { typedef T type; };
+		template<typename T> struct enable<T,half,half,void> { typedef T type; };
+		template<typename T> struct enable<T,half,float_expr,void> { typedef T type; };
+		template<typename T> struct enable<T,float_expr,half,void> { typedef T type; };
+		template<typename T> struct enable<T,float_expr,float_expr,void> { typedef T type; };
+		template<typename T> struct enable<T,half,half,half> { typedef T type; };
+		template<typename T> struct enable<T,half,half,float_expr> { typedef T type; };
+		template<typename T> struct enable<T,half,float_expr,half> { typedef T type; };
+		template<typename T> struct enable<T,half,float_expr,float_expr> { typedef T type; };
+		template<typename T> struct enable<T,float_expr,half,half> { typedef T type; };
+		template<typename T> struct enable<T,float_expr,half,float_expr> { typedef T type; };
+		template<typename T> struct enable<T,float_expr,float_expr,half> { typedef T type; };
+		template<typename T> struct enable<T,float_expr,float_expr,float_expr> { typedef T type; };
+
+		/// Return type for specialized generic 2-argument half-precision functions.
+		/// This class template has to be specialized for each valid combination of argument types to provide a corresponding 
+		/// `type` member denoting the appropriate return type.
+		/// \tparam T first argument type
+		/// \tparam U first argument type
+		template<typename T,typename U> struct result : enable<float_expr,T,U> {};
+		template<> struct result<half,half> { typedef half type; };
 
 		/// \name Classification helpers
 		/// \{
@@ -712,14 +742,15 @@ namespace half_float
 		/// and may be less efficient than no initialization, it is needed to provide proper value-initialization semantics.
 		HALF_CONSTEXPR half() : data_() {}
 
-		/// Conversion constructor.
-		/// \param rhs float to convert
-		explicit half(float rhs) : data_(detail::float2half<round_style>(rhs)) {}
-
 		/// Copy constructor.
 		/// \tparam T type of concrete half expression
 		/// \param rhs half expression to copy from
-		template<typename T> half(const detail::half_expr<T> &rhs) : data_(detail::float2half<round_style>(static_cast<float>(rhs))) {}
+//		template<typename T> half(const detail::half_expr<T> &rhs) : data_(detail::float2half<round_style>(static_cast<float>(rhs))) {}
+		half(detail::float_expr rhs) : data_(detail::float2half<round_style>(static_cast<float>(rhs))) {}
+
+		/// Conversion constructor.
+		/// \param rhs float to convert
+		explicit half(float rhs) : data_(detail::float2half<round_style>(rhs)) {}
 	
 		/// Conversion to single-precision.
 		/// \return single precision value representing expression value
@@ -729,9 +760,10 @@ namespace half_float
 		/// \tparam T type of concrete half expression
 		/// \param rhs half expression to copy from
 		/// \return reference to this half
-		template<typename T> half& operator=(const detail::half_expr<T> &rhs)
+//		template<typename T> half& operator=(const detail::half_expr<T> &rhs)
+		template<typename T> typename detail::enable<half&,T>::type operator=(T rhs)
 		{
-			data_ = detail::float2half<round_style>(static_cast<float>(rhs));
+			data_ = detail::float2half<round_style>(rhs);
 			return *this;
 		}
 
@@ -739,9 +771,10 @@ namespace half_float
 		/// \tparam T type of concrete half expression
 		/// \param rhs half expression to add
 		/// \return reference to this half
-		template<typename T> half& operator+=(const detail::half_expr<T> &rhs)
+//		template<typename T> half& operator+=(const detail::half_expr<T> &rhs)
+		template<typename T> typename detail::enable<half&,T>::type operator+=(T rhs)
 		{
-			data_ = detail::float2half<round_style>(detail::half2float(data_)+static_cast<float>(rhs));
+			data_ = detail::float2half<round_style>(detail::half2float(data_)+rhs);
 			return *this;
 		}
 
@@ -749,9 +782,10 @@ namespace half_float
 		/// \tparam T type of concrete half expression
 		/// \param rhs half expression to subtract
 		/// \return reference to this half
-		template<typename E> half& operator-=(const detail::half_expr<E> &rhs)
+//		template<typename E> half& operator-=(const detail::half_expr<E> &rhs)
+		template<typename T> typename detail::enable<half&,T>::type operator-=(T rhs)
 		{
-			data_ = detail::float2half<round_style>(detail::half2float(data_)-static_cast<float>(rhs));
+			data_ = detail::float2half<round_style>(detail::half2float(data_)-rhs);
 			return *this;
 		}
 
@@ -759,9 +793,10 @@ namespace half_float
 		/// \tparam T type of concrete half expression
 		/// \param rhs half expression to multiply with
 		/// \return reference to this half
-		template<typename T> half& operator*=(const detail::half_expr<T> &rhs)
+//		template<typename T> half& operator*=(const detail::half_expr<T> &rhs)
+		template<typename T> typename detail::enable<half&,T>::type operator*=(T rhs)
 		{
-			data_ = detail::float2half<round_style>(detail::half2float(data_)*static_cast<float>(rhs));
+			data_ = detail::float2half<round_style>(detail::half2float(data_)*rhs);
 			return *this;
 		}
 
@@ -769,9 +804,10 @@ namespace half_float
 		/// \tparam T type of concrete half expression
 		/// \param rhs half expression to divide by
 		/// \return reference to this half
-		template<typename T> half& operator/=(const detail::half_expr<T> &rhs)
+//		template<typename T> half& operator/=(const detail::half_expr<T> &rhs)
+		template<typename T> typename detail::enable<half&,T>::type operator/=(T rhs)
 		{
-			data_ = detail::float2half<round_style>(detail::half2float(data_)/static_cast<float>(rhs));
+			data_ = detail::float2half<round_style>(detail::half2float(data_)/rhs);
 			return *this;
 		}
 
@@ -1563,34 +1599,6 @@ namespace half_float
 			template<typename U> static half cast(U arg) { return arg; }
 		};
 		template<std::float_round_style R> struct half_caster<half,float_expr,R> : public half_caster<half,half,R> {};
-
-		/// SFINAE helper for generic half-precision functions.
-		/// This class template has to be specialized for each valid combination of argument types to provide a corresponding 
-		/// `type` member equivalent to \a T.
-		/// \tparam T type to return
-		template<typename T,typename,typename=void,typename=void> struct enable {};
-		template<typename T> struct enable<T,half,void,void> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,void,void> { typedef T type; };
-		template<typename T> struct enable<T,half,half,void> { typedef T type; };
-		template<typename T> struct enable<T,half,float_expr,void> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,half,void> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,float_expr,void> { typedef T type; };
-		template<typename T> struct enable<T,half,half,half> { typedef T type; };
-		template<typename T> struct enable<T,half,half,float_expr> { typedef T type; };
-		template<typename T> struct enable<T,half,float_expr,half> { typedef T type; };
-		template<typename T> struct enable<T,half,float_expr,float_expr> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,half,half> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,half,float_expr> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,float_expr,half> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,float_expr,float_expr> { typedef T type; };
-
-		/// Return type for specialized generic 2-argument half-precision functions.
-		/// This class template has to be specialized for each valid combination of argument types to provide a corresponding 
-		/// `type` member denoting the appropriate return type.
-		/// \tparam T first argument type
-		/// \tparam U first argument type
-		template<typename T,typename U> struct result : enable<float_expr,T,U> {};
-		template<> struct result<half,half> { typedef half type; };
 
 		/// \name Comparison operators
 		/// \{
