@@ -372,10 +372,10 @@ public:
 		unary_test("hash retrieve", [&map](const half &arg) { return map[arg] == &arg; });
 #endif
 
-#if HALF_ENABLE_CPP11_USER_LITERAL
+#if HALF_ENABLE_CPP11_USER_LITERALS
 		//test literals
-		simple_test("literals", []() { return comp(0.0_h, half(0.0f)) && comp(-1.0_h, half(1.0f)) && 
-			comp(+3.14159265359_h, half(3.14159265359f)) && comp(1e-2_h, half(1e-2f)) && comp(-4.2e3_h, half(-4.2e3)); }
+		simple_test("literals", []() { using namespace half_float::literal; return comp(0.0_h, half(0.0f)) && comp(-1.0_h, half(-1.0f)) && 
+			comp(+3.14159265359_h, half(3.14159265359f)) && comp(1e-2_h, half(1e-2f)) && comp(-4.2e3_h, half(-4.2e3)); });
 #endif
 
 		if(failed_.empty())
@@ -500,6 +500,7 @@ private:
 	std::ostream &log_;
 };
 
+#include <chrono>
 
 int main(int argc, char *argv[])
 {
@@ -532,8 +533,6 @@ int main(int argc, char *argv[])
 	auto f = atan2(h, 3);
 	auto g = h + 3LL;
 	std::cout << typeid(f).name() << ", " << typeid(g).name() << '\n';
-	std::cout << half_float::detail::functions::bkm_exp2(4.2f) << '\n';
-	return 0;
 
 	std::unique_ptr<std::ostream> file;
 	if(argc > 1)

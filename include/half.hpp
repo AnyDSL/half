@@ -233,19 +233,9 @@ namespace half_float
 		/// Helper for tag dispatching.
 		template<bool> struct booltype {};
 */
-		/// Generic half expression.
-		/// This class represents the base class for expressions of half-precision type, convertible to single precision.
-		/// \tparam T concrete expression type
-		template<typename T> struct half_expr
-		{
-			/// Conversion to single-precision.
-			/// \return single precision value representing expression value
-			HALF_CONSTEXPR operator float() const { return static_cast<float>(*static_cast<const T*>(this)); }
-		};
-
 		/// Temporary half expression with internal float.
 		/// This class represents a half-precision expression which just stores a single-precision value internally.
-		struct float_expr : public half_expr<float_expr>
+		struct float_expr
 		{
 			/// Conversion constructor.
 			/// \param f single-precision value to convert
@@ -291,19 +281,19 @@ namespace half_float
 		/// \name Classification helpers
 		/// \{
 
-		/// Check for NaN.
+		/// Check for infinity.
 		/// \tparam T argument type (builtin floating point type)
 		/// \param arg value to query
-		/// \retval true if not a number
+		/// \retval true if infinity
 		/// \retval false else
-		template<typename T> bool builtin_isnan(T arg)
+		template<typename T> bool builtin_isfinite(T arg)
 		{
 		#if HALF_ENABLE_CPP11_CMATH
-			return std::isnan(arg);
+			return std::isfinite(arg);
 		#elif defined(_MSC_VER)
-			return _isnan(arg) != 0;
+			return !_finite(arg);
 		#else
-			return arg != arg;
+			return builtin_isinf(arg) || builtin_isnan(arg);
 		#endif
 		}
 
@@ -320,6 +310,22 @@ namespace half_float
 			return !_finite(arg) && !_isnan(arg);
 		#else
 			return arg == std::numeric_limits<T>::infinity() || arg == -std::numeric_limits<T>::infinity();
+		#endif
+		}
+
+		/// Check for NaN.
+		/// \tparam T argument type (builtin floating point type)
+		/// \param arg value to query
+		/// \retval true if not a number
+		/// \retval false else
+		template<typename T> bool builtin_isnan(T arg)
+		{
+		#if HALF_ENABLE_CPP11_CMATH
+			return std::isnan(arg);
+		#elif defined(_MSC_VER)
+			return _isnan(arg) != 0;
+		#else
+			return arg != arg;
 		#endif
 		}
 
@@ -726,7 +732,7 @@ namespace half_float
 	///
 	/// So if your C++ implementation is not totally exotic or imposes special alignment requirements, it is a reasonable 
 	/// assumption that the data of a half is just comprised of the 2 bytes of the underlying IEEE representation.
-	class half : public detail::half_expr<half>
+	class half
 	{
 		friend half make_half(bool, unsigned int, int);
 		friend struct detail::functions;
@@ -762,7 +768,6 @@ namespace half_float
 		/// \tparam T type of concrete half expression
 		/// \param rhs half expression to copy from
 		/// \return reference to this half
-//		template<typename T> half& operator=(const detail::half_expr<T> &rhs)
 		half& operator=(detail::float_expr rhs)
 		{
 			data_ = detail::float2half<round_style>(rhs);
@@ -773,7 +778,6 @@ namespace half_float
 		/// \tparam T type of concrete half expression
 		/// \param rhs half expression to add
 		/// \return reference to this half
-//		template<typename T> half& operator+=(const detail::half_expr<T> &rhs)
 		template<typename T> typename detail::enable<half&,T>::type operator+=(T rhs)
 		{
 			data_ = detail::float2half<round_style>(detail::half2float(data_)+rhs);
@@ -784,7 +788,6 @@ namespace half_float
 		/// \tparam T type of concrete half expression
 		/// \param rhs half expression to subtract
 		/// \return reference to this half
-//		template<typename E> half& operator-=(const detail::half_expr<E> &rhs)
 		template<typename T> typename detail::enable<half&,T>::type operator-=(T rhs)
 		{
 			data_ = detail::float2half<round_style>(detail::half2float(data_)-rhs);
@@ -795,7 +798,6 @@ namespace half_float
 		/// \tparam T type of concrete half expression
 		/// \param rhs half expression to multiply with
 		/// \return reference to this half
-//		template<typename T> half& operator*=(const detail::half_expr<T> &rhs)
 		template<typename T> typename detail::enable<half&,T>::type operator*=(T rhs)
 		{
 			data_ = detail::float2half<round_style>(detail::half2float(data_)*rhs);
@@ -806,7 +808,6 @@ namespace half_float
 		/// \tparam T type of concrete half expression
 		/// \param rhs half expression to divide by
 		/// \return reference to this half
-//		template<typename T> half& operator/=(const detail::half_expr<T> &rhs)
 		template<typename T> typename detail::enable<half&,T>::type operator/=(T rhs)
 		{
 			data_ = detail::float2half<round_style>(detail::half2float(data_)/rhs);
@@ -903,17 +904,6 @@ namespace half_float
 		/// Internal binary representation
 		detail::uint16 data_;
 	};
-
-	half make_half(bool sign, unsigned int mant, int exp)
-	{
-		if(!mant)
-			return half(static_cast<detail::uint16>(sign)<<15, true);
-		for(; mant>0x7FF; mant>>=1) ++exp;
-		for(; mant<0x400; mant<<=1) --exp;
-		if(exp > 15)
-			return half((static_cast<detail::uint16>(sign)<<15)|0x7C00, true);
-		return half((static_cast<detail::uint16>(sign)<<15)|((exp<-14) ? ((exp<-24) ? 0 : (mant>>(-exp-14))) : (((exp+15)<<10)|(mant&0x3FF))), true);
-	}
 
 #if HALF_ENABLE_CPP11_USER_LITERALS
 	/// Library-defined half-precision literals.
@@ -1035,6 +1025,18 @@ namespace half_float
 			#endif
 			}
 
+			/// Binary exponential implementation.
+			/// \param arg function argument
+			/// \return function value stored in single-preicision
+			static float_expr exp2(float arg)
+			{
+			#if HALF_ENABLE_CPP11_CMATH
+				return float_expr(std::exp2(arg));
+			#else
+				return float_expr(std::exp(arg*0.69314718055994530942f));
+			#endif
+			}
+
 			/// Logarithm implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
@@ -1054,6 +1056,18 @@ namespace half_float
 				return float_expr(std::log1p(arg));
 			#else
 				return float_expr(std::log(arg+1.0f));
+			#endif
+			}
+
+			/// Binary logarithm implementation.
+			/// \param arg function argument
+			/// \return function value stored in single-preicision
+			static float_expr log2(float arg)
+			{
+			#if HALF_ENABLE_CPP11_CMATH
+				return float_expr(std::log2(arg));
+			#else
+				return float_expr(std::log(arg)*1.44269504088896340736f);
 			#endif
 			}
 
@@ -1452,16 +1466,6 @@ namespace half_float
 			/// \return Half-precision division remainder stored in single-precision
 			static float_expr remquo(float x, float y, int *quo) { return float_expr(std::remquo(x, y, quo)); }
 
-			/// Binary exponential implementation.
-			/// \param arg function argument
-			/// \return function value stored in single-preicision
-			static float_expr exp2(float arg) { return float_expr(std::exp2(arg)); }
-
-			/// Binary logarithm implementation.
-			/// \param arg function argument
-			/// \return function value stored in single-preicision
-			static float_expr log2(float arg) { return float_expr(std::log2(arg)); }
-
 			/// Cubic root implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
@@ -1523,59 +1527,6 @@ namespace half_float
 			static long long llrint(float arg) { return float_expr(std::llrint(arg)); }
 		#endif
 		#endif
-
-			static float_expr bkm_exp2(float arg)
-			{
-				static const float logs[11] = { 1.0f, 0.58496250072115618145373894394782f, 0.32192809488736234787031942948939f, 
-					0.16992500144231236290747788789563f, 0.0874628412503394082540660108104f, 0.04439411935845343765310199067361f, 0.02236781302845450826713208374608f, 
-					0.01122725542325412033788058441588f, 0.00562454919387810691985910267407f, 0.00281501560705403815473625475028f, 0.00140819439280838890661016650169f };
-				int exp;
-				float x = 1.0f, y = 0.0f, s = 1.0f, res = 1.0f, m = std::frexp(std::abs(arg), &exp);
-				for(int i=0; i<11; ++i,s*=0.5f)
-				{
-					float z = y + logs[i];
-					if(z <= m)
-					{
-						y = z;
-						x += x * s;
-					}
-				}
-				x = std::pow(x, std::pow(2.0f, exp));
-				return float_expr((arg<0.0f) ? (1.0f/x) : x);
-				unsigned long uexp = 1 << std::abs(exp);
-				for(; uexp; x*=x,uexp>>=1)
-					if(uexp & 1)
-						res *= x;
-				return float_expr((exp<0) ? (1.0f/res) : res);
-			}
-
-			static half bkm_log2(half arg)
-			{
-				static const unsigned int logs[11] = {};
-				if(signbit(arg))
-					return half(0xFFFF, true);
-				if(!arg.data_)
-					return half(0xFC00, true);
-				int exp = arg.data_ >> 10;
-				if(exp == 31)
-					return arg;
-				unsigned int m = arg.data_ & 0x3FF;
-				if(exp)
-					m |= 0x400;
-				else
-					for(m<<=1; m<0x400; m<<=1) --exp;
-				unsigned int x = 0x3C00, y = 0;
-				for(int i=1; i<11; ++i)
-				{
-					unsigned int z = x + (x>>i);
-					if(z <= m)
-					{
-						x = z;
-						y += logs[i];
-					}
-				}
-//				return make_half(false, , exp);
-			}
 		};
 
 		/// Wrapper for unary half-precision functions needing specialization for individual argument types.
@@ -1839,6 +1790,11 @@ namespace half_float
 		/// \return e raised to \a arg subtracted by 1
 		template<typename T> typename enable<float_expr,T>::type expm1(T arg) { return functions::expm1(arg); }
 
+		/// Binary exponential.
+		/// \param arg function argument
+		/// \return 2 raised to \a arg
+		template<typename T> typename enable<float_expr,T>::type exp2(T arg) { return functions::exp2(arg); }
+
 		/// Natural logorithm.
 		/// \param arg function argument
 		/// \return logarithm of \a arg to base e
@@ -1853,17 +1809,11 @@ namespace half_float
 		/// \param arg function argument
 		/// \return logarithm of \a arg plus 1 to base e
 		template<typename T> typename enable<float_expr,T>::type log1p(T arg) { return functions::log1p(arg); }
-	#if HALF_ENABLE_CPP11_CMATH
-		/// Binary exponential.
-		/// \param arg function argument
-		/// \return 2 raised to \a arg
-		template<typename T> typename enable<float_expr,T>::type exp2(T arg) { return functions::exp2(arg); }
 
 		/// Binary logorithm.
 		/// \param arg function argument
 		/// \return logarithm of \a arg to base 2
 		template<typename T> typename enable<float_expr,T>::type log2(T arg) { return functions::log2(arg); }
-	#endif
 
 		/// \}
 		/// \name Power functions
@@ -2262,9 +2212,11 @@ namespace half_float
 	using detail::nanh;
 	using detail::exp;
 	using detail::expm1;
+	using detail::exp2;
 	using detail::log;
 	using detail::log10;
 	using detail::log1p;
+	using detail::log2;
 	using detail::sqrt;
 	using detail::hypot;
 	using detail::pow;
@@ -2311,8 +2263,6 @@ namespace half_float
 #if HALF_ENABLE_CPP11_CMATH
 	using detail::remainder;
 	using detail::remquo;
-	using detail::exp2;
-	using detail::log2;
 	using detail::cbrt;
 	using detail::asinh;
 	using detail::acosh;
