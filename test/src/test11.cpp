@@ -532,6 +532,8 @@ int main(int argc, char *argv[])
 	auto f = atan2(h, 3);
 	auto g = h + 3LL;
 	std::cout << typeid(f).name() << ", " << typeid(g).name() << '\n';
+	std::cout << half_float::detail::functions::bkm_exp2(4.2f) << '\n';
+	return 0;
 
 	std::unique_ptr<std::ostream> file;
 	if(argc > 1)

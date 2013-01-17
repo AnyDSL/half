@@ -368,7 +368,7 @@ namespace half_float
 	/// Exponential minus one.
 	/// This function uses the underlying single-precision implementation if C++11 `<cmath>` functions are supported.
 	/// \param arg function argument
-	/// \return e raised to \a arg subtracted by 1
+	/// \return e raised to \a arg and subtracted by 1
 	half expm1(half arg);
 
 	/// Natural logorithm.
@@ -386,7 +386,7 @@ namespace half_float
 	/// Natural logorithm.
 	/// This function uses the underlying single-precision implementation if C++11 `<cmath>` functions are supported.
 	/// \param arg function argument
-	/// \return logarithm of \a arg plus 1 to base e
+	/// \return logarithm of \a arg + 1 to base e
 	half log1p(half arg);
 
 	/// Binary logorithm.
@@ -415,7 +415,7 @@ namespace half_float
 	/// This function uses the underlying single-precision implementation if C++11 `<cmath>` functions are supported.
 	/// \param x first argument
 	/// \param y second argument
-	/// \return square root of sum of squares rounded as one operation
+	/// \return square root of sum of squares without internal over- or underflows
 	half hypot(half x, half y);
 
 	/// Power function.

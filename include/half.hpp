@@ -249,14 +249,15 @@ namespace half_float
 		{
 			/// Conversion constructor.
 			/// \param f single-precision value to convert
-			explicit HALF_CONSTEXPR float_expr(float f) : value(f) {}
+			explicit HALF_CONSTEXPR float_expr(float f) : value_(f) {}
 
 			/// Conversion to single-precision.
 			/// \return single precision value representing expression value
-			HALF_CONSTEXPR operator float() const { return value; }
+			HALF_CONSTEXPR operator float() const { return value_; }
 
+		private:
 			/// Internal expression value stored in single-precision.
-			float value;
+			float value_;
 		};
 
 		/// SFINAE helper for generic half-precision functions.
@@ -727,6 +728,7 @@ namespace half_float
 	/// assumption that the data of a half is just comprised of the 2 bytes of the underlying IEEE representation.
 	class half : public detail::half_expr<half>
 	{
+		friend half make_half(bool, unsigned int, int);
 		friend struct detail::functions;
 		friend struct detail::unary_specialized<half>;
 		friend struct detail::binary_specialized<half,half>;
@@ -761,7 +763,7 @@ namespace half_float
 		/// \param rhs half expression to copy from
 		/// \return reference to this half
 //		template<typename T> half& operator=(const detail::half_expr<T> &rhs)
-		template<typename T> typename detail::enable<half&,T>::type operator=(T rhs)
+		half& operator=(detail::float_expr rhs)
 		{
 			data_ = detail::float2half<round_style>(rhs);
 			return *this;
@@ -901,6 +903,17 @@ namespace half_float
 		/// Internal binary representation
 		detail::uint16 data_;
 	};
+
+	half make_half(bool sign, unsigned int mant, int exp)
+	{
+		if(!mant)
+			return half(static_cast<detail::uint16>(sign)<<15, true);
+		for(; mant>0x7FF; mant>>=1) ++exp;
+		for(; mant<0x400; mant<<=1) --exp;
+		if(exp > 15)
+			return half((static_cast<detail::uint16>(sign)<<15)|0x7C00, true);
+		return half((static_cast<detail::uint16>(sign)<<15)|((exp<-14) ? ((exp<-24) ? 0 : (mant>>(-exp-14))) : (((exp+15)<<10)|(mant&0x3FF))), true);
+	}
 
 #if HALF_ENABLE_CPP11_USER_LITERALS
 	/// Library-defined half-precision literals.
@@ -1199,8 +1212,7 @@ namespace half_float
 				e >>= 10;
 				if(!e)
 				{
-					for(m<<=1; m<0x400; m<<=1)
-						--e;
+					for(m<<=1; m<0x400; m<<=1) --e;
 					m &= 0x3FF;
 				}
 				*exp = e - 14;
@@ -1213,20 +1225,17 @@ namespace half_float
 			/// \return fractional part
 			static half modf(half arg, half *iptr)
 			{
-				*iptr = arg;
 				unsigned int e = arg.data_ & 0x7C00;
 				if(e > 0x6000)
-					return (e==0x7C00&&(arg.data_&0x3FF)) ? arg : half(arg.data_&0x8000, true);
+					return *iptr = arg, (e==0x7C00&&(arg.data_&0x3FF)) ? arg : half(arg.data_&0x8000, true);
 				if(e < 0x3C00)
-					return iptr->data_ &= 0x8000, arg;
+					return iptr->data_ = arg.data_ & 0x8000, arg;
 				e >>= 10;
-				unsigned int mask = (1<<(25-e)) - 1;
-				unsigned int m = arg.data_ & mask;
-				iptr->data_ &= ~mask;
+				unsigned int mask = (1<<(25-e)) - 1, m = arg.data_ & mask;
+				iptr->data_ = arg.data_ & ~mask;
 				if(!m)
 					return half(arg.data_&0x8000, true);
-				for(; m<0x400; m<<=1)
-					--e;
+				for(; m<0x400; m<<=1) --e;
 				return half((arg.data_&0x8000) | (e<<10) | (m&0x3FF), true);
 			}
 
@@ -1246,12 +1255,12 @@ namespace half_float
 				{
 					if(!m)
 						return arg;
-					for(m<<=1; m<0x400; m<<=1)
-						--e;
+					for(m<<=1; m<0x400; m<<=1) --e;
 				}
 				e += exp;
 				unsigned int sign = arg.data_ & 0x8000;
-				return (e>30) ? half(sign|0x7C00, true) : half((e>0) ? (sign|(e<<10)|(m&0x3FF)) : ((e<-9) ? sign : (sign|(m>>(1-e)))), true);
+				return (e>30) ? half(sign|0x7C00, true) : half((e>0) ? static_cast<uint16>(sign|(e<<10)|(m&0x3FF)) : 
+					((e<-9) ? sign : static_cast<uint16>(sign|(m>>(1-e)))), true);
 			}
 
 			/// Exponent implementation.
@@ -1266,8 +1275,7 @@ namespace half_float
 					return (arg.data_&0x3FF) ? FP_ILOGBNAN : INT_MAX;
 				e >>= 10;
 				if(!e)
-					for(unsigned int m=(arg.data_&0x3FF)<<1; m<0x400; m<<=1)
-						--e;
+					for(unsigned int m=(arg.data_&0x3FF)<<1; m<0x400; m<<=1) --e;
 				return e - 15;
 			}
 
@@ -1283,8 +1291,7 @@ namespace half_float
 					return (arg.data_&0x3FF) ? arg : half(0x7C00, true);
 				e >>= 10;
 				if(!e)
-					for(unsigned int m=(arg.data_&0x3FF)<<1; m<0x400; m<<=1)
-						--e;
+					for(unsigned int m=(arg.data_&0x3FF)<<1; m<0x400; m<<=1) --e;
 				return half(static_cast<float>(e-15));
 			}
 
@@ -1516,6 +1523,59 @@ namespace half_float
 			static long long llrint(float arg) { return float_expr(std::llrint(arg)); }
 		#endif
 		#endif
+
+			static float_expr bkm_exp2(float arg)
+			{
+				static const float logs[11] = { 1.0f, 0.58496250072115618145373894394782f, 0.32192809488736234787031942948939f, 
+					0.16992500144231236290747788789563f, 0.0874628412503394082540660108104f, 0.04439411935845343765310199067361f, 0.02236781302845450826713208374608f, 
+					0.01122725542325412033788058441588f, 0.00562454919387810691985910267407f, 0.00281501560705403815473625475028f, 0.00140819439280838890661016650169f };
+				int exp;
+				float x = 1.0f, y = 0.0f, s = 1.0f, res = 1.0f, m = std::frexp(std::abs(arg), &exp);
+				for(int i=0; i<11; ++i,s*=0.5f)
+				{
+					float z = y + logs[i];
+					if(z <= m)
+					{
+						y = z;
+						x += x * s;
+					}
+				}
+				x = std::pow(x, std::pow(2.0f, exp));
+				return float_expr((arg<0.0f) ? (1.0f/x) : x);
+				unsigned long uexp = 1 << std::abs(exp);
+				for(; uexp; x*=x,uexp>>=1)
+					if(uexp & 1)
+						res *= x;
+				return float_expr((exp<0) ? (1.0f/res) : res);
+			}
+
+			static half bkm_log2(half arg)
+			{
+				static const unsigned int logs[11] = {};
+				if(signbit(arg))
+					return half(0xFFFF, true);
+				if(!arg.data_)
+					return half(0xFC00, true);
+				int exp = arg.data_ >> 10;
+				if(exp == 31)
+					return arg;
+				unsigned int m = arg.data_ & 0x3FF;
+				if(exp)
+					m |= 0x400;
+				else
+					for(m<<=1; m<0x400; m<<=1) --exp;
+				unsigned int x = 0x3C00, y = 0;
+				for(int i=1; i<11; ++i)
+				{
+					unsigned int z = x + (x>>i);
+					if(z <= m)
+					{
+						x = z;
+						y += logs[i];
+					}
+				}
+//				return make_half(false, , exp);
+			}
 		};
 
 		/// Wrapper for unary half-precision functions needing specialization for individual argument types.
@@ -1817,7 +1877,7 @@ namespace half_float
 		/// Hypotenuse function.
 		/// \param x first argument
 		/// \param y second argument
-		/// \return square root of sum of squares rounded as one operation
+		/// \return square root of sum of squares without internal over- or underflows
 		template<typename T,typename U> typename enable<float_expr,T,U>::type hypot(T x, U y) { return functions::hypot(x, y); }
 
 		/// Power function.
@@ -2279,7 +2339,7 @@ namespace std
 	/// Numeric limits for half-precision floats.
 	/// Because of the underlying single-precision implementation of many operations, it inherits some properties from 
 	/// `std::numeric_limits<float>`.
-	template<> class numeric_limits<half_float::half> : public std::numeric_limits<float>
+	template<> class numeric_limits<half_float::half> : public numeric_limits<float>
 	{
 	public:
 		/// Supports signed values.
@@ -2301,13 +2361,13 @@ namespace std
 		static HALF_CONSTEXPR_CONST bool has_quiet_NaN = true;
 
 		/// Supports subnormal values.
-		static HALF_CONSTEXPR_CONST std::float_denorm_style has_denorm = std::denorm_present;
+		static HALF_CONSTEXPR_CONST float_denorm_style has_denorm = denorm_present;
 
 		/// Rounding mode.
 		/// Due to the mix of internal single-precision computations (using the rounding mode of the underlying 
 		/// single-precision implementation) with explicit truncation of the single-to-half conversions, the actual rounding 
 		/// mode is indeterminate.
-		static HALF_CONSTEXPR_CONST std::float_round_style round_style = std::round_indeterminate;
+		static HALF_CONSTEXPR_CONST float_round_style round_style = round_indeterminate;
 
 		/// Significant digits.
 		static HALF_CONSTEXPR_CONST int digits = 11;
@@ -2364,21 +2424,19 @@ namespace std
 #if HALF_ENABLE_CPP11_HASH
 	/// Hash function for half-precision floats.
 	/// This is only defined if C++11 `std::hash` is supported and enabled.
-	template<> struct hash<half_float::half>
+	template<> struct hash<half_float::half> //: unary_function<half_float::half,size_t>
 	{
 		/// Type of function argument.
 		typedef half_float::half argument_type;
 
 		/// Function return type.
-		typedef std::size_t result_type;
+		typedef size_t result_type;
 
 		/// Compute hash function.
 		/// \param arg half to hash
 		/// \return hash value
-		std::size_t operator()(half_float::half arg) const
-		{
-			return std::hash<half_float::detail::uint16>()(arg.data_&-static_cast<half_float::detail::uint16>(arg.data_!=0x8000));
-		}
+		size_t operator()(half_float::half arg) const { return hash<half_float::detail::uint16>()(
+			arg.data_&-static_cast<half_float::detail::uint16>(arg.data_!=0x8000)); }
 	};
 #endif
 }
