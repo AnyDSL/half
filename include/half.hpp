@@ -1172,6 +1172,42 @@ namespace half_float
 			/// \return function value stored in single-preicision
 			static expr tanh(float arg) { return expr(std::tanh(arg)); }
 
+			/// Hyperbolic area sine implementation.
+			/// \param arg function argument
+			/// \return function value stored in single-preicision
+			static expr asinh(float arg)
+			{
+			#if HALF_ENABLE_CPP11_CMATH
+				return expr(std::asinh(arg));
+			#else
+				return expr((arg==-std::numeric_limits<float>::infinity()) ? arg : static_cast<float>(std::log(arg+std::sqrt(arg*arg+1.0))));	//double!
+			#endif
+			}
+
+			/// Hyperbolic area cosine implementation.
+			/// \param arg function argument
+			/// \return function value stored in single-preicision
+			static expr acosh(float arg)
+			{
+			#if HALF_ENABLE_CPP11_CMATH
+				return expr(std::acosh(arg));
+			#else
+				return expr((arg<-1.0f) ? std::numeric_limits<float>::quiet_NaN() : std::log(arg+std::sqrt(arg*arg-1.0f)));
+			#endif
+			}
+
+			/// Hyperbolic area tangent implementation.
+			/// \param arg function argument
+			/// \return function value stored in single-preicision
+			static expr atanh(float arg)
+			{
+			#if HALF_ENABLE_CPP11_CMATH
+				return expr(std::atanh(arg));
+			#else
+				return expr(0.5f*std::log((1.0f+arg)/(1.0f-arg)));
+			#endif
+			}
+
 			/// Floor implementation.
 			/// \param arg value to round
 			/// \return rounded value stored in single-preicision
@@ -1496,21 +1532,6 @@ namespace half_float
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
 			static expr cbrt(float arg) { return expr(std::cbrt(arg)); }
-
-			/// Hyperbolic area sine implementation.
-			/// \param arg function argument
-			/// \return function value stored in single-preicision
-			static expr asinh(float arg) { return std::log(arg+std::sqrt(arg*arg+1.0f));return expr(std::asinh(arg)); }
-
-			/// Hyperbolic area cosine implementation.
-			/// \param arg function argument
-			/// \return function value stored in single-preicision
-			static expr acosh(float arg) { return std::log(arg+std::sqrt(arg*arg-1.0f));return expr(std::acosh(arg)); }
-
-			/// Hyperbolic area tangent implementation.
-			/// \param arg function argument
-			/// \return function value stored in single-preicision
-			static expr atanh(float arg) { return 0.5f * std::log((1.0f+arg)/(1.0f-arg));return expr(std::atanh(arg)); }
 
 			/// Error function implementation.
 			/// \param arg function argument
@@ -1926,7 +1947,7 @@ namespace half_float
 		/// \param arg function argument
 		/// \return hyperbolic tangent value of \a arg
 		template<typename T> typename enable<expr,T>::type tanh(T arg) { return functions::tanh(arg); }
-	#if HALF_ENABLE_CPP11_CMATH
+
 		/// Hyperbolic area sine.
 		/// \param arg function argument
 		/// \return area sine value of \a arg
@@ -1941,7 +1962,7 @@ namespace half_float
 		/// \param arg function argument
 		/// \return area tangent value of \a arg
 		template<typename T> typename enable<expr,T>::type atanh(T arg) { return functions::atanh(arg); }
-
+	#if HALF_ENABLE_CPP11_CMATH
 		/// \}
 		/// \name Error and gamma functions
 		/// \{
@@ -2256,6 +2277,9 @@ namespace half_float
 	using detail::sinh;
 	using detail::cosh;
 	using detail::tanh;
+	using detail::asinh;
+	using detail::acosh;
+	using detail::atanh;
 	using detail::ceil;
 	using detail::floor;
 	using detail::trunc;
@@ -2290,9 +2314,6 @@ namespace half_float
 	using detail::remainder;
 	using detail::remquo;
 	using detail::cbrt;
-	using detail::asinh;
-	using detail::acosh;
-	using detail::atanh;
 	using detail::erf;
 	using detail::erfc;
 	using detail::lgamma;
