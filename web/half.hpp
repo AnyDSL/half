@@ -360,7 +360,7 @@ namespace half_float
 	half exp(half arg);
 
 	/// Binary exponential.
-	/// This function uses the underlying single-precision implementation and requires support for C++11 `<cmath>` functions.
+	/// This function uses the underlying single-precision implementation if C++11 `<cmath>` functions are supported.
 	/// \param arg function argument
 	/// \return 2 raised to \a arg
 	half exp2(half arg);
@@ -390,7 +390,7 @@ namespace half_float
 	half log1p(half arg);
 
 	/// Binary logorithm.
-	/// This function uses the underlying single-precision implementation and requires support for C++11 `<cmath>` functions.
+	/// This function uses the underlying single-precision implementation if C++11 `<cmath>` functions are supported.
 	/// \param arg function argument
 	/// \return logarithm of \a arg to base 2
 	half log2(half arg);
@@ -494,22 +494,22 @@ namespace half_float
 	/// \return hyperbolic tangent value of \a arg
 	half tanh(half arg);
 
-	/// Area sine.
+	/// Hyperbolic area sine.
 	/// This function uses the underlying single-precision implementation and requires support for C++11 `<cmath>` functions.
 	/// \param arg function argument
-	/// \return area sine value of \a arg
+	/// \return hyperbolic area sine value of \a arg
 	half asinh(half arg);
 
-	/// Area cosine.
+	/// Hyperbolic area cosine.
 	/// This function uses the underlying single-precision implementation and requires support for C++11 `<cmath>` functions.
 	/// \param arg function argument
-	/// \return area cosine value of \a arg
+	/// \return hyperbolic area cosine value of \a arg
 	half acosh(half arg);
 
-	/// Area tangent.
+	/// Hyperbolic area tangent.
 	/// This function uses the underlying single-precision implementation and requires support for C++11 `<cmath>` functions.
 	/// \param arg function argument
-	/// \return area tangent value of \a arg
+	/// \return hyperbolic area tangent value of \a arg
 	half atanh(half arg);
 
 	/// \}

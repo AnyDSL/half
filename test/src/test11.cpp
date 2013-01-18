@@ -32,6 +32,7 @@
 #include <limits>
 #include <typeinfo>
 #include <cstdint>
+#include <cmath>
 #if HALF_ENABLE_CPP11_HASH
 	#include <unordered_map>
 #endif
@@ -500,7 +501,6 @@ private:
 	std::ostream &log_;
 };
 
-#include <chrono>
 
 int main(int argc, char *argv[])
 {
@@ -533,6 +533,7 @@ int main(int argc, char *argv[])
 	auto f = atan2(h, 3);
 	auto g = h + 3LL;
 	std::cout << typeid(f).name() << ", " << typeid(g).name() << '\n';
+	std::cout << exp2(half(1)) << ", " << log2(half(1)) << '\n';
 
 	std::unique_ptr<std::ostream> file;
 	if(argc > 1)

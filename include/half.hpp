@@ -233,13 +233,13 @@ namespace half_float
 		/// Helper for tag dispatching.
 		template<bool> struct booltype {};
 */
-		/// Temporary half expression with internal float.
+		/// Temporary half-precision expression.
 		/// This class represents a half-precision expression which just stores a single-precision value internally.
-		struct float_expr
+		struct expr
 		{
 			/// Conversion constructor.
 			/// \param f single-precision value to convert
-			explicit HALF_CONSTEXPR float_expr(float f) : value_(f) {}
+			explicit HALF_CONSTEXPR expr(float f) : value_(f) {}
 
 			/// Conversion to single-precision.
 			/// \return single precision value representing expression value
@@ -256,46 +256,30 @@ namespace half_float
 		/// \tparam T type to return
 		template<typename T,typename,typename=void,typename=void> struct enable {};
 		template<typename T> struct enable<T,half,void,void> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,void,void> { typedef T type; };
+		template<typename T> struct enable<T,expr,void,void> { typedef T type; };
 		template<typename T> struct enable<T,half,half,void> { typedef T type; };
-		template<typename T> struct enable<T,half,float_expr,void> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,half,void> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,float_expr,void> { typedef T type; };
+		template<typename T> struct enable<T,half,expr,void> { typedef T type; };
+		template<typename T> struct enable<T,expr,half,void> { typedef T type; };
+		template<typename T> struct enable<T,expr,expr,void> { typedef T type; };
 		template<typename T> struct enable<T,half,half,half> { typedef T type; };
-		template<typename T> struct enable<T,half,half,float_expr> { typedef T type; };
-		template<typename T> struct enable<T,half,float_expr,half> { typedef T type; };
-		template<typename T> struct enable<T,half,float_expr,float_expr> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,half,half> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,half,float_expr> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,float_expr,half> { typedef T type; };
-		template<typename T> struct enable<T,float_expr,float_expr,float_expr> { typedef T type; };
+		template<typename T> struct enable<T,half,half,expr> { typedef T type; };
+		template<typename T> struct enable<T,half,expr,half> { typedef T type; };
+		template<typename T> struct enable<T,half,expr,expr> { typedef T type; };
+		template<typename T> struct enable<T,expr,half,half> { typedef T type; };
+		template<typename T> struct enable<T,expr,half,expr> { typedef T type; };
+		template<typename T> struct enable<T,expr,expr,half> { typedef T type; };
+		template<typename T> struct enable<T,expr,expr,expr> { typedef T type; };
 
 		/// Return type for specialized generic 2-argument half-precision functions.
 		/// This class template has to be specialized for each valid combination of argument types to provide a corresponding 
 		/// `type` member denoting the appropriate return type.
 		/// \tparam T first argument type
 		/// \tparam U first argument type
-		template<typename T,typename U> struct result : enable<float_expr,T,U> {};
+		template<typename T,typename U> struct result : enable<expr,T,U> {};
 		template<> struct result<half,half> { typedef half type; };
 
 		/// \name Classification helpers
 		/// \{
-
-		/// Check for infinity.
-		/// \tparam T argument type (builtin floating point type)
-		/// \param arg value to query
-		/// \retval true if infinity
-		/// \retval false else
-		template<typename T> bool builtin_isfinite(T arg)
-		{
-		#if HALF_ENABLE_CPP11_CMATH
-			return std::isfinite(arg);
-		#elif defined(_MSC_VER)
-			return !_finite(arg);
-		#else
-			return builtin_isinf(arg) || builtin_isnan(arg);
-		#endif
-		}
 
 		/// Check for infinity.
 		/// \tparam T argument type (builtin floating point type)
@@ -473,6 +457,50 @@ namespace half_float
 			return float2half_impl<R>(value, booltype<std::numeric_limits<float>::is_iec559&&sizeof(uint32)==sizeof(float)>());
 		}
 */
+		/// Convert unsigned integer to half-precision floating point.
+		/// \tparam S `true` if actual value negative, `false` else
+		/// \tparam R rounding mode to use, `std::round_indeterminate` for fastest rounding
+		/// \tparam T type to convert (builtin integer type)
+		/// \param value non-negative integral value
+		/// \return binary representation of half-precision value
+		template<bool S,std::float_round_style R,typename T> uint16 uint2half(T value)
+		{
+			if(!value)
+				return 0;
+			if(value > 65504)
+			{
+				if(R == std::round_toward_infinity)
+					return 0x7C00 - S;
+				else if(R == std::round_toward_neg_infinity)
+					return 0x7BFF + S;
+				return 0x7BFF + (R!=std::round_toward_zero);
+			}
+			unsigned int m = value, exp = 25;
+			for(; m<0x400; m<<=1,--exp) ;
+			for(; m>0x7FF; m>>=1,++exp) ;
+			uint16 bits = (exp<<10) | (m&0x3FF);
+			if(exp > 25)
+			{
+				if(R == std::round_to_nearest)
+					bits += (value>>(exp-26)) & 1;
+				else if(R == std::round_toward_infinity)
+					bits += static_cast<uint16>((value&((1<<(exp-25))-1))!=0) & !S;
+				else if(R == std::round_toward_neg_infinity)
+					bits += static_cast<uint16>((value&((1<<(exp-25))-1))!=0) & S;
+			}
+			return bits;
+		}
+
+		/// Convert integer to half-precision floating point.
+		/// \tparam R rounding mode to use, `std::round_indeterminate` for fastest rounding
+		/// \tparam T type to convert (builtin integer type)
+		/// \param value integral value
+		/// \return binary representation of half-precision value
+		template<std::float_round_style R,typename T> uint16 int2half(T value)
+		{
+			return (value<0) ? static_cast<uint16>(0x8000|uint2half<true,R>(-value)) : uint2half<false,R>(value);
+		}
+
 		/// Convert half-precision to IEEE single-precision.
 		/// \param value binary representation of half-precision value
 		/// \return single-precision value
@@ -649,8 +677,7 @@ namespace half_float
 				if(!exp)
 				{
 					if(mant)
-						for(mant<<=1; mant<0x400; mant<<=1)
-							--exp;
+						for(mant<<=1; mant<0x400; mant<<=1,--exp) ;
 				}
 				else
 					mant |= 0x400;
@@ -668,11 +695,11 @@ namespace half_float
 		}
 */
 		/// Convert half-precision floating point to integer.
-		/// \tparam T type to convert to (integer type with at least 16 bits precision, excluding any implicit sign bits)
 		/// \tparam R rounding mode to use, `std::round_indeterminate` for fastest rounding
+		/// \tparam T type to convert to (buitlin integer type with at least 16 bits precision, excluding any implicit sign bits)
 		/// \param value binary representation of half-precision value
 		/// \return integral value
-		template<typename T,std::float_round_style R> T half2int(uint16 value)
+		template<std::float_round_style R,typename T> T half2int(uint16 value)
 		{
 		#if HALF_ENABLE_CPP11_STATIC_ASSERT
 			static_assert(std::numeric_limits<T>::digits>=16, "half only convertible to integers with at least 16 bits precision (excluding sign)");
@@ -734,7 +761,6 @@ namespace half_float
 	/// assumption that the data of a half is just comprised of the 2 bytes of the underlying IEEE representation.
 	class half
 	{
-		friend half make_half(bool, unsigned int, int);
 		friend struct detail::functions;
 		friend struct detail::unary_specialized<half>;
 		friend struct detail::binary_specialized<half,half>;
@@ -754,7 +780,7 @@ namespace half_float
 		/// \tparam T type of concrete half expression
 		/// \param rhs half expression to copy from
 //		template<typename T> half(const detail::half_expr<T> &rhs) : data_(detail::float2half<round_style>(static_cast<float>(rhs))) {}
-		half(detail::float_expr rhs) : data_(detail::float2half<round_style>(static_cast<float>(rhs))) {}
+		half(detail::expr rhs) : data_(detail::float2half<round_style>(static_cast<float>(rhs))) {}
 
 		/// Conversion constructor.
 		/// \param rhs float to convert
@@ -768,7 +794,7 @@ namespace half_float
 		/// \tparam T type of concrete half expression
 		/// \param rhs half expression to copy from
 		/// \return reference to this half
-		half& operator=(detail::float_expr rhs)
+		half& operator=(detail::expr rhs)
 		{
 			data_ = detail::float2half<round_style>(rhs);
 			return *this;
@@ -933,25 +959,25 @@ namespace half_float
 			/// \param x first operand
 			/// \param y second operand
 			/// \return Half-precision sum stored in single-precision
-			static float_expr plus(float x, float y) { return float_expr(x+y); }
+			static expr plus(float x, float y) { return expr(x+y); }
 
 			/// Subtraction implementation.
 			/// \param x first operand
 			/// \param y second operand
 			/// \return Half-precision difference stored in single-precision
-			static float_expr minus(float x, float y) { return float_expr(x-y); }
+			static expr minus(float x, float y) { return expr(x-y); }
 
 			/// Multiplication implementation.
 			/// \param x first operand
 			/// \param y second operand
 			/// \return Half-precision product stored in single-precision
-			static float_expr multiplies(float x, float y) { return float_expr(x*y); }
+			static expr multiplies(float x, float y) { return expr(x*y); }
 
 			/// Division implementation.
 			/// \param x first operand
 			/// \param y second operand
 			/// \return Half-precision quotient stored in single-precision
-			static float_expr divides(float x, float y) { return float_expr(x/y); }
+			static expr divides(float x, float y) { return expr(x/y); }
 
 			/// Output implementation.
 			/// \param out stream to write to
@@ -975,18 +1001,18 @@ namespace half_float
 			/// \param x first operand
 			/// \param y second operand
 			/// \return Half-precision division remainder stored in single-precision
-			static float_expr fmod(float x, float y) { return float_expr(std::fmod(x, y)); }
+			static expr fmod(float x, float y) { return expr(std::fmod(x, y)); }
 
 			/// Positive difference implementation.
 			/// \param x first operand
 			/// \param y second operand
 			/// \return Positive difference stored in single-precision
-			static float_expr fdim(float x, float y)
+			static expr fdim(float x, float y)
 			{
 			#if HALF_ENABLE_CPP11_CMATH
-				return float_expr(std::fdim(x, y));
+				return expr(std::fdim(x, y));
 			#else
-				return float_expr(std::max(x-y, 0.0f));
+				return expr(std::max(x-y, 0.0f));
 			#endif
 			}
 
@@ -995,12 +1021,12 @@ namespace half_float
 			/// \param y second operand
 			/// \param z third operand
 			/// \return \a x * \a y + \a z stored in single-precision
-			static float_expr fma(float x, float y, float z)
+			static expr fma(float x, float y, float z)
 			{
 			#if HALF_ENABLE_CPP11_CMATH && defined(FP_FAST_FMAF)
-				return float_expr(std::fma(x, y, z));
+				return expr(std::fma(x, y, z));
 			#else
-				return float_expr(x*y+z);
+				return expr(x*y+z);
 			#endif
 			}
 
@@ -1011,81 +1037,81 @@ namespace half_float
 			/// Exponential implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr exp(float arg) { return float_expr(std::exp(arg)); }
+			static expr exp(float arg) { return expr(std::exp(arg)); }
 
 			/// Exponential implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr expm1(float arg)
+			static expr expm1(float arg)
 			{
 			#if HALF_ENABLE_CPP11_CMATH
-				return float_expr(std::expm1(arg));
+				return expr(std::expm1(arg));
 			#else
-				return float_expr(std::exp(arg)-1.0f);
+				return expr(std::exp(arg)-1.0f);
 			#endif
 			}
 
 			/// Binary exponential implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr exp2(float arg)
+			static expr exp2(float arg)
 			{
 			#if HALF_ENABLE_CPP11_CMATH
-				return float_expr(std::exp2(arg));
+				return expr(std::exp2(arg));
 			#else
-				return float_expr(std::exp(arg*0.69314718055994530942f));
+				return expr(std::exp(arg*0.69314718055994530941723212145818f));
 			#endif
 			}
 
 			/// Logarithm implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr log(float arg) { return float_expr(std::log(arg)); }
+			static expr log(float arg) { return expr(std::log(arg)); }
 
 			/// Common logarithm implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr log10(float arg) { return float_expr(std::log10(arg)); }
+			static expr log10(float arg) { return expr(std::log10(arg)); }
 
 			/// Logarithm implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr log1p(float arg)
+			static expr log1p(float arg)
 			{
 			#if HALF_ENABLE_CPP11_CMATH
-				return float_expr(std::log1p(arg));
+				return expr(std::log1p(arg));
 			#else
-				return float_expr(std::log(arg+1.0f));
+				return expr(std::log(1.0f+arg));
 			#endif
 			}
 
 			/// Binary logarithm implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr log2(float arg)
+			static expr log2(float arg)
 			{
 			#if HALF_ENABLE_CPP11_CMATH
-				return float_expr(std::log2(arg));
+				return expr(std::log2(arg));
 			#else
-				return float_expr(std::log(arg)*1.44269504088896340736f);
+				return expr(std::log(arg)*1.4426950408889634073599246810019f);
 			#endif
 			}
 
 			/// Square root implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr sqrt(float arg) { return float_expr(std::sqrt(arg)); }
+			static expr sqrt(float arg) { return expr(std::sqrt(arg)); }
 
 			/// Hypotenuse implementation.
 			/// \param x first argument
 			/// \param y second argument
 			/// \return function value stored in single-preicision
-			static float_expr hypot(float x, float y)
+			static expr hypot(float x, float y)
 			{
 			#if HALF_ENABLE_CPP11_CMATH
-				return float_expr(std::hypot(x, y));
+				return expr(std::hypot(x, y));
 			#else
-				return float_expr(std::sqrt(x*x+y*y));
+				return expr(std::sqrt(x*x+y*y));
 			#endif
 			}
 
@@ -1093,58 +1119,58 @@ namespace half_float
 			/// \param base value to exponentiate
 			/// \param exp power to expontiate to
 			/// \return function value stored in single-preicision
-			static float_expr pow(float base, float exp) { return float_expr(std::pow(base, exp)); }
+			static expr pow(float base, float exp) { return expr(std::pow(base, exp)); }
 
 			/// Sine implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr sin(float arg) { return float_expr(std::sin(arg)); }
+			static expr sin(float arg) { return expr(std::sin(arg)); }
 
 			/// Cosine implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr cos(float arg) { return float_expr(std::cos(arg)); }
+			static expr cos(float arg) { return expr(std::cos(arg)); }
 
 			/// Tan implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr tan(float arg) { return float_expr(std::tan(arg)); }
+			static expr tan(float arg) { return expr(std::tan(arg)); }
 
 			/// Arc sine implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr asin(float arg) { return float_expr(std::asin(arg)); }
+			static expr asin(float arg) { return expr(std::asin(arg)); }
 
 			/// Arc cosine implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr acos(float arg) { return float_expr(std::acos(arg)); }
+			static expr acos(float arg) { return expr(std::acos(arg)); }
 
 			/// Arc tangent implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr atan(float arg) { return float_expr(std::atan(arg)); }
+			static expr atan(float arg) { return expr(std::atan(arg)); }
 
 			/// Arc tangent implementation.
 			/// \param x first argument
 			/// \param y second argument
 			/// \return function value stored in single-preicision
-			static float_expr atan2(float x, float y) { return float_expr(std::atan2(x, y)); }
+			static expr atan2(float x, float y) { return expr(std::atan2(x, y)); }
 
 			/// Hyperbolic sine implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr sinh(float arg) { return float_expr(std::sinh(arg)); }
+			static expr sinh(float arg) { return expr(std::sinh(arg)); }
 
 			/// Hyperbolic cosine implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr cosh(float arg) { return float_expr(std::cosh(arg)); }
+			static expr cosh(float arg) { return expr(std::cosh(arg)); }
 
 			/// Hyperbolic tangent implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr tanh(float arg) { return float_expr(std::tanh(arg)); }
+			static expr tanh(float arg) { return expr(std::tanh(arg)); }
 
 			/// Floor implementation.
 			/// \param arg value to round
@@ -1206,12 +1232,12 @@ namespace half_float
 			/// Nearest integer implementation.
 			/// \param arg value to round
 			/// \return rounded value
-			static long lround(half arg) { return detail::half2int<long,std::round_to_nearest>(arg.data_); }
+			static long lround(half arg) { return detail::half2int<std::round_to_nearest,long>(arg.data_); }
 		#if HALF_ENABLE_CPP11_LONG_LONG
 			/// Nearest integer implementation.
 			/// \param arg value to round
 			/// \return rounded value
-			static long long llround(half arg) { return detail::half2int<long long,std::round_to_nearest>(arg.data_); }
+			static long long llround(half arg) { return detail::half2int<std::round_to_nearest,long long>(arg.data_); }
 		#endif
 			/// Decompression implementation.
 			/// \param arg number to decompress
@@ -1226,7 +1252,7 @@ namespace half_float
 				e >>= 10;
 				if(!e)
 				{
-					for(m<<=1; m<0x400; m<<=1) --e;
+					for(m<<=1; m<0x400; m<<=1,--e) ;
 					m &= 0x3FF;
 				}
 				*exp = e - 14;
@@ -1249,7 +1275,7 @@ namespace half_float
 				iptr->data_ = arg.data_ & ~mask;
 				if(!m)
 					return half(arg.data_&0x8000, true);
-				for(; m<0x400; m<<=1) --e;
+				for(; m<0x400; m<<=1,--e) ;
 				return half((arg.data_&0x8000) | (e<<10) | (m&0x3FF), true);
 			}
 
@@ -1269,7 +1295,7 @@ namespace half_float
 				{
 					if(!m)
 						return arg;
-					for(m<<=1; m<0x400; m<<=1) --e;
+					for(m<<=1; m<0x400; m<<=1,--e) ;
 				}
 				e += exp;
 				unsigned int sign = arg.data_ & 0x8000;
@@ -1289,7 +1315,7 @@ namespace half_float
 					return (arg.data_&0x3FF) ? FP_ILOGBNAN : INT_MAX;
 				e >>= 10;
 				if(!e)
-					for(unsigned int m=(arg.data_&0x3FF)<<1; m<0x400; m<<=1) --e;
+					for(unsigned int m=(arg.data_&0x3FF)<<1; m<0x400; m<<=1,--e) ;
 				return e - 15;
 			}
 
@@ -1305,7 +1331,7 @@ namespace half_float
 					return (arg.data_&0x3FF) ? arg : half(0x7C00, true);
 				e >>= 10;
 				if(!e)
-					for(unsigned int m=(arg.data_&0x3FF)<<1; m<0x400; m<<=1) --e;
+					for(unsigned int m=(arg.data_&0x3FF)<<1; m<0x400; m<<=1,--e) ;
 				return half(static_cast<float>(e-15));
 			}
 
@@ -1457,74 +1483,74 @@ namespace half_float
 			/// \param x first operand
 			/// \param y second operand
 			/// \return Half-precision division remainder stored in single-precision
-			static float_expr remainder(float x, float y) { return float_expr(std::remainder(x, y)); }
+			static expr remainder(float x, float y) { return expr(std::remainder(x, y)); }
 
 			/// Remainder implementation.
 			/// \param x first operand
 			/// \param y second operand
 			/// \param quo address to store quotient bits at
 			/// \return Half-precision division remainder stored in single-precision
-			static float_expr remquo(float x, float y, int *quo) { return float_expr(std::remquo(x, y, quo)); }
+			static expr remquo(float x, float y, int *quo) { return expr(std::remquo(x, y, quo)); }
 
 			/// Cubic root implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr cbrt(float arg) { return float_expr(std::cbrt(arg)); }
+			static expr cbrt(float arg) { return expr(std::cbrt(arg)); }
 
-			/// Area sine implementation.
+			/// Hyperbolic area sine implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr asinh(float arg) { return float_expr(std::asinh(arg)); }
+			static expr asinh(float arg) { return std::log(arg+std::sqrt(arg*arg+1.0f));return expr(std::asinh(arg)); }
 
-			/// Area cosine implementation.
+			/// Hyperbolic area cosine implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr acosh(float arg) { return float_expr(std::acosh(arg)); }
+			static expr acosh(float arg) { return std::log(arg+std::sqrt(arg*arg-1.0f));return expr(std::acosh(arg)); }
 
-			/// Area tangent implementation.
+			/// Hyperbolic area tangent implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr atanh(float arg) { return float_expr(std::atanh(arg)); }
+			static expr atanh(float arg) { return 0.5f * std::log((1.0f+arg)/(1.0f-arg));return expr(std::atanh(arg)); }
 
 			/// Error function implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr erf(float arg) { return float_expr(std::erf(arg)); }
+			static expr erf(float arg) { return expr(std::erf(arg)); }
 
 			/// Complementary implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr erfc(float arg) { return float_expr(std::erfc(arg)); }
+			static expr erfc(float arg) { return expr(std::erfc(arg)); }
 
 			/// Gamma logarithm implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr lgamma(float arg) { return float_expr(std::lgamma(arg)); }
+			static expr lgamma(float arg) { return expr(std::lgamma(arg)); }
 
 			/// Gamma implementation.
 			/// \param arg function argument
 			/// \return function value stored in single-preicision
-			static float_expr tgamma(float arg) { return float_expr(std::tgamma(arg)); }
+			static expr tgamma(float arg) { return expr(std::tgamma(arg)); }
 
 			/// Nearest integer implementation.
 			/// \param arg value to round
 			/// \return rounded value stored in single-preicision
-			static float_expr nearbyint(float arg) { return float_expr(std::nearbyint(arg)); }
+			static expr nearbyint(float arg) { return expr(std::nearbyint(arg)); }
 
 			/// Nearest integer implementation.
 			/// \param arg value to round
 			/// \return rounded value stored in single-preicision
-			static float_expr rint(float arg) { return float_expr(std::rint(arg)); }
+			static expr rint(float arg) { return expr(std::rint(arg)); }
 
 			/// Nearest integer implementation.
 			/// \param arg value to round
 			/// \return rounded value
-			static long lrint(float arg) { return float_expr(std::lrint(arg)); }
+			static long lrint(float arg) { return expr(std::lrint(arg)); }
 		#if HALF_ENABLE_CPP11_LONG_LONG
 			/// Nearest integer implementation.
 			/// \param arg value to round
 			/// \return rounded value
-			static long long llrint(float arg) { return float_expr(std::llrint(arg)); }
+			static long long llrint(float arg) { return expr(std::llrint(arg)); }
 		#endif
 		#endif
 		};
@@ -1543,10 +1569,10 @@ namespace half_float
 			/// \return absolute value
 			static half fabs(half arg) { return half(arg.data_&0x7FFF, true); }
 		};
-		template<> struct unary_specialized<float_expr>
+		template<> struct unary_specialized<expr>
 		{
-			static HALF_CONSTEXPR float_expr negate(float arg) { return float_expr(-arg); }
-			static float_expr fabs(float arg) { return float_expr(std::fabs(arg)); }
+			static HALF_CONSTEXPR expr negate(float arg) { return expr(-arg); }
+			static expr fabs(float arg) { return expr(std::fabs(arg)); }
 		};
 
 		/// Wrapper for binary half-precision functions needing specialization for individual argument types.
@@ -1558,7 +1584,7 @@ namespace half_float
 			/// \param x first operand
 			/// \param y second operand
 			/// \return minimum value
-			static float_expr fmin(float x, float y)
+			static expr fmin(float x, float y)
 			{
 			#if HALF_ENABLE_CPP11_CMATH
 				return std::fmin(x, y);
@@ -1571,7 +1597,7 @@ namespace half_float
 			/// \param x first operand
 			/// \param y second operand
 			/// \return maximum value
-			static float_expr fmax(float x, float y)
+			static expr fmax(float x, float y)
 			{
 			#if HALF_ENABLE_CPP11_CMATH
 				return std::fmax(x, y);
@@ -1601,15 +1627,15 @@ namespace half_float
 		template<typename T,std::float_round_style R> struct half_caster<T,half,R>
 		{
 			typedef T type;
-			template<typename U> static T cast(U arg) { return static_cast<T>(static_cast<float>(arg)); }
+			static T cast(float arg) { return static_cast<T>(arg); }
 		};
-		template<typename T,std::float_round_style R> struct half_caster<T,float_expr,R> : public half_caster<T,half,R> {};
+		template<typename T,std::float_round_style R> struct half_caster<T,expr,R> : public half_caster<T,half,R> {};
 		template<std::float_round_style R> struct half_caster<half,half,R>
 		{
 			typedef half type;
-			template<typename U> static half cast(U arg) { return arg; }
+			static half cast(half arg) { return arg; }
 		};
-		template<std::float_round_style R> struct half_caster<half,float_expr,R> : public half_caster<half,half,R> {};
+		template<std::float_round_style R> struct half_caster<half,expr,R> : public half_caster<half,half,R> {};
 
 		/// \name Comparison operators
 		/// \{
@@ -1664,25 +1690,25 @@ namespace half_float
 		/// \param x left operand
 		/// \param y right operand
 		/// \return sum of half expressions
-		template<typename T,typename U> typename enable<float_expr,T,U>::type operator+(T x, U y) { return functions::plus(x, y); }
+		template<typename T,typename U> typename enable<expr,T,U>::type operator+(T x, U y) { return functions::plus(x, y); }
 
 		/// Subtract halfs.
 		/// \param x left operand
 		/// \param y right operand
 		/// \return difference of half expressions
-		template<typename T,typename U> typename enable<float_expr,T,U>::type operator-(T x, U y) { return functions::minus(x, y); }
+		template<typename T,typename U> typename enable<expr,T,U>::type operator-(T x, U y) { return functions::minus(x, y); }
 
 		/// Multiply halfs.
 		/// \param x left operand
 		/// \param y right operand
 		/// \return product of half expressions
-		template<typename T,typename U> typename enable<float_expr,T,U>::type operator*(T x, U y) { return functions::multiplies(x, y); }
+		template<typename T,typename U> typename enable<expr,T,U>::type operator*(T x, U y) { return functions::multiplies(x, y); }
 
 		/// Divide halfs.
 		/// \param x left operand
 		/// \param y right operand
 		/// \return quotient of half expressions
-		template<typename T,typename U> typename enable<float_expr,T,U>::type operator/(T x, U y) { return functions::divides(x, y); }
+		template<typename T,typename U> typename enable<expr,T,U>::type operator/(T x, U y) { return functions::divides(x, y); }
 
 		/// Identity.
 		/// \param arg operand
@@ -1730,14 +1756,14 @@ namespace half_float
 		/// \param x first operand
 		/// \param y second operand
 		/// \return remainder of floating point division.
-		template<typename T,typename U> typename enable<float_expr,T,U>::type fmod(T x, U y) { return functions::fmod(x, y); }
+		template<typename T,typename U> typename enable<expr,T,U>::type fmod(T x, U y) { return functions::fmod(x, y); }
 
 		/// Fused multiply add.
 		/// \param x first operand
 		/// \param y second operand
 		/// \param z third operand
 		/// \return ( \a x * \a y ) + \a z rounded as one operation.
-		template<typename T,typename U,typename V> typename enable<float_expr,T,U,V>::type fma(T x, U y, V z) { return functions::fma(x, y, z); }
+		template<typename T,typename U,typename V> typename enable<expr,T,U,V>::type fma(T x, U y, V z) { return functions::fma(x, y, z); }
 
 		/// Maximum of half expressions.
 		/// \param x first operand
@@ -1755,7 +1781,7 @@ namespace half_float
 		/// \param x first operand
 		/// \param y second operand
 		/// \return \a x - \a y or 0 if difference negative
-		template<typename T,typename U> typename enable<float_expr,T,U>::type fdim(T x, U y) { return functions::fdim(x, y); }
+		template<typename T,typename U> typename enable<expr,T,U>::type fdim(T x, U y) { return functions::fdim(x, y); }
 
 		/// Get NaN value.
 		/// \param arg descriptive string (ignored)
@@ -1766,14 +1792,14 @@ namespace half_float
 		/// \param x first operand
 		/// \param y second operand
 		/// \return remainder of floating point division.
-		template<typename T,typename U> typename enable<float_expr,T,U>::type remainder(T x, U y) { return functions::remainder(x, y); }
+		template<typename T,typename U> typename enable<expr,T,U>::type remainder(T x, U y) { return functions::remainder(x, y); }
 
 		/// Remainder of division.
 		/// \param x first operand
 		/// \param y second operand
 		/// \param quo address to store some bits of quotient at
 		/// \return remainder of floating point division.
-		template<typename T,typename U> typename enable<float_expr,T,U>::type remquo(T x, U y, int *quo) { return functions::remquo(x, y, quo); }
+		template<typename T,typename U> typename enable<expr,T,U>::type remquo(T x, U y, int *quo) { return functions::remquo(x, y, quo); }
 	#endif
 
 		/// \}
@@ -1783,37 +1809,37 @@ namespace half_float
 		/// Exponential function.
 		/// \param arg function argument
 		/// \return e raised to \a arg
-		template<typename T> typename enable<float_expr,T>::type exp(T arg) { return functions::exp(arg); }
+		template<typename T> typename enable<expr,T>::type exp(T arg) { return functions::exp(arg); }
 
 		/// Exponential minus one.
 		/// \param arg function argument
 		/// \return e raised to \a arg subtracted by 1
-		template<typename T> typename enable<float_expr,T>::type expm1(T arg) { return functions::expm1(arg); }
+		template<typename T> typename enable<expr,T>::type expm1(T arg) { return functions::expm1(arg); }
 
 		/// Binary exponential.
 		/// \param arg function argument
 		/// \return 2 raised to \a arg
-		template<typename T> typename enable<float_expr,T>::type exp2(T arg) { return functions::exp2(arg); }
+		template<typename T> typename enable<expr,T>::type exp2(T arg) { return functions::exp2(arg); }
 
 		/// Natural logorithm.
 		/// \param arg function argument
 		/// \return logarithm of \a arg to base e
-		template<typename T> typename enable<float_expr,T>::type log(T arg) { return functions::log(arg); }
+		template<typename T> typename enable<expr,T>::type log(T arg) { return functions::log(arg); }
 
 		/// Common logorithm.
 		/// \param arg function argument
 		/// \return logarithm of \a arg to base 10
-		template<typename T> typename enable<float_expr,T>::type log10(T arg) { return functions::log10(arg); }
+		template<typename T> typename enable<expr,T>::type log10(T arg) { return functions::log10(arg); }
 
 		/// Natural logorithm.
 		/// \param arg function argument
 		/// \return logarithm of \a arg plus 1 to base e
-		template<typename T> typename enable<float_expr,T>::type log1p(T arg) { return functions::log1p(arg); }
+		template<typename T> typename enable<expr,T>::type log1p(T arg) { return functions::log1p(arg); }
 
 		/// Binary logorithm.
 		/// \param arg function argument
 		/// \return logarithm of \a arg to base 2
-		template<typename T> typename enable<float_expr,T>::type log2(T arg) { return functions::log2(arg); }
+		template<typename T> typename enable<expr,T>::type log2(T arg) { return functions::log2(arg); }
 
 		/// \}
 		/// \name Power functions
@@ -1822,24 +1848,24 @@ namespace half_float
 		/// Square root.
 		/// \param arg function argument
 		/// \return square root of \a arg
-		template<typename T> typename enable<float_expr,T>::type sqrt(T arg) { return functions::sqrt(arg); }
+		template<typename T> typename enable<expr,T>::type sqrt(T arg) { return functions::sqrt(arg); }
 
 		/// Hypotenuse function.
 		/// \param x first argument
 		/// \param y second argument
 		/// \return square root of sum of squares without internal over- or underflows
-		template<typename T,typename U> typename enable<float_expr,T,U>::type hypot(T x, U y) { return functions::hypot(x, y); }
+		template<typename T,typename U> typename enable<expr,T,U>::type hypot(T x, U y) { return functions::hypot(x, y); }
 
 		/// Power function.
 		/// \param base first argument
 		/// \param exp second argument
 		/// \return \a base raised to \a exp
-		template<typename T,typename U> typename enable<float_expr,T,U>::type pow(T base, U exp) { return functions::pow(base, exp); }
+		template<typename T,typename U> typename enable<expr,T,U>::type pow(T base, U exp) { return functions::pow(base, exp); }
 	#if HALF_ENABLE_CPP11_CMATH
 		/// Cubic root.
 		/// \param arg function argument
 		/// \return cubic root of \a arg
-		template<typename T> typename enable<float_expr,T>::type cbrt(T arg) { return functions::cbrt(arg); }
+		template<typename T> typename enable<expr,T>::type cbrt(T arg) { return functions::cbrt(arg); }
 	#endif
 
 		/// \}
@@ -1849,38 +1875,38 @@ namespace half_float
 		/// Sine function.
 		/// \param arg function argument
 		/// \return sine value of \a arg
-		template<typename T> typename enable<float_expr,T>::type sin(T arg) { return functions::sin(arg); }
+		template<typename T> typename enable<expr,T>::type sin(T arg) { return functions::sin(arg); }
 
 		/// Cosine function.
 		/// \param arg function argument
 		/// \return cosine value of \a arg
-		template<typename T> typename enable<float_expr,T>::type cos(T arg) { return functions::cos(arg); }
+		template<typename T> typename enable<expr,T>::type cos(T arg) { return functions::cos(arg); }
 
 		/// Tangent function.
 		/// \param arg function argument
 		/// \return tangent value of \a arg
-		template<typename T> typename enable<float_expr,T>::type tan(T arg) { return functions::tan(arg); }
+		template<typename T> typename enable<expr,T>::type tan(T arg) { return functions::tan(arg); }
 
 		/// Arc sine.
 		/// \param arg function argument
 		/// \return arc sine value of \a arg
-		template<typename T> typename enable<float_expr,T>::type asin(T arg) { return functions::asin(arg); }
+		template<typename T> typename enable<expr,T>::type asin(T arg) { return functions::asin(arg); }
 
 		/// Arc cosine function.
 		/// \param arg function argument
 		/// \return arc cosine value of \a arg
-		template<typename T> typename enable<float_expr,T>::type acos(T arg) { return functions::acos(arg); }
+		template<typename T> typename enable<expr,T>::type acos(T arg) { return functions::acos(arg); }
 
 		/// Arc tangent function.
 		/// \param arg function argument
 		/// \return arc tangent value of \a arg
-		template<typename T> typename enable<float_expr,T>::type atan(T arg) { return functions::atan(arg); }
+		template<typename T> typename enable<expr,T>::type atan(T arg) { return functions::atan(arg); }
 
 		/// Arc tangent function.
 		/// \param x first argument
 		/// \param y second argument
 		/// \return arc tangent value
-		template<typename T,typename U> typename enable<float_expr,T,U>::type atan2(T x, U y) { return functions::atan2(x, y); }
+		template<typename T,typename U> typename enable<expr,T,U>::type atan2(T x, U y) { return functions::atan2(x, y); }
 
 		/// \}
 		/// \name Hyperbolic functions
@@ -1889,32 +1915,32 @@ namespace half_float
 		/// Hyperbolic sine.
 		/// \param arg function argument
 		/// \return hyperbolic sine value of \a arg
-		template<typename T> typename enable<float_expr,T>::type sinh(T arg) { return functions::sinh(arg); }
+		template<typename T> typename enable<expr,T>::type sinh(T arg) { return functions::sinh(arg); }
 
 		/// Hyperbolic cosine.
 		/// \param arg function argument
 		/// \return hyperbolic cosine value of \a arg
-		template<typename T> typename enable<float_expr,T>::type cosh(T arg) { return functions::cosh(arg); }
+		template<typename T> typename enable<expr,T>::type cosh(T arg) { return functions::cosh(arg); }
 
 		/// Hyperbolic tangent.
 		/// \param arg function argument
 		/// \return hyperbolic tangent value of \a arg
-		template<typename T> typename enable<float_expr,T>::type tanh(T arg) { return functions::tanh(arg); }
+		template<typename T> typename enable<expr,T>::type tanh(T arg) { return functions::tanh(arg); }
 	#if HALF_ENABLE_CPP11_CMATH
-		/// Area sine.
+		/// Hyperbolic area sine.
 		/// \param arg function argument
 		/// \return area sine value of \a arg
-		template<typename T> typename enable<float_expr,T>::type asinh(T arg) { return functions::asinh(arg); }
+		template<typename T> typename enable<expr,T>::type asinh(T arg) { return functions::asinh(arg); }
 
-		/// Area cosine.
+		/// Hyperbolic area cosine.
 		/// \param arg function argument
 		/// \return area cosine value of \a arg
-		template<typename T> typename enable<float_expr,T>::type acosh(T arg) { return functions::acosh(arg); }
+		template<typename T> typename enable<expr,T>::type acosh(T arg) { return functions::acosh(arg); }
 
-		/// Area tangent.
+		/// Hyperbolic area tangent.
 		/// \param arg function argument
 		/// \return area tangent value of \a arg
-		template<typename T> typename enable<float_expr,T>::type atanh(T arg) { return functions::atanh(arg); }
+		template<typename T> typename enable<expr,T>::type atanh(T arg) { return functions::atanh(arg); }
 
 		/// \}
 		/// \name Error and gamma functions
@@ -1923,22 +1949,22 @@ namespace half_float
 		/// Error function.
 		/// \param arg function argument
 		/// \return error function value of \a arg
-		template<typename T> typename enable<float_expr,T>::type erf(T arg) { return functions::erf(arg); }
+		template<typename T> typename enable<expr,T>::type erf(T arg) { return functions::erf(arg); }
 
 		/// Complementary error function.
 		/// \param arg function argument
 		/// \return 1 minus error function value of \a arg
-		template<typename T> typename enable<float_expr,T>::type erfc(T arg) { return functions::erfc(arg); }
+		template<typename T> typename enable<expr,T>::type erfc(T arg) { return functions::erfc(arg); }
 
 		/// Natural logarithm of gamma function.
 		/// \param arg function argument
 		/// \return natural logarith of gamma function for \a arg
-		template<typename T> typename enable<float_expr,T>::type lgamma(T arg) { return functions::lgamma(arg); }
+		template<typename T> typename enable<expr,T>::type lgamma(T arg) { return functions::lgamma(arg); }
 
 		/// Gamma function.
 		/// \param arg function argument
 		/// \return gamma function value of \a arg
-		template<typename T> typename enable<float_expr,T>::type tgamma(T arg) { return functions::tgamma(arg); }
+		template<typename T> typename enable<expr,T>::type tgamma(T arg) { return functions::tgamma(arg); }
 	#endif
 		/// \}
 		/// \name Rounding
