@@ -495,19 +495,19 @@ namespace half_float
 	half tanh(half arg);
 
 	/// Hyperbolic area sine.
-	/// This function uses the underlying single-precision implementation and requires support for C++11 `<cmath>` functions.
+	/// This function uses the underlying single-precision implementation if C++11 `<cmath>` functions are supported.
 	/// \param arg function argument
 	/// \return hyperbolic area sine value of \a arg
 	half asinh(half arg);
 
 	/// Hyperbolic area cosine.
-	/// This function uses the underlying single-precision implementation and requires support for C++11 `<cmath>` functions.
+	/// This function uses the underlying single-precision implementation if C++11 `<cmath>` functions are supported.
 	/// \param arg function argument
 	/// \return hyperbolic area cosine value of \a arg
 	half acosh(half arg);
 
 	/// Hyperbolic area tangent.
-	/// This function uses the underlying single-precision implementation and requires support for C++11 `<cmath>` functions.
+	/// This function uses the underlying single-precision implementation if C++11 `<cmath>` functions are supported.
 	/// \param arg function argument
 	/// \return hyperbolic area tangent value of \a arg
 	half atanh(half arg);

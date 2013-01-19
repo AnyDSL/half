@@ -14,7 +14,7 @@
 // COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, 
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Version 1.7.1
+// Version 1.8.0
 
 /// \file
 /// Main header file for half precision functionality.
@@ -780,7 +780,7 @@ namespace half_float
 		/// \tparam T type of concrete half expression
 		/// \param rhs half expression to copy from
 //		template<typename T> half(const detail::half_expr<T> &rhs) : data_(detail::float2half<round_style>(static_cast<float>(rhs))) {}
-		half(detail::expr rhs) : data_(detail::float2half<round_style>(static_cast<float>(rhs))) {}
+		half(detail::expr rhs) : data_(detail::float2half<round_style>(rhs)) {}
 
 		/// Conversion constructor.
 		/// \param rhs float to convert
@@ -943,10 +943,7 @@ namespace half_float
 		/// Half literal.
 		/// \param d literal value
 		/// \return half with given value (if representable)
-		inline half operator "" _h(long double d)
-		{
-			return half(static_cast<float>(d));
-		}
+		inline half operator "" _h(long double d) { return half(static_cast<float>(d)); }
 	}
 #endif
 
