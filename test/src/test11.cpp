@@ -375,7 +375,7 @@ public:
 
 #if HALF_ENABLE_CPP11_USER_LITERALS
 		//test literals
-		simple_test("literals", []() { using namespace half_float::literal; return comp(0.0_h, half(0.0f)) && comp(-1.0_h, half(-1.0f)) && 
+		simple_test("literals", []() -> bool { using namespace half_float::literal; return comp(0.0_h, half(0.0f)) && comp(-1.0_h, half(-1.0f)) && 
 			comp(+3.14159265359_h, half(3.14159265359f)) && comp(1e-2_h, half(1e-2f)) && comp(-4.2e3_h, half(-4.2e3)); });
 #endif
 

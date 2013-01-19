@@ -39,7 +39,7 @@
 	#if __has_feature(cxx_user_literals) && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
 		#define HALF_ENABLE_CPP11_USER_LITERALS 1
 	#endif
-	#if !defined(HALF_ENABLE_CPP11_LONG_LONG)
+	#if (defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L) && !defined(HALF_ENABLE_CPP11_LONG_LONG)
 		#define HALF_ENABLE_CPP11_LONG_LONG 1
 	#endif
 /*#elif defined(__INTEL_COMPILER)								//Intel C++
@@ -1605,9 +1605,9 @@ namespace half_float
 			static expr fmin(float x, float y)
 			{
 			#if HALF_ENABLE_CPP11_CMATH
-				return std::fmin(x, y);
+				return expr(std::fmin(x, y));
 			#else
-				return std::min(x, y);
+				return expr(std::min(x, y));
 			#endif
 			}
 
@@ -1618,9 +1618,9 @@ namespace half_float
 			static expr fmax(float x, float y)
 			{
 			#if HALF_ENABLE_CPP11_CMATH
-				return std::fmax(x, y);
+				return expr(std::fmax(x, y));
 			#else
-				return std::max(x, y);
+				return expr(std::max(x, y));
 			#endif
 			}
 		};
