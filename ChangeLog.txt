@@ -1,9 +1,6 @@
 Release Notes											{#changelog}
 =============
 
-1.8.2 release (2013-XX-XX):
----------------------------
-
 - Minor implementation changes.
 
 
