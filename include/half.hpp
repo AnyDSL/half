@@ -513,20 +513,20 @@ namespace half_float
 			uint64 bits;// = *reinterpret_cast<uint64*>(&value);		//violating strict aliasing!
 			std::memcpy(&bits, &value, sizeof(double));
 			uint32 hi = bits >> 32, lo = bits & 0xFFFFFFFF;
-			uint16 value = (hi>>16) & 0x8000;
+			uint16 out = (hi>>16) & 0x8000;
 			int exp = (hi>>20) & 0x7FF;
 			if(exp == 2047)
-				value |= 0x7C00 | (0x3FF&-static_cast<unsigned>((bits&0xFFFFFFFFFFFFF)!=0));
+				out |= 0x7C00 | (0x3FF&-static_cast<unsigned>((bits&0xFFFFFFFFFFFFF)!=0));
 			else if(exp > 1038)
 			{
-				if(half::round_style == std::round_toward_zero)
-					value |= 0x7BFF;
-				else if(half::round_style == std::round_toward_infinity)
-					value |= 0x7C00 - (value>>15);
-				else if(half::round_style == std::round_toward_neg_infinity)
-					value |= 0x7BFF + (value>>15);
+				if(R == std::round_toward_zero)
+					out |= 0x7BFF;
+				else if(R == std::round_toward_infinity)
+					out |= 0x7C00 - (out>>15);
+				else if(R == std::round_toward_neg_infinity)
+					out |= 0x7BFF + (out>>15);
 				else
-					value |= 0x7C00;
+					out |= 0x7C00;
 			}
 			else
 			{
@@ -535,7 +535,7 @@ namespace half_float
 				{
 					g = (hi>>9) & 1;
 					s |= (hi&0x1FF) != 0;
-					value |= ((exp-1008)<<10) | ((hi>>10)&0x3FF);
+					out |= ((exp-1008)<<10) | ((hi>>10)&0x3FF);
 				}
 				else if(exp > 997)
 				{
@@ -543,7 +543,7 @@ namespace half_float
 					hi = (hi&0xFFFFF) | 0x100000;
 					g = (hi>>i) & 1;
 					s |= (hi&((1L<<i)-1)) != 0;
-					value |= hi >> (i+1);
+					out |= hi >> (i+1);
 				}
 				else
 				{
@@ -552,16 +552,16 @@ namespace half_float
 				}
 				if(R == std::round_to_nearest)
 					#if HALF_ROUND_TIES_TO_EVEN
-						value += g & (s|value);
+						out += g & (s|out);
 					#else
-						value += g;
+						out += g;
 					#endif
 				else if(R == std::round_toward_infinity)
-					value += ~(value>>15) & (s|g);
+					out += ~(out>>15) & (s|g);
 				else if(R == std::round_toward_neg_infinity)
-					value += (value>>15) & (g|s);
+					out += (out>>15) & (g|s);
 			}
-			return value;
+			return out;
 		}
 
 		/// Convert non-IEEE floating point to half-precision.
