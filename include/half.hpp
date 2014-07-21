@@ -548,7 +548,7 @@ namespace half_float
 				else
 				{
 					g = 0;
-					s |= (hi&0xFFFFF) != 0;
+					s |= hi != 0;
 				}
 				if(R == std::round_to_nearest)
 					#if HALF_ROUND_TIES_TO_EVEN
@@ -2774,11 +2774,9 @@ namespace half_float
 		/// \{
 
 		/// Cast to or from half-precision floating point number.
-		/// This casts between [half](\ref half_float::half) and any built-in arithmetic type. Floating point types are 
-		/// converted via an explicit cast to/from `float` (using the rounding mode of the built-in single precision 
-		/// implementation) and thus any possible warnings due to an otherwise implicit conversion to/from `float` will be 
-		/// suppressed. Integer types are converted directly using the given rounding mode, without any roundtrip over `float` 
-		/// that a `static_cast` would otherwise do. It uses the default rounding mode.
+		/// This casts between [half](\ref half_float::half) and any built-in arithmetic type. The values are converted 
+		/// directly using the given rounding mode, without any roundtrip over `float` that a `static_cast` would otherwise do. 
+		/// It uses the default rounding mode.
 		///
 		/// Using this cast with neither of the two types being a [half](\ref half_float::half) or with any of the two types 
 		/// not being a built-in arithmetic type (apart from [half](\ref half_float::half), of course) results in a compiler 
@@ -2790,11 +2788,8 @@ namespace half_float
 		template<typename T,typename U> typename half_caster<T,U>::type half_cast(U arg) { return half_caster<T,U>::cast(arg); }
 
 		/// Cast to or from half-precision floating point number.
-		/// This casts between [half](\ref half_float::half) and any built-in arithmetic type. Floating point types are 
-		/// converted via an explicit cast to/from `float` (using the rounding mode of the built-in single precision 
-		/// implementation) and thus any possible warnings due to an otherwise implicit conversion to/from `float` will be 
-		/// suppressed. Integer types are converted directly using the given rounding mode, without any roundtrip over `float` 
-		/// that a `static_cast` would otherwise do.
+		/// This casts between [half](\ref half_float::half) and any built-in arithmetic type. The values are converted 
+		/// directly using the given rounding mode, without any roundtrip over `float` that a `static_cast` would otherwise do.
 		///
 		/// Using this cast with neither of the two types being a [half](\ref half_float::half) or with any of the two types 
 		/// not being a built-in arithmetic type (apart from [half](\ref half_float::half), of course) results in a compiler 
