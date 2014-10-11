@@ -62,12 +62,12 @@ using half_float::half_cast;
 
 half b2h(std::uint16_t bits)
 {
-	return *reinterpret_cast<half*>(&bits);
+	return half_cast<half,half_float::bitwise>(bits);
 }
 
 std::uint16_t h2b(half h)
 {
-	return *reinterpret_cast<std::uint16_t*>(&h);
+	return half_cast<std::uint16_t,half_float::bitwise>(h);
 }
 
 bool comp(half a, half b)
