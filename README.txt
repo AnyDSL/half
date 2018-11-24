@@ -63,7 +63,7 @@ DOCUMENTATION
 -------------
 
 Here follow some general words about the usage of the library and its 
-implementation. For a complete documentation of its iterface look at the 
+implementation. For a complete documentation of its interface look at the 
 corresponding website http://half.sourceforge.net. You may also generate the 
 complete developer documentation from the library's only include file's doxygen 
 comments, but this is more relevant to developers rather than mere users (for 
