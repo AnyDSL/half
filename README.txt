@@ -1,4 +1,4 @@
-HALF-PRECISION FLOATING POINT LIBRARY (Version 1.12.0)
+HALF-PRECISION FLOATING POINT LIBRARY (Version 2.0.0)
 ------------------------------------------------------
 
 This is a C++ header-only library to provide an IEEE 754 conformant 16-bit 
@@ -47,7 +47,7 @@ or when a feature should be explicitly disabled:
     libc++ and newer, overridable with 'HALF_ENABLE_CPP11_CSTDINT').
 
   - Certain C++11 single-precision mathematical functions from <cmath> for 
-    an improved implementation of their half-precision counterparts to work 
+    floating point classification during conversions from higher precision types 
     (enabled for VC++ 2013, libstdc++ 4.3, libc++ and newer, overridable with 
     'HALF_ENABLE_CPP11_CMATH').
 
@@ -83,7 +83,7 @@ makes its use pretty straight-forward:
     half c = a * b;
     c += 3;
     if(c > a)
-	    std::cout << c << std::endl;
+        std::cout << c << std::endl;
 
 Additionally the 'half_float' namespace also defines half-precision versions 
 for all mathematical functions of the C++ standard library, which can be used 
@@ -134,25 +134,24 @@ also return single-precision values, which is (even if maybe performing the
 exact same computation, see below) not as conceptually clean when working in a 
 half-precision environment.
 
-The default rounding mode for conversions from float to half uses truncation 
-(round toward zero, but mapping overflows to infinity) for rounding values not 
-representable exactly in half-precision. This is the fastest rounding possible 
-and is usually sufficient. But by redefining the 'HALF_ROUND_STYLE' 
-preprocessor symbol (before including half.hpp) this default can be overridden 
-with one of the other standard rounding modes using their respective constants 
-or the equivalent values of 'std::float_round_style' (it can even be 
-synchronized with the underlying single-precision implementation by defining it 
-to 'std::numeric_limits<float>::round_style'):
+The default rounding mode for conversions between half and more precise types 
+as well as for rounding results of arithmetic operations and mathematical 
+functions rounds to the nearest representable value. But by redefining the 
+'HALF_ROUND_STYLE' preprocessor symbol (before including half.hpp) this default 
+can be overridden with one of the other standard rounding modes using their 
+respective constants or the equivalent values of 'std::float_round_style' (it 
+can even be synchronized with the built-in single-precision implementation by 
+defining it to 'std::numeric_limits<float>::round_style'):
 
-  - 'std::round_indeterminate' or -1 for the fastest rounding (default).
+  - 'std::round_indeterminate' (-1) for the fastest rounding.
 
-  - 'std::round_toward_zero' or 0 for rounding toward zero.
+  - 'std::round_toward_zero' (0) for rounding toward zero.
 
-  - std::round_to_nearest' or 1 for rounding to the nearest value.
+  - std::round_to_nearest' (1) for rounding to the nearest value (default).
 
-  - std::round_toward_infinity' or 2 for rounding toward positive infinity.
+  - std::round_toward_infinity' (2) for rounding toward positive infinity.
 
-  - std::round_toward_neg_infinity' or 3 for rounding toward negative infinity.
+  - std::round_toward_neg_infinity' (3) for rounding toward negative infinity.
 
 In addition to changing the overall default rounding mode one can also use the 
 'half_cast'. This converts between half and any built-in arithmetic type using 
@@ -173,59 +172,57 @@ rounding mode would.
     assert( half_cast<half,std::round_toward_infinity>( 4097 ) == 4100.0_h );
     assert( half_cast<half,std::round_toward_infinity>( std::numeric_limits<double>::min() ) > 0.0_h );
 
-When using round to nearest (either as default or through 'half_cast') ties are 
-by default resolved by rounding them away from zero (and thus equal to the 
-behaviour of the 'round' function). But by redefining the 
-'HALF_ROUND_TIES_TO_EVEN' preprocessor symbol to 1 (before including half.hpp) 
-this default can be changed to the slightly slower but less biased and more 
-IEEE-conformant behaviour of rounding half-way cases to the nearest even value.
+ACCURACY AND PERFORMANCE
 
-    #define HALF_ROUND_TIES_TO_EVEN 1
-    #include <half.hpp>
-    ...
-    assert( half_cast<int,std::round_to_nearest>(3.5_h) 
-         == half_cast<int,std::round_to_nearest>(4.5_h) );
+From version 2.0 onward the library is implemented without employing the 
+underlying floating point implementation of the system, providing an entirely 
+self-contained half-precision implementation with results independent from the 
+system's existing single- or double-precision implementation and its rounding 
+behaviour (except for functions directly handling built-in floating point 
+types, like conversions).
 
-IMPLEMENTATION
+As to accuracy, many of the operators and functions provided by this library 
+are exact to rounding for all rounding modes, i.e. the error to the exact 
+result is at most 0.5 ulp (unit in the last place) for rounding to nearest and 
+less than 1 ulp for all other rounding modes. This holds for all the operations 
+required by the IEEE 754 standard and many more. Specifically the following 
+functions might exhibit a deviation from the correctly rounded result by 1 ulp 
+for a select few input values: 'expm1', 'log1p', 'pow', 'atan2', 'erf', 'erfc', 
+'lgamma', 'tgamma' (for more details see the documentation of the individual 
+functions). All other functions and operators are always exact to rounding or 
+independent of the rounding mode altogether.
 
-For performance reasons (and ease of implementation) many of the mathematical 
-functions provided by the library as well as all arithmetic operations are 
-actually carried out in single-precision under the hood, calling to the C++ 
-standard library implementations of those functions whenever appropriate, 
-meaning the arguments are converted to floats and the result back to half. But 
-to reduce the conversion overhead as much as possible any temporary values 
-inside of lengthy expressions are kept in single-precision as long as possible, 
-while still maintaining a strong half-precision type to the outside world. Only 
-when finally assigning the value to a half or calling a function that works 
-directly on halfs is the actual conversion done (or never, when further 
-converting the result to float.
-
-This approach has two implications. First of all you have to treat the 
-library's documentation at http://half.sourceforge.net as a simplified version, 
-describing the behaviour of the library as if implemented this way. The actual 
-argument and return types of functions and operators may involve other internal 
-types (feel free to generate the exact developer documentation from the Doxygen 
-comments in the library's header file if you really need to). But nevertheless 
-the behaviour is exactly like specified in the documentation. The other 
-implication is, that in the presence of rounding errors or over-/underflows 
-arithmetic expressions may produce different results when compared to 
-converting to half-precision after each individual operation:
-
-    half a = std::numeric_limits<half>::max() * 2.0_h / 2.0_h;       // a = MAX
-    half b = half(std::numeric_limits<half>::max() * 2.0_h) / 2.0_h; // b = INF
-    assert( a != b );
-
-But this should only be a problem in very few cases. One last word has to be 
-said when talking about performance. Even with its efforts in reducing 
-conversion overhead as much as possible, the software half-precision 
-implementation can most probably not beat the direct use of single-precision 
-computations. Usually using actual float values for all computations and 
-temproraries and using halfs only for storage is the recommended way. On the 
-one hand this somehow makes the provided mathematical functions obsolete 
-(especially in light of the implicit conversion from half to float), but 
+The increased IEEE-conformance and cleanliness of this implementation comes 
+with a certain performance cost compared to doing computations and mathematical 
+functions in hardware-accelerated single-precision. On average and depending on 
+the platform, the arithemtic operators are about 75% as fast and the 
+mathematical functions about 33-50% as fast as performing the corresponding 
+operations in single-precision and converting between the inputs and outputs. 
+However, directly computing with half-precision values is a rather rare 
+use-case and usually using actual 'float' values for all computations and 
+temproraries and using 'half's only for storage is the recommended way. But 
 nevertheless the goal of this library was to provide a complete and 
-conceptually clean half-precision implementation, to which the standard 
-mathematical functions belong, even if usually not needed.
+conceptually clean IEEE-confromant half-precision implementation and in the few 
+cases when you do need to compute directly in half-precision you do so for a 
+reason and want accurate results.
+
+If necessary, this internal implementation can be overridden by defining the 
+'HALF_ARITHMETIC_TYPE' preprocessor symbol (before including half.hpp) to one 
+of the built-in floating point types ('float', 'double' or 'long double'), 
+which will cause the library to use this type for computing arithmetic 
+operations and mathematical functions (if available). However, due to using the 
+platform's floating point implementation (and its rounding behaviour) 
+internally, this might cause results to deviate from the specified 
+half-precision rounding mode.
+
+The conversion operations between half-precision and single-precision types can 
+also make use of the F16C extension for x86 processors by using the 
+corresponding compiler intrinsics from <immintrin.h>. To enable this, define 
+the 'HALF_ENABLE_F16C_INTRINSICS' preprocessor symbol to 1 (before including 
+half.hpp). However, this will directly use the corresponding intrinsics for 
+conversion without checking if they are actually available on the machine 
+(possibly crashing if they are not), so make sure they are supported on the 
+target platform before enabling this.
 
 IEEE CONFORMANCE
 
@@ -238,25 +235,14 @@ are some limitations to the complete conformance to the IEEE 754 standard:
     NaNs, this means operations on halfs are not specified to trap on 
     signalling NaNs (though they may, see last point).
 
-  - Though arithmetic operations are internally rounded to single-precision 
-    using the underlying single-precision implementation's current rounding 
-    mode, those values are then converted to half-precision using the default 
-    half-precision rounding mode (changed by defining 'HALF_ROUND_STYLE' 
-    accordingly). This mixture of rounding modes is also the reason why 
-    'std::numeric_limits<half>::round_style' may actually return 
-    'std::round_indeterminate' when half- and single-precision rounding modes 
-    don't match.
-
-  - Because of internal truncation it may also be that certain single-precision 
-    NaNs will be wrongly converted to half-precision infinity, though this is 
-    very unlikely to happen, since most single-precision implementations don't 
-    tend to only set the lowest bits of a NaN mantissa.
-
   - The implementation does not provide any floating point exceptions, thus 
     arithmetic operations or mathematical functions are not specified to invoke 
-    proper floating point exceptions. But due to many functions implemented in 
-    single-precision, those may still invoke floating point exceptions of the 
-    underlying single-precision implementation.
+    proper floating point exceptions.
+
+  - Due to the optimized single-to-half conversion it may also be that certain 
+    single-precision NaNs will be wrongly converted to half-precision infinity, 
+    though this is very unlikely to happen, since most single-precision 
+    implementations don't tend to only set the lowest bits of a NaN mantissa.
 
 Some of those points could have been circumvented by controlling the floating 
 point environment using <cfenv> or implementing a similar exception mechanism. 
@@ -264,16 +250,7 @@ But this would have required excessive runtime checks giving two high an impact
 on performance for something that is rarely ever needed. If you really need to 
 rely on proper floating point exceptions, it is recommended to explicitly 
 perform computations using the built-in floating point types to be on the safe 
-side. In the same way, if you really need to rely on a particular rounding 
-behaviour, it is recommended to either use single-precision computations and 
-explicitly convert the result to half-precision using 'half_cast' and 
-specifying the desired rounding mode, or synchronize the default half-precision 
-rounding mode to the rounding mode of the single-precision implementation (most 
-likely 'HALF_ROUND_STYLE=1', 'HALF_ROUND_TIES_TO_EVEN=1'). But this is really 
-considered an expert-scenario that should be used only when necessary, since 
-actually working with half-precision usually comes with a certain 
-tolerance/ignorance of exactness considerations and proper rounding comes with 
-a certain performance cost.
+side.
 
 
 CREDITS AND CONTACT
