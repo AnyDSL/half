@@ -25,7 +25,7 @@
 #define HALF_GNUC_VERSION (__GNUC__*100+__GNUC_MINOR__)
 
 //check C++11 language features
-#if defined(__clang__)										//clang
+#if defined(__clang__)															//clang
 	#if __has_feature(cxx_static_assert) && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
 		#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
 	#endif
@@ -41,23 +41,26 @@
 	#if (defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L) && !defined(HALF_ENABLE_CPP11_LONG_LONG)
 		#define HALF_ENABLE_CPP11_LONG_LONG 1
 	#endif
-/*#elif defined(__INTEL_COMPILER)								//Intel C++
-	#if __INTEL_COMPILER >= 1100 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)		????????
-		#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
+#elif defined(__INTEL_COMPILER) && defined(__INTEL_CXX11_MODE__)				//Intel C++
+	#if __INTEL_COMPILER >= 1500 && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
+		#define HALF_ENABLE_CPP11_USER_LITERALS 1
 	#endif
-	#if __INTEL_COMPILER >= 1300 && !defined(HALF_ENABLE_CPP11_CONSTEXPR)			????????
+	#if __INTEL_COMPILER >= 1400 && !defined(HALF_ENABLE_CPP11_CONSTEXPR)
 		#define HALF_ENABLE_CPP11_CONSTEXPR 1
 	#endif
-	#if __INTEL_COMPILER >= 1300 && !defined(HALF_ENABLE_CPP11_NOEXCEPT)			????????
+	#if __INTEL_COMPILER >= 1400 && !defined(HALF_ENABLE_CPP11_NOEXCEPT)
 		#define HALF_ENABLE_CPP11_NOEXCEPT 1
 	#endif
-	#if __INTEL_COMPILER >= 1100 && !defined(HALF_ENABLE_CPP11_LONG_LONG)			????????
+	#if __INTEL_COMPILER >= 1110 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
+		#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
+	#endif
+	#if __INTEL_COMPILER >= 1110 && !defined(HALF_ENABLE_CPP11_LONG_LONG)
 		#define HALF_ENABLE_CPP11_LONG_LONG 1
-	#endif*/
-#elif defined(__GNUC__)										//gcc
+	#endif
+#elif defined(__GNUC__)															//gcc
 	#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
-		#if HALF_GNUC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
-			#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
+		#if HALF_GNUC_VERSION >= 407 && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
+			#define HALF_ENABLE_CPP11_USER_LITERALS 1
 		#endif
 		#if HALF_GNUC_VERSION >= 406 && !defined(HALF_ENABLE_CPP11_CONSTEXPR)
 			#define HALF_ENABLE_CPP11_CONSTEXPR 1
@@ -65,23 +68,23 @@
 		#if HALF_GNUC_VERSION >= 406 && !defined(HALF_ENABLE_CPP11_NOEXCEPT)
 			#define HALF_ENABLE_CPP11_NOEXCEPT 1
 		#endif
-		#if HALF_GNUC_VERSION >= 407 && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
-			#define HALF_ENABLE_CPP11_USER_LITERALS 1
+		#if HALF_GNUC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
+			#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
 		#endif
 		#if !defined(HALF_ENABLE_CPP11_LONG_LONG)
 			#define HALF_ENABLE_CPP11_LONG_LONG 1
 		#endif
 	#endif
 	#define HALF_TWOS_COMPLEMENT_INT 1
-#elif defined(_MSC_VER)										//Visual C++
+#elif defined(_MSC_VER)															//Visual C++
+	#if _MSC_VER >= 1900 && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
+		#define HALF_ENABLE_CPP11_USER_LITERALS 1
+	#endif
 	#if _MSC_VER >= 1900 && !defined(HALF_ENABLE_CPP11_CONSTEXPR)
 		#define HALF_ENABLE_CPP11_CONSTEXPR 1
 	#endif
 	#if _MSC_VER >= 1900 && !defined(HALF_ENABLE_CPP11_NOEXCEPT)
 		#define HALF_ENABLE_CPP11_NOEXCEPT 1
-	#endif
-	#if _MSC_VER >= 1900 && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
-		#define HALF_ENABLE_CPP11_USER_LITERALS 1
 	#endif
 	#if _MSC_VER >= 1600 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
 		#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
@@ -140,21 +143,17 @@
 		#endif
 	#endif
 #elif defined(_CPPLIB_VER)									//Dinkumware/Visual C++
-	#if _CPPLIB_VER >= 520
-		#ifndef HALF_ENABLE_CPP11_TYPE_TRAITS
-			#define HALF_ENABLE_CPP11_TYPE_TRAITS 1
-		#endif
-		#ifndef HALF_ENABLE_CPP11_CSTDINT
-			#define HALF_ENABLE_CPP11_CSTDINT 1
-		#endif
-		#ifndef HALF_ENABLE_CPP11_HASH
-			#define HALF_ENABLE_CPP11_HASH 1
-		#endif
+	#if _CPPLIB_VER >= 520 && !defined(HALF_ENABLE_CPP11_TYPE_TRAITS)
+		#define HALF_ENABLE_CPP11_TYPE_TRAITS 1
 	#endif
-	#if _CPPLIB_VER >= 610
-		#ifndef HALF_ENABLE_CPP11_CMATH
-			#define HALF_ENABLE_CPP11_CMATH 1
-		#endif
+	#if _CPPLIB_VER >= 520 && !defined(HALF_ENABLE_CPP11_CSTDINT)
+			#define HALF_ENABLE_CPP11_CSTDINT 1
+	#endif
+	#if _CPPLIB_VER >= 520 && !defined(HALF_ENABLE_CPP11_HASH)
+		#define HALF_ENABLE_CPP11_HASH 1
+	#endif
+	#if _CPPLIB_VER >= 610 && !defined(HALF_ENABLE_CPP11_CMATH)
+		#define HALF_ENABLE_CPP11_CMATH 1
 	#endif
 #endif
 #undef HALF_GNUC_VERSION
