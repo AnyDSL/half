@@ -198,8 +198,6 @@
 	#include <immintrin.h>
 #endif
 
-#include <cassert>
-
 
 #ifdef HALF_DOXYGEN_ONLY
 /// Type for internal floating point computations.
@@ -1600,6 +1598,7 @@ namespace half_float
 		}
 
 		/// Logarithm of gamma function.
+		/// This approximates the value directly in Q1.31.
 		/// \tparam R rounding mode to use
 		/// \tparam L `true` for lograithm of gamma function, `false` for gamma function
 		/// \param arg half-precision floating point value
@@ -1721,6 +1720,109 @@ namespace half_float
 	/// assumption that the data of a half is just comprised of the 2 bytes of the underlying IEEE representation.
 	class half
 	{
+	public:
+		/// \name Construction and assignment
+		/// \{
+
+		/// Default constructor.
+		/// This initializes the half to 0. Although this does not match the builtin types' default-initialization semantics 
+		/// and may be less efficient than no initialization, it is needed to provide proper value-initialization semantics.
+		HALF_CONSTEXPR half() HALF_NOEXCEPT : data_() {}
+
+		/// Conversion constructor.
+		/// \param rhs float to convert
+		explicit half(float rhs) : data_(static_cast<detail::uint16>(detail::float2half<round_style>(rhs))) {}
+	
+		/// Conversion to single-precision.
+		/// \return single precision value representing expression value
+		operator float() const { return detail::half2float<float>(data_); }
+
+		/// Assignment operator.
+		/// \param rhs single-precision value to copy from
+		/// \return reference to this half
+		half& operator=(float rhs) { data_ = static_cast<detail::uint16>(detail::float2half<round_style>(rhs)); return *this; }
+
+		/// \}
+		/// \name Arithmetic updates
+		/// \{
+
+		/// Arithmetic assignment.
+		/// \tparam T type of concrete half expression
+		/// \param rhs half expression to add
+		/// \return reference to this half
+		half& operator+=(half rhs) { return *this = *this + rhs; }
+
+		/// Arithmetic assignment.
+		/// \tparam T type of concrete half expression
+		/// \param rhs half expression to subtract
+		/// \return reference to this half
+		half& operator-=(half rhs) { return *this = *this - rhs; }
+
+		/// Arithmetic assignment.
+		/// \tparam T type of concrete half expression
+		/// \param rhs half expression to multiply with
+		/// \return reference to this half
+		half& operator*=(half rhs) { return *this = *this * rhs; }
+
+		/// Arithmetic assignment.
+		/// \tparam T type of concrete half expression
+		/// \param rhs half expression to divide by
+		/// \return reference to this half
+		half& operator/=(half rhs) { return *this = *this / rhs; }
+
+		/// Arithmetic assignment.
+		/// \param rhs single-precision value to add
+		/// \return reference to this half
+		half& operator+=(float rhs) { return *this = *this + rhs; }
+
+		/// Arithmetic assignment.
+		/// \param rhs single-precision value to subtract
+		/// \return reference to this half
+		half& operator-=(float rhs) { return *this = *this - rhs; }
+
+		/// Arithmetic assignment.
+		/// \param rhs single-precision value to multiply with
+		/// \return reference to this half
+		half& operator*=(float rhs) { return *this = *this * rhs; }
+
+		/// Arithmetic assignment.
+		/// \param rhs single-precision value to divide by
+		/// \return reference to this half
+		half& operator/=(float rhs) { return *this = *this / rhs; }
+
+		/// \}
+		/// \name Increment and decrement
+		/// \{
+
+		/// Prefix increment.
+		/// \return incremented half value
+		half& operator++() { return *this = *this + half(detail::binary, 0x3C00); }
+
+		/// Prefix decrement.
+		/// \return decremented half value
+		half& operator--() { return *this = *this + half(detail::binary, 0xBC00); }
+
+		/// Postfix increment.
+		/// \return non-incremented half value
+		half operator++(int) { half out(*this); ++*this; return out; }
+
+		/// Postfix decrement.
+		/// \return non-decremented half value
+		half operator--(int) { half out(*this); --*this; return out; }
+		/// \}
+	
+	private:
+		/// Rounding mode to use
+		static const std::float_round_style round_style = (std::float_round_style)(HALF_ROUND_STYLE);
+
+		/// Constructor.
+		/// \param bits binary representation to set half to
+		HALF_CONSTEXPR half(detail::binary_t, unsigned int bits) HALF_NOEXCEPT : data_(static_cast<detail::uint16>(bits)) {}
+
+		/// Internal binary representation
+		detail::uint16 data_;
+
+	#ifndef HALF_DOXYGEN_ONLY
 		friend HALF_CONSTEXPR bool operator==(half, half);
 		friend HALF_CONSTEXPR bool operator!=(half, half);
 		friend HALF_CONSTEXPR bool operator<(half, half);
@@ -1804,96 +1906,7 @@ namespace half_float
 	#if HALF_ENABLE_CPP11_USER_LITERALS
 		friend half literal::operator "" _h(long double);
 	#endif
-
-	public:
-		/// Default constructor.
-		/// This initializes the half to 0. Although this does not match the builtin types' default-initialization semantics 
-		/// and may be less efficient than no initialization, it is needed to provide proper value-initialization semantics.
-		HALF_CONSTEXPR half() HALF_NOEXCEPT : data_() {}
-
-		/// Conversion constructor.
-		/// \param rhs float to convert
-		explicit half(float rhs) : data_(static_cast<detail::uint16>(detail::float2half<round_style>(rhs))) {}
-	
-		/// Conversion to single-precision.
-		/// \return single precision value representing expression value
-		operator float() const { return detail::half2float<float>(data_); }
-
-		/// Arithmetic assignment.
-		/// \tparam T type of concrete half expression
-		/// \param rhs half expression to add
-		/// \return reference to this half
-		half& operator+=(half rhs) { return *this = *this + rhs; }
-
-		/// Arithmetic assignment.
-		/// \tparam T type of concrete half expression
-		/// \param rhs half expression to subtract
-		/// \return reference to this half
-		half& operator-=(half rhs) { return *this = *this - rhs; }
-
-		/// Arithmetic assignment.
-		/// \tparam T type of concrete half expression
-		/// \param rhs half expression to multiply with
-		/// \return reference to this half
-		half& operator*=(half rhs) { return *this = *this * rhs; }
-
-		/// Arithmetic assignment.
-		/// \tparam T type of concrete half expression
-		/// \param rhs half expression to divide by
-		/// \return reference to this half
-		half& operator/=(half rhs) { return *this = *this / rhs; }
-
-		/// Assignment operator.
-		/// \param rhs single-precision value to copy from
-		/// \return reference to this half
-		half& operator=(float rhs) { data_ = static_cast<detail::uint16>(detail::float2half<round_style>(rhs)); return *this; }
-
-		/// Arithmetic assignment.
-		/// \param rhs single-precision value to add
-		/// \return reference to this half
-		half& operator+=(float rhs) { return *this = *this + rhs; }
-
-		/// Arithmetic assignment.
-		/// \param rhs single-precision value to subtract
-		/// \return reference to this half
-		half& operator-=(float rhs) { return *this = *this - rhs; }
-
-		/// Arithmetic assignment.
-		/// \param rhs single-precision value to multiply with
-		/// \return reference to this half
-		half& operator*=(float rhs) { return *this = *this * rhs; }
-
-		/// Arithmetic assignment.
-		/// \param rhs single-precision value to divide by
-		/// \return reference to this half
-		half& operator/=(float rhs) { return *this = *this / rhs; }
-
-		/// Prefix increment.
-		/// \return incremented half value
-		half& operator++() { return *this = *this + half(detail::binary, 0x3C00); }
-
-		/// Prefix decrement.
-		/// \return decremented half value
-		half& operator--() { return *this = *this + half(detail::binary, 0xBC00); }
-
-		/// Postfix increment.
-		/// \return non-incremented half value
-		half operator++(int) { half out(*this); ++*this; return out; }
-
-		/// Postfix decrement.
-		/// \return non-decremented half value
-		half operator--(int) { half out(*this); --*this; return out; }
-	
-	private:
-		/// Rounding mode to use
-		static const std::float_round_style round_style = (std::float_round_style)(HALF_ROUND_STYLE);
-
-		/// Constructor.
-		/// \param bits binary representation to set half to
-		HALF_CONSTEXPR half(detail::binary_t, unsigned int bits) HALF_NOEXCEPT : data_(static_cast<detail::uint16>(bits)) {}
-
-		/// Internal binary representation
-		detail::uint16 data_;
+	#endif
 	};
 
 #if HALF_ENABLE_CPP11_USER_LITERALS
@@ -1902,7 +1915,7 @@ namespace half_float
 		/// Half literal.
 		/// While this returns a properly rounded half-precision value, half literals can unfortunately not be constant 
 		/// expressions due to rather involved conversions. So don't expect this to be a literal literal without involving 
-		/// conversion operations. It is a convenience feature, not a performance optimization.
+		/// conversion operations at runtime. It is a convenience feature, not a performance optimization.
 		/// \param value literal value
 		/// \return half with of given value (possibly rounded)
 		inline half operator "" _h(long double value) { return half(detail::binary, detail::float2half<half::round_style>(value)); }
@@ -1953,7 +1966,6 @@ namespace half_float
 namespace std
 {
 	/// Numeric limits for half-precision floats.
-	///
 	/// **See also:** Documentation for [std::numeric_limits](http://en.cppreference.com/w/cpp/types/numeric_limits)
 	template<> class numeric_limits<half_float::half>
 	{
@@ -2039,7 +2051,7 @@ namespace std
 		/// Difference between 1 and next representable value.
 		static HALF_CONSTEXPR half_float::half epsilon() HALF_NOTHROW { return half_float::half(half_float::detail::binary, 0x1400); }
 
-		/// Maximum rounding error.
+		/// Maximum rounding error in ULP (units in the last place).
 		static HALF_CONSTEXPR half_float::half round_error() HALF_NOTHROW
 			{ return half_float::half(half_float::detail::binary, (round_style==std::round_to_nearest) ? 0x3800 : 0x3C00); }
 
@@ -2049,7 +2061,7 @@ namespace std
 		/// Quiet NaN.
 		static HALF_CONSTEXPR half_float::half quiet_NaN() HALF_NOTHROW { return half_float::half(half_float::detail::binary, 0x7FFF); }
 
-		/// Signalling NaN.
+		/// Signaling NaN (that never actually signals, though ;-)).
 		static HALF_CONSTEXPR half_float::half signaling_NaN() HALF_NOTHROW { return half_float::half(half_float::detail::binary, 0x7DFF); }
 
 		/// Smallest positive subnormal value.
@@ -2058,7 +2070,7 @@ namespace std
 
 #if HALF_ENABLE_CPP11_HASH
 	/// Hash function for half-precision floats.
-	/// \details This is only defined if C++11 `std::hash` is supported and enabled.
+	/// This is only defined if C++11 `std::hash` is supported and enabled.
 	///
 	/// **See also:** Documentation for [std::hash](http://en.cppreference.com/w/cpp/utility/hash)
 	template<> struct hash<half_float::half>
@@ -2562,7 +2574,7 @@ namespace half_float
 	}
 
 	/// Exponential minus one.
-	/// This function may be 1 ulp off the correctly rounded result in <0.05% of inputs for `std::round_to_nearest` 
+	/// This function may be 1 ULP off the correctly rounded result in <0.05% of inputs for `std::round_to_nearest` 
 	/// and in <1% of inputs for any other rounding mode.
 	/// \param arg function argument
 	/// \return e raised to \a arg and subtracted by 1
@@ -2602,7 +2614,6 @@ namespace half_float
 		}
 		else
 			m -= (exp<31) ? (0x80000000>>exp) : 1;
-		assert(m);
 		for(exp+=14; m<0x80000000 && exp; m<<=1,--exp) ;
 		if(exp > 29)
 			return half(detail::binary, detail::overflow<half::round_style>());
@@ -2665,7 +2676,7 @@ namespace half_float
 	}
 
 	/// Natural logarithm plus one.
-	/// This function may be 1 ulp off the correctly rounded result in <0.05% of inputs for `std::round_to_nearest` 
+	/// This function may be 1 ULP off the correctly rounded result in <0.05% of inputs for `std::round_to_nearest` 
 	/// and in ~1% of inputs for any other rounding mode.
 	/// \param arg function argument
 	/// \return logarithm of \a arg plus 1 to base e
@@ -2903,7 +2914,7 @@ namespace half_float
 	}
 
 	/// Power function.
-	/// This function may be 1 ulp off the correctly rounded result in <0.0005% of inputs for `std::round_to_nearest` 
+	/// This function may be 1 ULP off the correctly rounded result in <0.0005% of inputs for `std::round_to_nearest` 
 	/// and in <0.05% of inputs for any other rounding mode.
 	/// \param x base
 	/// \param y exponent
@@ -3169,7 +3180,7 @@ namespace half_float
 	}
 
 	/// Arc tangent function.
-	/// This function may be 1 ulp off the correctly rounded result in <0.2% of inputs for `std::round_to_nearest` 
+	/// This function may be 1 ULP off the correctly rounded result in <0.2% of inputs for `std::round_to_nearest` 
 	/// and in <0.5% of inputs for any other rounding mode.
 	/// \param y numerator
 	/// \param x denominator
@@ -3363,7 +3374,7 @@ namespace half_float
 	/// \{
 
 	/// Error function.
-	/// This function may be 1 ulp off the correctly rounded result for any rounding mode in <0.5% of inputs.
+	/// This function may be 1 ULP off the correctly rounded result for any rounding mode in <0.5% of inputs.
 	/// \param arg function argument
 	/// \return error function value of \a arg
 	inline half erf(half arg)
@@ -3381,7 +3392,7 @@ namespace half_float
 	}
 
 	/// Complementary error function.
-	/// This function may be 1 ulp off the correctly rounded result for any rounding mode in <0.5% of inputs.
+	/// This function may be 1 ULP off the correctly rounded result for any rounding mode in <0.5% of inputs.
 	/// \param arg function argument
 	/// \return 1 minus error function value of \a arg
 	inline half erfc(half arg)
@@ -3401,7 +3412,7 @@ namespace half_float
 	}
 
 	/// Natural logarithm of gamma function.
-	/// This function may be 1 ulp off the correctly rounded result for any rounding mode in ~0.025% of inputs.
+	/// This function may be 1 ULP off the correctly rounded result for any rounding mode in ~0.025% of inputs.
 	/// \param arg function argument
 	/// \return natural logarith of gamma function for \a arg
 	inline half lgamma(half arg)
@@ -3421,7 +3432,7 @@ namespace half_float
 	}
 
 	/// Gamma function.
-	/// This function may be 1 ulp off the correctly rounded result for any rounding mode in <0.25% of inputs.
+	/// This function may be 1 ULP off the correctly rounded result for any rounding mode in <0.25% of inputs.
 	/// \param arg function argument
 	/// \return gamma function value of \a arg
 	inline half tgamma(half arg)

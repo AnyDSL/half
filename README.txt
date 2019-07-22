@@ -5,15 +5,15 @@ This is a C++ header-only library to provide an IEEE 754 conformant 16-bit
 half-precision floating point type along with corresponding arithmetic 
 operators, type conversions and common mathematical functions. It aims for both 
 efficiency and ease of use, trying to accurately mimic the behaviour of the 
-builtin floating point types at the best performance possible.
+built-in floating point types at the best performance possible.
 
 
 INSTALLATION AND REQUIREMENTS
 -----------------------------
 
-Comfortably enough, the library consists of just a single header file 
-containing all the functionality, which can be directly included by your 
-projects, without the neccessity to build anything or link to anything.
+Conveniently, the library consists of just a single header file containing all 
+the functionality, which can be directly included by your projects, without the 
+neccessity to build anything or link to anything.
 
 Whereas this library is fully C++98-compatible, it can profit from certain 
 C++11 features. Support for those features is checked automatically at compile 
@@ -62,12 +62,11 @@ just success testing it on other platforms.
 DOCUMENTATION
 -------------
 
-Here follow some general words about the usage of the library and its 
-implementation. For a complete documentation of its interface look at the 
+What follows are some general words about the usage of the library and its 
+implementation. For a complete documentation of its interface consult the 
 corresponding website http://half.sourceforge.net. You may also generate the 
 complete developer documentation from the library's only include file's doxygen 
-comments, but this is more relevant to developers rather than mere users (for 
-reasons described below).
+comments, but this is more relevant to developers rather than mere users.
 
 BASIC USAGE
 
@@ -175,18 +174,17 @@ rounding mode would.
 ACCURACY AND PERFORMANCE
 
 From version 2.0 onward the library is implemented without employing the 
-underlying floating point implementation of the system, providing an entirely 
-self-contained half-precision implementation with results independent from the 
-system's existing single- or double-precision implementation and its rounding 
-behaviour (except for functions directly handling built-in floating point 
-types, like conversions).
+underlying floating point implementation of the system (except for conversions, 
+of course), providing an entirely self-contained half-precision implementation 
+with results independent from the system's existing single- or double-precision 
+implementation and its rounding behaviour.
 
 As to accuracy, many of the operators and functions provided by this library 
 are exact to rounding for all rounding modes, i.e. the error to the exact 
-result is at most 0.5 ulp (unit in the last place) for rounding to nearest and 
-less than 1 ulp for all other rounding modes. This holds for all the operations 
+result is at most 0.5 ULP (unit in the last place) for rounding to nearest and 
+less than 1 ULP for all other rounding modes. This holds for all the operations 
 required by the IEEE 754 standard and many more. Specifically the following 
-functions might exhibit a deviation from the correctly rounded result by 1 ulp 
+functions might exhibit a deviation from the correctly rounded result by 1 ULP 
 for a select few input values: 'expm1', 'log1p', 'pow', 'atan2', 'erf', 'erfc', 
 'lgamma', 'tgamma' (for more details see the documentation of the individual 
 functions). All other functions and operators are always exact to rounding or 
@@ -228,29 +226,21 @@ IEEE CONFORMANCE
 
 The half type uses the standard IEEE representation with 1 sign bit, 5 exponent 
 bits and 10 mantissa bits (11 when counting the hidden bit). It supports all 
-types of special values, like subnormal values, infinity and NaNs. But there 
-are some limitations to the complete conformance to the IEEE 754 standard:
-
-  - The implementation does not differentiate between signalling and quiet 
-    NaNs, this means operations on halfs are not specified to trap on 
-    signalling NaNs (though they may, see last point).
-
-  - The implementation does not provide any floating point exceptions, thus 
-    arithmetic operations or mathematical functions are not specified to invoke 
-    proper floating point exceptions.
-
-  - Due to the optimized single-to-half conversion it may also be that certain 
-    single-precision NaNs will be wrongly converted to half-precision infinity, 
-    though this is very unlikely to happen, since most single-precision 
-    implementations don't tend to only set the lowest bits of a NaN mantissa.
+types of special values, like subnormal values, infinity and NaNs, specifically 
+in the area of floating point exceptions and signaling NaNs. The library does 
+not differentiate between signaling and quiet NaNs, this means operations on 
+halfs are not specified to trap on signaling NaNs. The library also does not 
+provide any floating point exceptions, thus arithmetic operations or 
+mathematical functions are not specified to invoke proper floating point 
+exceptions.
 
 Some of those points could have been circumvented by controlling the floating 
 point environment using <cfenv> or implementing a similar exception mechanism. 
 But this would have required excessive runtime checks giving two high an impact 
-on performance for something that is rarely ever needed. If you really need to 
-rely on proper floating point exceptions, it is recommended to explicitly 
-perform computations using the built-in floating point types to be on the safe 
-side.
+on performance for something that is rarely ever needed, so it was reserved for 
+possible future versions. If you really need to rely on proper floating point 
+exceptions, it is recommended to explicitly perform computations using the 
+built-in floating point types to be on the safe side.
 
 
 CREDITS AND CONTACT
