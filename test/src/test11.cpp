@@ -99,7 +99,7 @@ std::uint16_t h2b(half h)
 
 bool comp(half a, half b)
 {
-	return (isnan(a) && isnan(b)) || h2b(a) == h2b(b);
+	return (isnan(a) && isnan(b)) || a == b;// h2b(a) == h2b(b);
 }
 
 template<std::float_round_style R> half select(const std::pair<half,half> &hh)
@@ -163,7 +163,7 @@ public:
 
 	unsigned int test()
 	{
-/*
+
 		//test size
 		simple_test("size", []() { return sizeof(half)*CHAR_BIT >= 16; });
 
@@ -210,7 +210,7 @@ public:
 			(isinf(a) && isinf(b) && signbit(a)==signbit(b)) || ((a>b) && comp(c, a-b)) || ((a<=b) && comp(c, half_cast<half>(0.0))); });
 		ternary_test("fma", [](half x, half y, half z) { return comp(fma(x, y, z), half_cast<half>(half_cast<double>(x)*half_cast<double>(y)+half_cast<double>(z))); });
 //		ternary_reference_test("fma", half_float::fma);
-*/
+/*
 		//test exponential functions
 		unary_reference_test("exp", half_float::exp);
 		unary_reference_test("exp2", half_float::exp2);
@@ -249,7 +249,7 @@ public:
 		unary_reference_test("erfc", half_float::erfc);
 		unary_reference_test("lgamma", half_float::lgamma);
 		unary_reference_test("tgamma", half_float::tgamma);
-/*
+*/
 		//test round functions
 		unary_test("ceil", [](half arg) { return comp(ceil(arg), half_cast<half>(std::ceil(half_cast<double>(arg)))); });
 		unary_test("floor", [](half arg) { return comp(floor(arg), half_cast<half>(std::floor(half_cast<double>(arg)))); });
@@ -447,7 +447,7 @@ public:
 		simple_test("literals", []() -> bool { using namespace half_float::literal; return comp(0.0_h, half(0.0f)) && comp(-1.0_h, half(-1.0f)) && 
 			comp(+3.14159265359_h, half(3.14159265359f)) && comp(1e-2_h, half(1e-2f)) && comp(-4.2e3_h, half(-4.2e3f)); });
 	#endif
-*/
+
 		if(failed_.empty())
 			log_ << "all tests passed\n";
 		else

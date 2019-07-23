@@ -1535,9 +1535,9 @@ namespace half_float
 				if(b.exp > a.exp)
 					std::swap(a, b);
 				int d = a.exp - b.exp;
-				uint32 m = a.m + ((d<31) ? ((b.m>>d)|((b.m&((static_cast<uint32>(1)<<d)-1))!=0)) : 1);
-				int i = (~m&0xFFFFFFFF) >> 31;
-				return f31((m>>i)|(m&i)|0x80000000, a.exp+i);
+				uint32 m = a.m + ((d<32) ? (b.m>>d) : 0);
+				int i = (m&0xFFFFFFFF) < a.m;
+				return f31(((m+i)>>i)|0x80000000, a.exp+i);
 			}
 
 			/// Subtraction operator.
@@ -1547,7 +1547,7 @@ namespace half_float
 			friend f31 operator-(f31 a, f31 b)
 			{
 				int d = a.exp - b.exp, exp = a.exp;
-				uint32 m = a.m - ((d<32) ? (b.m>>d) : 1);
+				uint32 m = a.m - ((d<32) ? (b.m>>d) : 0);
 				if(!m)
 					return f31(0, -32);
 				for(; m<0x80000000; m<<=1,--exp) ;
@@ -1572,7 +1572,7 @@ namespace half_float
 			friend f31 operator/(f31 a, f31 b)
 			{
 				int i = a.m >= b.m, s;
-				uint32 m = divide64(a.m>>i, b.m, s);
+				uint32 m = divide64((a.m+i)>>i, b.m, s);
 				return f31(m, a.exp - b.exp + i - 1);
 			}
 
@@ -1629,7 +1629,7 @@ namespace half_float
 				if(z.exp >= 0)
 				{
 					value &= (L|((z.m>>(31-z.exp))&1)) - 1;
-					for(z=f31(z.m<<(1+z.exp), -1); z.m<0x80000000; z.m<<=1,--z.exp) ;
+					for(z=f31((z.m<<(1+z.exp))&0xFFFFFFFF, -1); z.m<0x80000000; z.m<<=1,--z.exp) ;
 				}
 				if(z.exp == -1)
 					z = f31(0x80000000, 0) - z;
