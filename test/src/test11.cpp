@@ -210,7 +210,7 @@ public:
 			(isinf(a) && isinf(b) && signbit(a)==signbit(b)) || ((a>b) && comp(c, a-b)) || ((a<=b) && comp(c, half_cast<half>(0.0))); });
 		ternary_test("fma", [](half x, half y, half z) { return comp(fma(x, y, z), half_cast<half>(half_cast<double>(x)*half_cast<double>(y)+half_cast<double>(z))); });
 //		ternary_reference_test("fma", half_float::fma);
-
+*/
 		//test exponential functions
 		unary_reference_test("exp", half_float::exp);
 		unary_reference_test("exp2", half_float::exp2);
@@ -249,7 +249,7 @@ public:
 		unary_reference_test("erfc", half_float::erfc);
 		unary_reference_test("lgamma", half_float::lgamma);
 		unary_reference_test("tgamma", half_float::tgamma);
-
+/*
 		//test round functions
 		unary_test("ceil", [](half arg) { return comp(ceil(arg), half_cast<half>(std::ceil(half_cast<double>(arg)))); });
 		unary_test("floor", [](half arg) { return comp(floor(arg), half_cast<half>(std::floor(half_cast<double>(arg)))); });

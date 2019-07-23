@@ -474,8 +474,8 @@ namespace half_float
 		/// \return rounded overflowing half-precision value
 		template<std::float_round_style R> HALF_CONSTEXPR unsigned int overflow(unsigned int value = 0)
 		{
-			return	(R==std::round_toward_infinity) ? (value|0x7C00-(value>>15)) :
-					(R==std::round_toward_neg_infinity) ? (value|0x7BFF+(value>>15)) :
+			return	(R==std::round_toward_infinity) ? (value+0x7C00-(value>>15)) :
+					(R==std::round_toward_neg_infinity) ? (value+0x7BFF+(value>>15)) :
 					(R==std::round_toward_zero) ? (value|0x7BFF) :
 					(value|0x7C00);
 		}
@@ -1152,7 +1152,7 @@ namespace half_float
 					int exp = (y>>10) + (y<=0x3FF), d = exp - (x>>10) - (x<=0x3FF);
 					int m = (((y&0x3FF)|((y>0x3FF)<<10))<<1) - (((x&0x3FF)|((x>0x3FF)<<10))<<(1-d));
 					for(; m<0x800 && exp>1; m<<=1,--exp) ;
-					x = 0x8000 | ((exp-1)<<10) + (m>>1);
+					x = 0x8000 + ((exp-1)<<10) + (m>>1);
 					q += Q;
 				}
 			}
@@ -1536,7 +1536,7 @@ namespace half_float
 					std::swap(a, b);
 				int d = a.exp - b.exp;
 				uint32 m = a.m + ((d<31) ? ((b.m>>d)|((b.m&((static_cast<uint32>(1)<<d)-1))!=0)) : 1);
-				int i = (m&0xFFFFFFFF) < a.m;
+				int i = (~m&0xFFFFFFFF) >> 31;
 				return f31((m>>i)|(m&i)|0x80000000, a.exp+i);
 			}
 
@@ -1654,7 +1654,7 @@ namespace half_float
 						for(; z.m<0x80000000; z.m<<=1,--z.exp) ;
 						l = l + z / lbe;
 					}
-					value = static_cast<unsigned>(x.exp&&l.exp<s.exp||(l.exp==s.exp&&l.m<s.m)) << 15;
+					value = static_cast<unsigned>(x.exp&&(l.exp<s.exp||(l.exp==s.exp&&l.m<s.m))) << 15;
 					s = value ? (s-l) : x.exp ? (l-s) : (l+s);
 				}
 				else
@@ -1834,6 +1834,8 @@ namespace half_float
 		friend half operator-(half, half);
 		friend half operator*(half, half);
 		friend half operator/(half, half);
+		template<typename charT,typename traits> friend std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits>&, half);
+		template<typename charT,typename traits> friend std::basic_istream<charT,traits>& operator>>(std::basic_istream<charT,traits>&, half&);
 		friend HALF_CONSTEXPR half fabs(half);
 		friend half fmod(half, half);
 		friend half remainder(half, half);
@@ -2214,7 +2216,7 @@ namespace half_float
 				return half(detail::binary, detail::overflow<half::round_style>(value));
 			mx = (mx>>i) | (mx&i);
 		}
-		return half(detail::binary, detail::rounded<half::round_style>(value|((exp-1)<<10)+(mx>>3), (mx>>2)&1, (mx&0x3)!=0));
+		return half(detail::binary, detail::rounded<half::round_style>(value+((exp-1)<<10)+(mx>>3), (mx>>2)&1, (mx&0x3)!=0));
 	#endif
 	}
 
@@ -2310,9 +2312,9 @@ namespace half_float
 	template<typename charT,typename traits> std::basic_ostream<charT,traits>& operator<<(std::basic_ostream<charT,traits> &out, half arg)
 	{
 	#ifdef HALF_ARITHMETIC_TYPE
-		return out << half_cast<detail::internal_t>(arg);
+		return out << detail::half2float<detail::internal_t>(arg.data_);
 	#else
-		return out << half_cast<float>(arg);
+		return out << detail::half2float<float>(arg.data_);
 	#endif
 	}
 
@@ -2332,7 +2334,7 @@ namespace half_float
 		double f;
 	#endif
 		if(in >> f)
-			arg = half_cast<half>(f);
+			arg.data_ = detail::float2half<half::round_style>(f);
 		return in;
 	}
 
@@ -2617,7 +2619,7 @@ namespace half_float
 		for(exp+=14; m<0x80000000 && exp; m<<=1,--exp) ;
 		if(exp > 29)
 			return half(detail::binary, detail::overflow<half::round_style>());
-		return half(detail::binary, detail::rounded<half::round_style>(value|(exp<<10)+(m>>21), (m>>20)&1, (m&0xFFFFF)!=0));
+		return half(detail::binary, detail::rounded<half::round_style>(value+(exp<<10)+(m>>21), (m>>20)&1, (m&0xFFFFF)!=0));
 	#endif
 	}
 
@@ -2739,7 +2741,7 @@ namespace half_float
 		for(exp=14; m<0x8000000 && exp; m<<=1,--exp) ;
 		for(; m>0xFFFFFFF; m>>=1,++exp)
 			s |= m & 1;
-		return half(detail::binary, detail::rounded<half::round_style>((sign&0x8000)|(exp<<10)+(m>>17), (m>>16)&1, s|((m&0xFFFF)!=0)));
+		return half(detail::binary, detail::rounded<half::round_style>((sign&0x8000)+(exp<<10)+(m>>17), (m>>16)&1, s|((m&0xFFFF)!=0)));
 	#endif
 	}
 
@@ -3129,7 +3131,7 @@ namespace half_float
 			return half(detail::binary, (abs==0x3C00) ? detail::rounded<half::round_style>(value|0x3E48, 0, 1) : 0x7FFF);
 		if(abs < 0x2900)
 			return half(detail::binary, detail::rounded<half::round_style>(arg.data_, 0, 1));
-		if(half::round_style != std::round_to_nearest && abs == 0x2B44 || abs == 0x2DC3)
+		if(half::round_style != std::round_to_nearest && (abs == 0x2B44 || abs == 0x2DC3))
 			return half(detail::binary, detail::rounded<half::round_style>(arg.data_+1, 1, 1));
 		std::pair<detail::uint32,detail::uint32> sc = detail::atan2_args(abs);
 		detail::uint32 m = detail::atan2(sc.first, sc.second, (half::round_style==std::round_to_nearest) ? 27 : 26);
@@ -3268,7 +3270,7 @@ namespace half_float
 		if(abs >= 0x7C00)
 			return half(detail::binary, 0x7C00|-static_cast<unsigned>(abs>0x7C00));
 		std::pair<detail::uint32,detail::uint32> mm = detail::hyperbolic_args(abs, exp, (half::round_style==std::round_to_nearest) ? 23 : 26);
-		detail::uint32 m = mm.first + mm.second, i = ~(m&0xFFFFFFFF) >> 31;
+		detail::uint32 m = mm.first + mm.second, i = (~m&0xFFFFFFFF) >> 31;
 		m = (m>>i) | (m&i) | 0x80000000;
 		if((exp+=13+i) > 29)
 			return half(detail::binary, detail::overflow<half::round_style>());

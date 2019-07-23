@@ -1,6 +1,6 @@
 CC       = /usr/bin/g++
-CFLAGS	 = -Wall -pedantic -g -O2
-C11FLAGS = -std=c++0x $(CFLAGS)
+CFLAGS	 = -Wall -Wextra -pedantic -g -O3
+C11FLAGS = -std=c++11 $(CFLAGS)
 CPPFLAGS = -I../include
 LDFLAGS  = 
 
