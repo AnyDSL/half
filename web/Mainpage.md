@@ -7,12 +7,10 @@ This is a C++ header-only library to provide an [IEEE 754](http://en.wikipedia.o
 
 # News														{#new}
 
-XXX X, 2019 - Release 2.0.0
+July 23, 2019 - Release 2.0.0
 ------------------------------
 
-[Version 2.0.0](http://sourceforge.net/projects/half/files/half/2.0.0) of the library has been released. It marks a major change in its internal implementation by implementing all operators and mathematical functions directly in half-precision without employing the built-in single- or double-precision implementation and without keeping temporary results as part of lenghtier statements in single-precision. This makes for a much cleaner implementation giving more reliable and IEEE-conformant computation results. Furthermore, and this marks a slight deviation from the previous interface, the default rounding mode has been changed to rounding to nearest, but is of course still configurable at compile-time. What isn't configurable anymore is the tie-breaking behaviour, which now always rounds ties to even as any proper floating point implementation does.
-
-In addition to these major cleanups there are a few new features. The `constexpr` support has been extended, primarily to comparisons, classifications and simple sign management functions (however, there are still no constant expression literals yet). The conversion functions can be accelerated by [F16C instructions](https://en.wikipedia.org/wiki/F16C) if supported. The C++11 feature detection has also been extended to Intel compilers (which hasn't been tested yet, though, so feedback is welcome).
+[Version 2.0.0](https://sourceforge.net/projects/half/files/half/2.0.0) of the library has been released. It marks a major change in its internal implementation by implementing all operators and mathematical functions directly in half-precision without employing the built-in single- or double-precision implementation and without keeping temporary results as part of lenghtier statements in single-precision. This makes for a much cleaner implementation giving more reliable and IEEE-conformant computation results. Furthermore, and this marks a slight deviation from the previous interface, the default rounding mode has been changed to rounding to nearest, but is of course still configurable at compile-time. What isn't configurable anymore is the tie-breaking behaviour, which now always rounds ties to even as any proper floating point implementation does. In addition to these major cleanups there are a few new features. The `constexpr` support has been extended, primarily to comparisons, classifications and simple sign management functions (however, there are still no constant expression literals yet). The conversion functions can be accelerated by [F16C instructions](https://en.wikipedia.org/wiki/F16C) if supported. The C++11 feature detection has also been extended to Intel compilers (which hasn't been tested yet, though, so feedback is welcome).
 
 [more](news.html)
 
@@ -22,9 +20,9 @@ In addition to these major cleanups there are a few new features. The `constexpr
 
 The library in its most recent version can be obtained from here, see the [Release Notes](changelog.html) for further information:
 
-<ul class="tablist"><li>[Download half 2.0.0 (.zip)](http://sourceforge.net/projects/half/files/latest/download)</li></ul>
+###[**Download half 2.0.0 (.zip)**](https://sourceforge.net/projects/half/files/latest/download)
 
-If you are interested in previous versions of the library, see the [SourceForge download page](http://sourceforge.net/projects/half/files/half).
+If you are interested in previous versions of the library, see the [SourceForge download page](https://sourceforge.net/projects/half/files/half).
 
 Conveniently, the library consists of just a single header file containing all the functionality, which can be directly included by your projects, without the neccessity to build anything or link to anything.
 

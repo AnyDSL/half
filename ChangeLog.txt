@@ -1,7 +1,7 @@
 Release Notes											{#changelog}
 =============
 
-2.0.0 release (2019-XX-XX):
+2.0.0 release (2019-07-23):
 ---------------------------
 
 - Made internal implementation independent from built-in floating point 
