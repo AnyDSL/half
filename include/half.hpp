@@ -107,6 +107,9 @@
 	#pragma warning(push)
 	#pragma warning(disable : 4099 4127 4146)	//struct vs class, constant in if, negative unsigned
 #endif
+#if defined(__F16C__) && !defined(HALF_ENABLE_F16C_INTRINSICS)
+	#define HALF_ENABLE_F16C_INTRINSICS 1
+#endif
 
 //check C++11 library features
 #include <utility>
@@ -1318,7 +1321,7 @@ namespace half_float
 			k = static_cast<int>(yi>>(62-exp));
 			return (multiply64(static_cast<uint32>((sign ? -f : f)>>(31-exp)), 0xC90FDAA2)^sign) - sign;
 		#else
-			uint32 yh = m*0xA2F98 + mulhi<false>(m, 0x36E4E442), yl = (m*0x36E4E442) & 0xFFFFFFFF;
+			uint32 yh = m*0xA2F98 + mulhi<std::round_toward_zero>(m, 0x36E4E442), yl = (m*0x36E4E442) & 0xFFFFFFFF;
 			uint32 mask = (static_cast<uint32>(1)<<(30-exp)) - 1, yi = (yh+(mask>>1)) & ~mask, sign = -static_cast<uint32>(yi>yh);
 			k = static_cast<int>(yi>>(30-exp));
 			uint32 fh = (yh^sign) + (yi^~sign) - ~sign, fl = (yl^sign) - sign;

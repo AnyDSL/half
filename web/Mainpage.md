@@ -12,7 +12,7 @@ XXX X, 2019 - Release 2.0.0
 
 [Version 2.0.0](http://sourceforge.net/projects/half/files/half/2.0.0) of the library has been released. It marks a major change in its internal implementation by implementing all operators and mathematical functions directly in half-precision without employing the built-in single- or double-precision implementation and without keeping temporary results as part of lenghtier statements in single-precision. This makes for a much cleaner implementation giving more reliable and IEEE-conformant computation results. Furthermore, and this marks a slight deviation from the previous interface, the default rounding mode has been changed to rounding to nearest, but is of course still configurable at compile-time. What isn't configurable anymore is the tie-breaking behaviour, which now always rounds ties to even as any proper floating point implementation does.
 
-In addition to these major cleanups there are a few new features. The `constexpr` support has been extended, primarily to comparisons, classifications and simple sign management functions (however, there are still no constant expression literals yet). The conversion functions can be accelerated by F16C compiler intrinsics (to be enabled manually at compile-time on appropriate machines). The C++11 feature detection has also been extended to Intel compilers (which hasn't been tested yet, though, so feedback is welcome).
+In addition to these major cleanups there are a few new features. The `constexpr` support has been extended, primarily to comparisons, classifications and simple sign management functions (however, there are still no constant expression literals yet). The conversion functions can be accelerated by [F16C instructions](https://en.wikipedia.org/wiki/F16C) if supported. The C++11 feature detection has also been extended to Intel compilers (which hasn't been tested yet, though, so feedback is welcome).
 
 [more](news.html)
 
@@ -42,7 +42,7 @@ sized integer types from `<cstdint>` | more flexible type sizes           | *VC+
 certain new `<cmath>` functions      | classifications during conversions | *VC++ 2013*, *libstdc++ 4.3*, <i>libc++</i>     | `HALF_ENABLE_CPP11_CMATH`
 `std::hash` from `<functional>`      | hash function for halfs            | *VC++ 2010*, *libstdc++ 4.3*, <i>libc++</i>     | `HALF_ENABLE_CPP11_HASH`
 
-The library has been tested successfully with *Visual C++ 2005* - *2015*, *gcc 4.4* - *4.8* and *clang 3.1*. Please [contact me](#contact) if you have any problems, suggestions or even just success testing it on other platforms.
+The library has been tested successfully with *Visual C++ 2005* - *2015*, *gcc 4* - *8* and *clang 3* - *8* on 32- and 64-bit x86 systems. Please [contact me](#contact) if you have any problems, suggestions or even just success testing it on other platforms.
 
 
 ---------------
@@ -117,7 +117,7 @@ The increased IEEE-conformance and cleanliness of this implementation comes with
 
 If necessary, this internal implementation can be overridden by defining the [HALF_ARITHMETIC_TYPE](\ref HALF_ARITHMETIC_TYPE) preprocessor symbol (before including half.hpp) to one of the built-in floating point types (`float`, `double` or `long double`), which will cause the library to use this type for computing arithmetic operations and mathematical functions (if available). However, due to using the platform's floating point implementation (and its rounding behaviour) internally, this might cause results to deviate from the specified half-precision rounding mode.
 
-The conversion operations between half-precision and single-precision types can also make use of the [F16C extension](https://en.wikipedia.org/wiki/F16C) for x86 processors by using the corresponding compiler intrinsics from `<immintrin.h>`. To enable this, define the [HALF_ENABLE_F16C_INTRINSICS](\ref HALF_ENABLE_F16C_INTRINSICS) preprocessor symbol to 1 (before including half.hpp). However, this will directly use the corresponding intrinsics for conversion without checking if they are actually available on the machine (possibly crashing if they are not), so make sure they are supported on the target platform before enabling this.
+The conversion operations between half-precision and single-precision types can also make use of the [F16C extension](https://en.wikipedia.org/wiki/F16C) for x86 processors by using the corresponding compiler intrinsics from `<immintrin.h>`. Support for this is checked at compile-time by looking for the `__F16C__` macro which at least *gcc* and *clang* define based on the target platform. It can also be enabled manually by defining the [HALF_ENABLE_F16C_INTRINSICS](\ref HALF_ENABLE_F16C_INTRINSICS) preprocessor symbol to 1 (before including half.hpp), or 0 for explicitly disabling it. However, this will directly use the corresponding intrinsics for conversion without checking if they are available at runtime (possibly crashing if they are not), so make sure they are supported on the target platform before enabling this.
 
 ## IEEE conformance											{#ieee}
 

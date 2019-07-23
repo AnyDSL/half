@@ -54,9 +54,9 @@ or when a feature should be explicitly disabled:
   - Hash functor 'std::hash' from <functional> (enabled for VC++ 2010, 
     libstdc++ 4.3, libc++ and newer, overridable with 'HALF_ENABLE_CPP11_HASH').
 
-The library has been tested successfully with Visual C++ 2005-2015, gcc 4.4-4.8 
-and clang 3.1. Please contact me if you have any problems, suggestions or even 
-just success testing it on other platforms.
+The library has been tested successfully with Visual C++ 2005-2015, gcc 4-8 
+and clang 3-8 on 32- and 64-bit x86 systems. Please contact me if you have any 
+problems, suggestions or even just success testing it on other platforms.
 
 
 DOCUMENTATION
@@ -215,12 +215,14 @@ half-precision rounding mode.
 
 The conversion operations between half-precision and single-precision types can 
 also make use of the F16C extension for x86 processors by using the 
-corresponding compiler intrinsics from <immintrin.h>. To enable this, define 
-the 'HALF_ENABLE_F16C_INTRINSICS' preprocessor symbol to 1 (before including 
-half.hpp). However, this will directly use the corresponding intrinsics for 
-conversion without checking if they are actually available on the machine 
-(possibly crashing if they are not), so make sure they are supported on the 
-target platform before enabling this.
+corresponding compiler intrinsics from <immintrin.h>. Support for this is 
+checked at compile-time by looking for the '__F16C__' macro which at least gcc 
+and clang define based on the target platform. It can also be enabled manually 
+by defining the 'HALF_ENABLE_F16C_INTRINSICS' preprocessor symbol to 1 (before 
+including half.hpp), or 0 for explicitly disabling it. However, this will 
+directly use the corresponding intrinsics for conversion without checking if 
+they are available at runtime (possibly crashing if they are not), so make sure 
+they are supported on the target platform before enabling this.
 
 IEEE CONFORMANCE
 

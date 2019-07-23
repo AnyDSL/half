@@ -292,7 +292,7 @@ public:
 		binary_test("remainder", [](half x, half y) { return comp(remainder(x, y), half_cast<half>(std::remainder(half_cast<double>(x), half_cast<double>(y)))); });
 		binary_test("remquo", [](half a, half b) -> bool { int qh = 0, qf = 0; return comp(remquo(a, b, &qh),
 			half_cast<half>(std::remquo(static_cast<double>(a), static_cast<double>(b), &qf))) && (qh&7)==(qf&7); });
-		binary_test("fmin", [](half x, half y) { return comp(fmin(x, y), half_cast<half>(std::fmin(half_cast<double>(x), half_cast<double>(y)))); });
+		binary_test("fmin", [](half x, half y) { return comp(fmin(x, y), half_cast<half,double>(std::fmin(half_cast<double,half>(x), half_cast<double,half>(y)))); });
 		binary_test("fmax", [](half x, half y) { return comp(fmax(x, y), half_cast<half>(std::fmax(half_cast<double>(x), half_cast<double>(y)))); });
 		binary_test("fdim", [](half x, half y) { return comp(fdim(x, y), half_cast<half>(std::fdim(half_cast<double>(x), half_cast<double>(y)))); });
 		ternary_test("fma", [](half x, half y, half z) { return comp(fma(x, y, z), half_cast<half>(std::fma(half_cast<double>(x), half_cast<double>(y), half_cast<double>(z)))); });
@@ -619,13 +619,13 @@ private:
 		log_ << "testing " << name << (fast_ ? ": " : ":\n");
 		for(auto iterB1=halfs_.begin(); iterB1!=halfs_.end(); ++iterB1)
 		{
-			unsigned int end1 = (iterB1->first.find("NaN")==std::string::npos) ? iterB1->second.size() : 1;
+			unsigned int end1 = /*(iterB1->first.find("NaN")==std::string::npos) ?*/ iterB1->second.size() /*: 1*/;
 			for(auto iterB2=halfs_.begin(); iterB2!=halfs_.end(); ++iterB2)
 			{
 				if(!fast_)
 					std::cout << iterB1->first << " x " << iterB2->first;
 				bool failed = false;
-				unsigned int end2 = (iterB2->first.find("NaN")==std::string::npos) ? iterB2->second.size() : 1;
+				unsigned int end2 = /*(iterB2->first.find("NaN")==std::string::npos) ?*/ iterB2->second.size() /*: 1*/;
 				for(unsigned int i=0; i<end1; i+=step)
 				{
 					half a = iterB1->second[i];
@@ -671,14 +671,14 @@ private:
 		log_ << "testing " << name << ": ";
 		for(auto iterB1=halfs_.begin(); iterB1!=halfs_.end(); ++iterB1)
 		{
-			unsigned int end1 = (iterB1->first.find("NaN")==std::string::npos) ? iterB1->second.size() : 1;
+			unsigned int end1 = /*(iterB1->first.find("NaN")==std::string::npos) ?*/ iterB1->second.size() /*: 1*/;
 			for(auto iterB2=halfs_.begin(); iterB2!=halfs_.end(); ++iterB2)
 			{
-				unsigned int end2 = (iterB2->first.find("NaN")==std::string::npos) ? iterB2->second.size() : 1;
+				unsigned int end2 = /*(iterB2->first.find("NaN")==std::string::npos) ?*/ iterB2->second.size() /*: 1*/;
 				for(auto iterB3=halfs_.begin(); iterB3!=halfs_.end(); ++iterB3)
 				{
 					bool failed = false;
-					unsigned int end3 = (iterB3->first.find("NaN")==std::string::npos) ? iterB3->second.size() : 1;
+					unsigned int end3 = /*(iterB3->first.find("NaN")==std::string::npos) ?*/ iterB3->second.size() /*: 1*/;
 					for(unsigned int i=0; i<end1; i+=step)
 					{
 						half a = iterB1->second[i];
@@ -889,7 +889,6 @@ int main(int argc, char *argv[]) try
 #ifndef HALF_ARITHMETIC_TYPE
 	switch(std::numeric_limits<half>::round_style)
 	{
-		case std::round_indeterminate: std::fesetround(FE_TOWARDZERO); break;
 		case std::round_to_nearest: std::fesetround(FE_TONEAREST); break;
 		case std::round_toward_zero: std::fesetround(FE_TOWARDZERO); break;
 		case std::round_toward_infinity: std::fesetround(FE_UPWARD); break;
@@ -980,6 +979,13 @@ int main(int argc, char *argv[]) try
 		if(y == 0.0_h)
 			return 0;
 	}
+
+	std::cout << fmin(998.0_h, b2h(31745)) << " vs " << std::fmin(half_cast<double>(998.0_h), half_cast<double>(b2h(31745))) << '\n';
+	std::cout << fmax(998.0_h, b2h(31745)) << " vs " << std::fmax(half_cast<double>(998.0_h), half_cast<double>(b2h(31745))) << '\n';
+	std::cout << half_cast<double>(998.0_h) << " vs " << half_cast<half>(998.0) << '\n';
+	std::cout << half_cast<double>(b2h(31745)) << " vs " << half_cast<half>(std::numeric_limits<double>::quiet_NaN()) << '\n';
+	std::cout << std::hex << 31745 << ", " << 64513 << std::dec << '\n';
+	return 0;
 */
 	std::vector<std::string> args(argv+1, argv+argc);
 	std::unique_ptr<std::ostream> file, csv;
