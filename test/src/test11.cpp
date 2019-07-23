@@ -99,7 +99,12 @@ std::uint16_t h2b(half h)
 
 bool comp(half a, half b)
 {
-	return (isnan(a) && isnan(b)) || a == b;// h2b(a) == h2b(b);
+	return (isnan(a) && isnan(b)) || h2b(a) == h2b(b);
+}
+
+bool compz(half a, half b)
+{
+	return (isnan(a) && isnan(b)) || a == b;
 }
 
 template<std::float_round_style R> half select(const std::pair<half,half> &hh)
@@ -210,7 +215,7 @@ public:
 			(isinf(a) && isinf(b) && signbit(a)==signbit(b)) || ((a>b) && comp(c, a-b)) || ((a<=b) && comp(c, half_cast<half>(0.0))); });
 		ternary_test("fma", [](half x, half y, half z) { return comp(fma(x, y, z), half_cast<half>(half_cast<double>(x)*half_cast<double>(y)+half_cast<double>(z))); });
 //		ternary_reference_test("fma", half_float::fma);
-/*
+
 		//test exponential functions
 		unary_reference_test("exp", half_float::exp);
 		unary_reference_test("exp2", half_float::exp2);
@@ -249,17 +254,17 @@ public:
 		unary_reference_test("erfc", half_float::erfc);
 		unary_reference_test("lgamma", half_float::lgamma);
 		unary_reference_test("tgamma", half_float::tgamma);
-*/
+
 		//test round functions
 		unary_test("ceil", [](half arg) { return comp(ceil(arg), half_cast<half>(std::ceil(half_cast<double>(arg)))); });
 		unary_test("floor", [](half arg) { return comp(floor(arg), half_cast<half>(std::floor(half_cast<double>(arg)))); });
-		unary_test("trunc", [](half arg) { return !isfinite(arg) || comp(trunc(arg), half_cast<half>(static_cast<int>(arg))); });
-		unary_test("round", [](half arg) { return !isfinite(arg) || comp(round(arg), 
+		unary_test("trunc", [](half arg) { return !isfinite(arg) || compz(trunc(arg), half_cast<half>(static_cast<int>(arg))); });
+		unary_test("round", [](half arg) { return !isfinite(arg) || compz(round(arg),
 			half_cast<half>(static_cast<int>(static_cast<double>(arg)+(signbit(arg) ? -0.5 : 0.5)))); });
 		unary_test("lround", [](half arg) { return !isfinite(arg) || lround(arg) == 
 			static_cast<long>(static_cast<double>(arg)+(signbit(arg) ? -0.5 : 0.5)); });
-		unary_test("nearbyint", [](half arg) { return !isfinite(arg) || comp(nearbyint(arg), half_cast<half>(half_cast<int>(arg))); });
-		unary_test("rint", [](half arg) { return !isfinite(arg) || comp(rint(arg), half_cast<half>(half_cast<int>(arg))); });
+		unary_test("nearbyint", [](half arg) { return !isfinite(arg) || compz(nearbyint(arg), half_cast<half>(half_cast<int>(arg))); });
+		unary_test("rint", [](half arg) { return !isfinite(arg) || compz(rint(arg), half_cast<half>(half_cast<int>(arg))); });
 		unary_test("lrint", [](half arg) { return !isfinite(arg) || lrint(arg) == half_cast<long>(arg); });
 	#if HALF_ENABLE_CPP11_LONG_LONG
 		unary_test("llround", [](half arg) { return !isfinite(arg) || llround(arg) == 
@@ -276,10 +281,10 @@ public:
 			std::modf(static_cast<double>(arg), &f))) && comp(h, static_cast<half>(f)); });
 		binary_test("nextafter", [](half a, half b) -> bool { half c = nextafter(a, b); std::int16_t d = std::abs(
 			static_cast<std::int16_t>(h2b(a)-h2b(c))); return ((isnan(a) || isnan(b)) && isnan(c)) || 
-			(comp(a, b) && comp(b, c)) || ((d==1||d==0x7FFF) && (a<b)==(a<c)); });
+			(compz(a, b) && compz(b, c)) || ((d==1||d==0x7FFF) && (a<b)==(a<c)); });
 		binary_test("nexttoward", [](half a, half b) -> bool { half c = nexttoward(a, static_cast<long double>(b)); std::int16_t d = std::abs(
 			static_cast<std::int16_t>(h2b(a)-h2b(c))); return ((isnan(a) || isnan(b)) && isnan(c)) || 
-			(comp(a, b) && comp(b, c)) || ((d==1||d==0x7FFF) && (a<b)==(a<c)); });
+			(compz(a, b) && compz(b, c)) || ((d==1||d==0x7FFF) && (a<b)==(a<c)); });
 		binary_test("copysign", [](half a, half b) -> bool { half h = copysign(a, b); return comp(abs(h), abs(a)) && signbit(h)==signbit(b); });
 
 	#if HALF_ENABLE_CPP11_CMATH

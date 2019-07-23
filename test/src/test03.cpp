@@ -16,6 +16,8 @@
 
 #include <half.hpp>
 
+#include <iostream>
+
 using half_float::half;
 
 

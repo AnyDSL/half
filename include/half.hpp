@@ -22,7 +22,17 @@
 #ifndef HALF_HALF_HPP
 #define HALF_HALF_HPP
 
-#define HALF_GNUC_VERSION (__GNUC__*100+__GNUC_MINOR__)
+#define HALF_GCC_VERSION (__GNUC__*100+__GNUC_MINOR__)
+
+#if defined(__INTEL_COMPILER)
+	#define HALF_ICC_VERSION __INTEL_COMPILER
+#elif defined(__ICC)
+	#define HALF_ICC_VERSION __ICC
+#elif defined(__ICL)
+	#define HALF_ICC_VERSION __ICL
+#else
+	#define HALF_ICC_VERSION 0
+#endif
 
 //check C++11 language features
 #if defined(__clang__)															//clang
@@ -41,34 +51,34 @@
 	#if (defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L) && !defined(HALF_ENABLE_CPP11_LONG_LONG)
 		#define HALF_ENABLE_CPP11_LONG_LONG 1
 	#endif
-#elif defined(__INTEL_COMPILER) && defined(__INTEL_CXX11_MODE__)				//Intel C++
-	#if __INTEL_COMPILER >= 1500 && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
+#elif HALF_ICC_VERSION && defined(__INTEL_CXX11_MODE__)				//Intel C++
+	#if HALF_ICC_VERSION >= 1500 && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
 		#define HALF_ENABLE_CPP11_USER_LITERALS 1
 	#endif
-	#if __INTEL_COMPILER >= 1400 && !defined(HALF_ENABLE_CPP11_CONSTEXPR)
+	#if HALF_ICC_VERSION >= 1400 && !defined(HALF_ENABLE_CPP11_CONSTEXPR)
 		#define HALF_ENABLE_CPP11_CONSTEXPR 1
 	#endif
-	#if __INTEL_COMPILER >= 1400 && !defined(HALF_ENABLE_CPP11_NOEXCEPT)
+	#if HALF_ICC_VERSION >= 1400 && !defined(HALF_ENABLE_CPP11_NOEXCEPT)
 		#define HALF_ENABLE_CPP11_NOEXCEPT 1
 	#endif
-	#if __INTEL_COMPILER >= 1110 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
+	#if HALF_ICC_VERSION >= 1110 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
 		#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
 	#endif
-	#if __INTEL_COMPILER >= 1110 && !defined(HALF_ENABLE_CPP11_LONG_LONG)
+	#if HALF_ICC_VERSION >= 1110 && !defined(HALF_ENABLE_CPP11_LONG_LONG)
 		#define HALF_ENABLE_CPP11_LONG_LONG 1
 	#endif
 #elif defined(__GNUC__)															//gcc
 	#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
-		#if HALF_GNUC_VERSION >= 407 && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
+		#if HALF_GCC_VERSION >= 407 && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
 			#define HALF_ENABLE_CPP11_USER_LITERALS 1
 		#endif
-		#if HALF_GNUC_VERSION >= 406 && !defined(HALF_ENABLE_CPP11_CONSTEXPR)
+		#if HALF_GCC_VERSION >= 406 && !defined(HALF_ENABLE_CPP11_CONSTEXPR)
 			#define HALF_ENABLE_CPP11_CONSTEXPR 1
 		#endif
-		#if HALF_GNUC_VERSION >= 406 && !defined(HALF_ENABLE_CPP11_NOEXCEPT)
+		#if HALF_GCC_VERSION >= 406 && !defined(HALF_ENABLE_CPP11_NOEXCEPT)
 			#define HALF_ENABLE_CPP11_NOEXCEPT 1
 		#endif
-		#if HALF_GNUC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
+		#if HALF_GCC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
 			#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
 		#endif
 		#if !defined(HALF_ENABLE_CPP11_LONG_LONG)
@@ -131,13 +141,16 @@
 				#define HALF_ENABLE_CPP11_HASH 1
 			#endif
 		#else
-			#if HALF_GNUC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_CSTDINT)
+			#if HALF_GCC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_TYPE_TRAITS)
+				#define HALF_ENABLE_CPP11_TYPE_TRAITS 1
+			#endif
+			#if HALF_GCC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_CSTDINT)
 				#define HALF_ENABLE_CPP11_CSTDINT 1
 			#endif
-			#if HALF_GNUC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_CMATH)
+			#if HALF_GCC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_CMATH)
 				#define HALF_ENABLE_CPP11_CMATH 1
 			#endif
-			#if HALF_GNUC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_HASH)
+			#if HALF_GCC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_HASH)
 				#define HALF_ENABLE_CPP11_HASH 1
 			#endif
 		#endif
@@ -156,7 +169,8 @@
 		#define HALF_ENABLE_CPP11_CMATH 1
 	#endif
 #endif
-#undef HALF_GNUC_VERSION
+#undef HALF_GCC_VERSION
+#undef HALF_ICC_VERSION
 
 //support constexpr
 #if HALF_ENABLE_CPP11_CONSTEXPR
@@ -1095,7 +1109,7 @@ namespace half_float
 		/// \param y positive finite second operand
 		/// \param quo adress to store quotient at, `nullptr` if \a Q `false`
 		/// \return modulus of \a x / \a y
-		template<bool Q,bool R> unsigned int mod(unsigned int x, unsigned int y, int *quo = nullptr)
+		template<bool Q,bool R> unsigned int mod(unsigned int x, unsigned int y, int *quo = NULL)
 		{
 			unsigned int q = 0;
 			if(x > y)
