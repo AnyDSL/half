@@ -899,10 +899,17 @@ int main(int argc, char *argv[]) try
 #ifndef HALF_ARITHMETIC_TYPE
 	switch(std::numeric_limits<half>::round_style)
 	{
+	#ifdef _WIN32
+		case std::round_to_nearest: _controlfp(_MCW_RC, _RC_NEAR); break;
+		case std::round_toward_zero: _controlfp(_MCW_RC, _RC_CHOP); break;
+		case std::round_toward_infinity: _controlfp(_MCW_RC, _RC_UP); break;
+		case std::round_toward_neg_infinity: _controlfp(_MCW_RC, _RC_DOWN); break;
+	#else
 		case std::round_to_nearest: std::fesetround(FE_TONEAREST); break;
 		case std::round_toward_zero: std::fesetround(FE_TOWARDZERO); break;
 		case std::round_toward_infinity: std::fesetround(FE_UPWARD); break;
 		case std::round_toward_neg_infinity: std::fesetround(FE_DOWNWARD); break;
+	#endif
 	}
 #endif
 /*
