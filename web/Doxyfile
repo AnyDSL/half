@@ -38,7 +38,7 @@ PROJECT_NAME           = half
 # could be handy for archiving the generated documentation or if some version
 # control system is used.
 
-PROJECT_NUMBER         = 2.0
+PROJECT_NUMBER         = 2.1
 
 # Using the PROJECT_BRIEF tag one can provide an optional one line description
 # for a project that appears at the top of each page and should give viewer a
@@ -2131,8 +2131,10 @@ PREDEFINED             = HALF_DOXYGEN_ONLY \
                          FP_NORMAL \
                          HALF_ENABLE_CPP11_HASH \
                          HALF_ENABLE_CPP11_USER_LITERALS \
+                         HALF_ENABLE_CPP11_THREAD_LOCAL \
                          HALF_ENABLE_CPP11_CSTDINT \
                          HALF_ENABLE_CPP11_CMATH \
+                         HALF_ENABLE_CPP11_CFENV \
                          HALF_ENABLE_CPP11_CONSTEXPR \
                          HALF_ENABLE_CPP11_LONG_LONG \
                          HALF_ENABLE_CPP11_NOEXCEPT \

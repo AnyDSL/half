@@ -15,9 +15,14 @@
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 //#define HALF_ENABLE_F16C_INTRINSICS 1
-//#define HALF_ARITHMETIC_TYPE float
+//#define HALF_ARITHMETIC_TYPE double
+#define HALF_ERRHANDLING_FLAGS 1
+#define HALF_ERRHANDLING_OVERFLOW_TO_INEXACT 1
+#define HALF_ERRHANDLING_UNDERFLOW_TO_INEXACT 1
 #define HALF_ROUND_STYLE 1
 #include <half.hpp>
+
+#define CHECK_EXCEPT 0//(HALF_FE_INVALID|HALF_FE_DIVBYZERO|HALF_FE_OVERFLOW|HALF_FE_UNDERFLOW|HALF_FE_INEXACT)
 
 #include <utility>
 #include <vector>
@@ -44,7 +49,7 @@
 	#include <unordered_map>
 #endif
 
-#if HALF_ENABLE_CPP11_CMATH && !defined(HALF_ARITHMETIC_TYPE)
+#if HALF_ENABLE_CPP11_CFENV && !defined(HALF_ARITHMETIC_TYPE)
 	#include <cfenv>
 	#pragma STDC FENV_ACCESS ON
 #endif
@@ -106,6 +111,33 @@ bool compz(half a, half b)
 {
 	return (isnan(a) && isnan(b)) || a == b;
 }
+
+class results
+{
+public:
+	void read(std::istream &in)
+	{
+		in.read(reinterpret_cast<char*>(&value_), sizeof(value_));
+		in.read(reinterpret_cast<char*>(&flags_), sizeof(flags_));
+	}
+
+	half value() const
+	{
+		switch(std::numeric_limits<half>::round_style)
+		{
+			case std::round_toward_zero:			return b2h(h2b(value_)-((flags_>>6)&1));
+			case std::round_toward_infinity:		return b2h(h2b(value_)+((flags_>>7)&!signbit(value_))-((flags_>>6)&signbit(value_)));
+			case std::round_toward_neg_infinity:	return b2h(h2b(value_)+((flags_>>7)&signbit(value_))-((flags_>>6)&!signbit(value_)));
+			default:								return value_;
+		}
+	}
+
+	int except(int flags = HALF_FE_ALL_EXCEPT) const { return static_cast<int>(flags_&flags); }
+
+private:
+	half value_;
+	unsigned char flags_;
+};
 
 template<std::float_round_style R> half select(const std::pair<half,half> &hh)
 {
@@ -177,44 +209,67 @@ public:
 		unary_test("double conversion", [](half arg) { return comp(half_cast<half>(half_cast<double>(arg)), arg); });
 		unary_test("long double conversion", [](half arg) { return comp(half_cast<half>(half_cast<long double>(arg)), arg); });
 
-		//test classification
+		//test classification functions
 		class_test("fpclassify", [](half arg, int cls) { return fpclassify(arg) == cls; });
 		class_test("isfinite", [](half arg, int cls) { return isfinite(arg) == (cls!=FP_INFINITE&&cls!=FP_NAN); });
 		class_test("isinf", [](half arg, int cls) { return isinf(arg) == (cls==FP_INFINITE); });
 		class_test("isnan", [](half arg, int cls) { return isnan(arg) == (cls==FP_NAN); });
 		class_test("isnormal", [](half arg, int cls) { return isnormal(arg) == (cls==FP_NORMAL); });
 		unary_test("signbit", [](half arg) -> bool { double f = arg; return isnan(arg) || f==0.0 || (signbit(arg)==(f<0.0)); });
+	#if HALF_ENABLE_CPP11_CMATH
+		unary_except_test("fpclassify", [](half arg) -> bool { int ch=fpclassify(arg), cf=std::fpclassify(
+			half_cast<double>(arg)); return ch==cf || (ch==FP_SUBNORMAL && cf==FP_NORMAL); });
+		unary_except_test("isfinite", [](half arg) { return isfinite(arg) == std::isfinite(half_cast<double>(arg)); });
+		unary_except_test("isinf", [](half arg) { return isinf(arg) == std::isinf(half_cast<double>(arg)); });
+		unary_except_test("isnan", [](half arg) { return isnan(arg) == std::isnan(half_cast<double>(arg)); });
+		unary_except_test("isnormal", [](half arg) { return isnormal(arg) == std::isnormal(half_cast<double>(arg)) ||
+			(!isnormal(arg) && fpclassify(arg)==FP_SUBNORMAL); });
+		unary_except_test("signbit", [](half arg) { return signbit(arg) == std::signbit(half_cast<double>(arg)); });
 
-		//test operators
-		unary_test("prefix increment", [](half arg) -> bool { double f = half_cast<double>(arg); 
-			return comp(static_cast<half>(++f), ++arg) && comp(half_cast<half>(f), arg); });
-		unary_test("prefix decrement", [](half arg) -> bool { double f = half_cast<double>(arg); 
-			return comp(static_cast<half>(--f), --arg) && comp(half_cast<half>(f), arg); });
-		unary_test("postfix increment", [](half arg) -> bool { double f = half_cast<double>(arg); 
-			return comp(static_cast<half>(f++), arg++) && comp(half_cast<half>(f), arg); });
-		unary_test("postfix decrement", [](half arg) -> bool { double f = half_cast<double>(arg); 
-			return comp(static_cast<half>(f--), arg--) && comp(half_cast<half>(f), arg); });
-		unary_test("unary plus", [](half arg) { return comp(+arg, arg); });
-		unary_test("unary minus", [](half arg) { return comp(-arg, half_cast<half>(-half_cast<double>(arg))); });
-		binary_test("addition", [](half a, half b) { return comp(a+b, half_cast<half>(half_cast<double>(a)+half_cast<double>(b))); });
-		binary_test("subtraction", [](half a, half b) { return comp(a-b, half_cast<half>(half_cast<double>(a)-half_cast<double>(b))); });
-		binary_test("multiplication", [](half a, half b) { return comp(a*b, half_cast<half>(half_cast<double>(a)*half_cast<double>(b))); });
-		binary_test("division", [](half a, half b) { return comp(a/b, half_cast<half>(half_cast<double>(a)/half_cast<double>(b))); });
-		binary_test("equal", [](half a, half b) { return (a==b) == (half_cast<double>(a)==half_cast<double>(b)); });
-		binary_test("not equal", [](half a, half b) { return (a!=b) == (half_cast<double>(a)!=half_cast<double>(b)); });
-		binary_test("less", [](half a, half b) { return (a<b) == (half_cast<double>(a)<half_cast<double>(b)); });
-		binary_test("greater", [](half a, half b) { return (a>b) == (half_cast<double>(a)>half_cast<double>(b)); });
-		binary_test("less equal", [](half a, half b) { return (a<=b) == (half_cast<double>(a)<=half_cast<double>(b)); });
-		binary_test("greater equal", [](half a, half b) { return (a>=b) == (half_cast<double>(a)>=half_cast<double>(b)); });
+		//test comparison functions
+		binary_test("isgreater", [](half a, half b) { return isgreater(a, b) == std::isgreater(half_cast<double>(a), half_cast<double>(b)); });
+		binary_test("isgreaterequal", [](half a, half b) { return isgreaterequal(a, b) == std::isgreaterequal(half_cast<double>(a), half_cast<double>(b)); });
+		binary_test("isless", [](half a, half b) { return isless(a, b) == std::isless(half_cast<double>(a), half_cast<double>(b)); });
+		binary_test("islessequal", [](half a, half b) { return islessequal(a, b) == std::islessequal(half_cast<double>(a), half_cast<double>(b)); });
+		binary_test("islessgreater", [](half a, half b) { return islessgreater(a, b) == std::islessgreater(half_cast<double>(a), half_cast<double>(b)); });
+		binary_test("isunordered", [](half a, half b) { return isunordered(a, b) == std::isunordered(half_cast<double>(a), half_cast<double>(b)); });
+	#endif
+
+		//test unary operators
+		unary_double_test("unary plus", [](half arg) { return +arg; }, [](double arg) { return +arg; });
+		unary_double_test("unary minus", [](half arg) { return -arg; }, [](double arg) { return -arg; });
+		unary_double_test("prefix increment", [](half arg) { return ++arg; }, [](double arg) { return ++arg; });
+		unary_double_test("prefix decrement", [](half arg) { return --arg; }, [](double arg) { return --arg; });
+		unary_double_test("postfix increment", [](half arg) { return arg++; }, [](double arg) { return arg++; });
+		unary_double_test("postfix decrement", [](half arg) { return arg--; }, [](double arg) { return arg--; });
+
+		//test binary operators
+		binary_double_test("addition", [](half a, half b) { return a+b; }, [](double a, double b) { return a+b; });
+		binary_double_test("subtraction", [](half a, half b) { return a-b; }, [](double a, double b) { return a-b; });
+		binary_double_test("multiplication", [](half a, half b) { return a*b; }, [](double a, double b) { return a*b; });
+		binary_double_test("division", [](half a, half b) { return a/b; }, [](double a, double b) { return a/b; });
+
+		//test comparison operators
+		binary_except_test("equal", [](half a, half b) { return (a==b) == (half_cast<double>(a)==half_cast<double>(b)); });
+		binary_except_test("not equal", [](half a, half b) { return (a!=b) == (half_cast<double>(a)!=half_cast<double>(b)); });
+		binary_except_test("less", [](half a, half b) { return (a<b) == (half_cast<double>(a)<half_cast<double>(b)); });
+		binary_except_test("greater", [](half a, half b) { return (a>b) == (half_cast<double>(a)>half_cast<double>(b)); });
+		binary_except_test("less equal", [](half a, half b) { return (a<=b) == (half_cast<double>(a)<=half_cast<double>(b)); });
+		binary_except_test("greater equal", [](half a, half b) { return (a>=b) == (half_cast<double>(a)>=half_cast<double>(b)); });
 
 		//test basic functions
-		unary_test("abs", [](half arg) { return comp(abs(arg), half_cast<half>(std::abs(half_cast<double>(arg)))); });
-		unary_test("fabs", [](half arg) { return comp(fabs(arg), half_cast<half>(std::fabs(half_cast<double>(arg)))); });
-		binary_test("fmod", [](half x, half y) { return comp(fmod(x, y), half_cast<half>(std::fmod(half_cast<double>(x), half_cast<double>(y)))); });
-		binary_test("fdim", [](half a, half b) -> bool { half c = fdim(a, b); return isnan(a) || isnan(b) || 
-			(isinf(a) && isinf(b) && signbit(a)==signbit(b)) || ((a>b) && comp(c, a-b)) || ((a<=b) && comp(c, half_cast<half>(0.0))); });
-		ternary_test("fma", [](half x, half y, half z) { return comp(fma(x, y, z), half_cast<half>(half_cast<double>(x)*half_cast<double>(y)+half_cast<double>(z))); });
-//		ternary_reference_test("fma", half_float::fma);
+		unary_double_test("abs", half_float::abs, [](double arg) { return std::abs(arg); });
+		unary_double_test("fabs", half_float::fabs, [](double arg) { return std::fabs(arg); });
+		binary_double_test("fmod", half_float::fmod, [](double x, double y) { return std::fmod(x, y); });
+		ternary_double_test("fma", half_float::fma, [](double x, double y, double z) { return x*y + z; });
+	#if HALF_ENABLE_CPP11_CMATH
+		binary_double_test("remainder", half_float::remainder, [](double x, double y) { return std::remainder(x, y); });
+		binary_except_test("remquo", [](half a, half b) -> bool { int qh = 0, qf = 0; remquo(a, b, &qh); std::remquo(half_cast<double>(a), half_cast<double>(b), &qf); return (qh&7)==(qf&7); });
+		binary_double_test("fmin", half_float::fmin, [](double x, double y) { return std::fmin(x, y); });
+		binary_double_test("fmax", half_float::fmax, [](double x, double y) { return std::fmax(x, y); });
+		binary_double_test("fdim", half_float::fdim, [](double x, double y) { return std::fdim(x, y); });
+		ternary_double_test("fma", half_float::fma, [](double x, double y, double z) { return std::fma(x, y, z); });
+	#endif
 
 		//test exponential functions
 		unary_reference_test("exp", half_float::exp);
@@ -222,8 +277,8 @@ public:
 		unary_reference_test("expm1", half_float::expm1);
 		unary_reference_test("log", half_float::log);
 		unary_reference_test("log10", half_float::log10);
-		unary_reference_test("log1p", half_float::log1p);
 		unary_reference_test("log2", half_float::log2);
+		unary_reference_test("log1p", half_float::log1p);
 
 		//test power functions
 		unary_reference_test("sqrt", half_float::sqrt);
@@ -232,7 +287,7 @@ public:
 		binary_reference_test<half(half,half)>("hypot", half_float::hypot);
 //		ternary_reference_test<half(half,half,half)>("hypot3", half_float::hypot);
 
-		//test trig functions
+		//test trigonometric functions
 		unary_reference_test("sin", half_float::sin);
 		unary_reference_test("cos", half_float::cos);
 		unary_reference_test("tan", half_float::tan);
@@ -241,7 +296,7 @@ public:
 		unary_reference_test("atan", half_float::atan);
 		binary_reference_test("atan2", half_float::atan2);
 
-		//test hyp functions
+		//test hyperbolic functions
 		unary_reference_test("sinh", half_float::sinh);
 		unary_reference_test("cosh", half_float::cosh);
 		unary_reference_test("tanh", half_float::tanh);
@@ -249,36 +304,45 @@ public:
 		unary_reference_test("acosh", half_float::acosh);
 		unary_reference_test("atanh", half_float::atanh);
 
-		//test err functions
+		//test error and gamma functions
 		unary_reference_test("erf", half_float::erf);
 		unary_reference_test("erfc", half_float::erfc);
 		unary_reference_test("lgamma", half_float::lgamma);
 		unary_reference_test("tgamma", half_float::tgamma);
 
-		//test round functions
-		unary_test("ceil", [](half arg) { return comp(ceil(arg), half_cast<half>(std::ceil(half_cast<double>(arg)))); });
-		unary_test("floor", [](half arg) { return comp(floor(arg), half_cast<half>(std::floor(half_cast<double>(arg)))); });
+		//test rounding functions
+		unary_double_test("ceil", half_float::ceil, [](double arg) { return std::ceil(arg); });
+		unary_double_test("floor", half_float::floor, [](double arg) { return std::floor(arg); });
 		unary_test("trunc", [](half arg) { return !isfinite(arg) || compz(trunc(arg), half_cast<half>(static_cast<int>(arg))); });
-		unary_test("round", [](half arg) { return !isfinite(arg) || compz(round(arg),
-			half_cast<half>(static_cast<int>(static_cast<double>(arg)+(signbit(arg) ? -0.5 : 0.5)))); });
-		unary_test("lround", [](half arg) { return !isfinite(arg) || lround(arg) == 
-			static_cast<long>(static_cast<double>(arg)+(signbit(arg) ? -0.5 : 0.5)); });
+		unary_test("round", [](half arg) { return !isfinite(arg) || compz(round(arg), half_cast<half>(static_cast<int>(static_cast<double>(arg)+(signbit(arg) ? -0.5 : 0.5)))); });
+		unary_test("lround", [](half arg) { return !isfinite(arg) || lround(arg) == static_cast<long>(static_cast<double>(arg)+(signbit(arg) ? -0.5 : 0.5)); });
 		unary_test("nearbyint", [](half arg) { return !isfinite(arg) || compz(nearbyint(arg), half_cast<half>(half_cast<int>(arg))); });
 		unary_test("rint", [](half arg) { return !isfinite(arg) || compz(rint(arg), half_cast<half>(half_cast<int>(arg))); });
 		unary_test("lrint", [](half arg) { return !isfinite(arg) || lrint(arg) == half_cast<long>(arg); });
-	#if HALF_ENABLE_CPP11_LONG_LONG
 		unary_test("llround", [](half arg) { return !isfinite(arg) || llround(arg) == 
 			static_cast<long long>(static_cast<double>(arg)+(signbit(arg) ? -0.5 : 0.5)); });
 		unary_test("llrint", [](half arg) { return !isfinite(arg) || llrint(arg) == half_cast<long long>(arg); });
+	#if HALF_ENABLE_CPP11_CMATH
+		unary_double_test("trunc", half_float::trunc, [](double arg) { return std::trunc(arg); });
+		unary_double_test("round", half_float::round, [](double arg) { return std::round(arg); });
+		unary_except_test("lround", [](half arg) { return !isfinite(arg) || lround(arg) == std::lround(static_cast<double>(arg)); });
+		unary_except_test("llround", [](half arg) { return !isfinite(arg) || llround(arg) == std::llround(static_cast<double>(arg)); });
+	#if HALF_ROUND_STYLE == 1
+		unary_double_test("nearbyint", half_float::nearbyint, [](double arg) { return std::nearbyint(arg); });
+		unary_double_test("rint", half_float::rint, [](double arg) { return std::rint(arg); });
+		unary_except_test("lrint", [](half arg) { return !isfinite(arg) || half_float::lrint(arg) == std::lrint(static_cast<double>(arg)); });
+		unary_except_test("llrint", [](half arg) { return !isfinite(arg) || llrint(arg) == std::llrint(static_cast<double>(arg)); });
+	#endif
 	#endif
 
 		//test float functions
+		unary_double_test("frexp", [](half arg) -> half { int i; return frexp(arg, &i); }, [](double arg) -> double { int i; return std::frexp(arg, &i); });
 		unary_test("frexp", [](half arg) -> bool { int eh, ef; bool eq = comp(frexp(arg, &eh), 
 			static_cast<half>(std::frexp(static_cast<double>(arg), &ef))); return eq && (!isfinite(arg) || eh==ef); });
 		unary_test("ldexp", [](half arg) -> bool { unsigned int passed = 0; for(int i=-50; i<50; ++i) passed += 
 			comp(ldexp(arg, i), static_cast<half>(std::ldexp(static_cast<double>(arg), i))); return passed==100; });
-		unary_test("modf", [](half arg) -> bool { half h; double f; return comp(modf(arg, &h), static_cast<half>(
-			std::modf(static_cast<double>(arg), &f))) && comp(h, static_cast<half>(f)); });
+		unary_double_test("modf", [](half arg) -> half { half i; return modf(arg, &i); }, [](double arg) -> double { double i; return std::modf(arg, &i); });
+		unary_double_test("modf", [](half arg) -> half { half i; modf(arg, &i); return i; }, [](double arg) -> double { double i; std::modf(arg, &i); return i; });
 		binary_test("nextafter", [](half a, half b) -> bool { half c = nextafter(a, b); std::int16_t d = std::abs(
 			static_cast<std::int16_t>(h2b(a)-h2b(c))); return ((isnan(a) || isnan(b)) && isnan(c)) || 
 			(compz(a, b) && compz(b, c)) || ((d==1||d==0x7FFF) && (a<b)==(a<c)); });
@@ -286,56 +350,14 @@ public:
 			static_cast<std::int16_t>(h2b(a)-h2b(c))); return ((isnan(a) || isnan(b)) && isnan(c)) || 
 			(compz(a, b) && compz(b, c)) || ((d==1||d==0x7FFF) && (a<b)==(a<c)); });
 		binary_test("copysign", [](half a, half b) -> bool { half h = copysign(a, b); return comp(abs(h), abs(a)) && signbit(h)==signbit(b); });
-
 	#if HALF_ENABLE_CPP11_CMATH
-		//test basic functions
-		binary_test("remainder", [](half x, half y) { return comp(remainder(x, y), half_cast<half>(std::remainder(half_cast<double>(x), half_cast<double>(y)))); });
-		binary_test("remquo", [](half a, half b) -> bool { int qh = 0, qf = 0; return comp(remquo(a, b, &qh),
-			half_cast<half>(std::remquo(static_cast<double>(a), static_cast<double>(b), &qf))) && (qh&7)==(qf&7); });
-		binary_test("fmin", [](half x, half y) { return comp(fmin(x, y), half_cast<half>(std::fmin(half_cast<double>(x), half_cast<double>(y)))); });
-		binary_test("fmax", [](half x, half y) { return comp(fmax(x, y), half_cast<half>(std::fmax(half_cast<double>(x), half_cast<double>(y)))); });
-		binary_test("fdim", [](half x, half y) { return comp(fdim(x, y), half_cast<half>(std::fdim(half_cast<double>(x), half_cast<double>(y)))); });
-		ternary_test("fma", [](half x, half y, half z) { return comp(fma(x, y, z), half_cast<half>(std::fma(half_cast<double>(x), half_cast<double>(y), half_cast<double>(z)))); });
-
-		//test round functions
-		unary_test("trunc", [](half arg) { return comp(trunc(arg), half_cast<half>(std::trunc(half_cast<double>(arg)))); });
-		unary_test("round", [](half arg) { return comp(round(arg), half_cast<half>(std::round(half_cast<double>(arg)))); });
-		unary_test("lround", [](half arg) { return !isfinite(arg) || lround(arg) == std::lround(static_cast<double>(arg)); });
-		unary_test("llround", [](half arg) { return !isfinite(arg) || llround(arg) == std::llround(static_cast<double>(arg)); });
-	#if HALF_ROUND_STYLE == 1
-		unary_test("nearbyint", [](half arg) { return comp(nearbyint(arg), half_cast<half>(std::nearbyint(half_cast<double>(arg)))); });
-		unary_test("rint", [](half arg) { return comp(rint(arg), half_cast<half>(std::rint(half_cast<double>(arg)))); });
-		unary_test("lrint", [](half arg) { return !isfinite(arg) || half_float::lrint(arg) == std::lrint(static_cast<double>(arg)); });
-		unary_test("llrint", [](half arg) { return !isfinite(arg) || llrint(arg) == std::llrint(static_cast<double>(arg)); });
-	#endif
-
-		//test float functions
 		unary_test("scalbn", [](half arg) -> bool { unsigned int passed = 0; for(int i=-50; i<50; ++i) passed += 
 			comp(scalbn(arg, i), static_cast<half>(std::scalbn(static_cast<double>(arg), i))); return passed==100; });
 		unary_test("scalbln", [](half arg) -> bool { unsigned int passed = 0; for(long i=-50; i<50; ++i) passed += 
 			comp(scalbln(arg, i), static_cast<half>(std::scalbln(static_cast<double>(arg), i))); return passed==100; });
-		unary_test("ilogb", [](half arg) { return ilogb(arg) == std::ilogb(static_cast<double>(arg)); });
-		unary_test("logb", [](half arg) { return comp(logb(arg), static_cast<half>(std::logb(static_cast<double>(arg)))); });
-		binary_test("copysign", [](half a, half b) { return comp(copysign(a, b), 
-			static_cast<half>(std::copysign(static_cast<double>(a), static_cast<double>(b)))); });
-
-		//test classification functions
-		unary_test("fpclassify", [](half arg) -> bool { int ch=fpclassify(arg), cf=std::fpclassify(
-			static_cast<double>(arg)); return ch==cf || (ch==FP_SUBNORMAL && cf==FP_NORMAL); });
-		unary_test("isfinite", [](half arg) { return isfinite(arg) == std::isfinite(static_cast<double>(arg)); });
-		unary_test("isinf", [](half arg) { return isinf(arg) == std::isinf(static_cast<double>(arg)); });
-		unary_test("isnan", [](half arg) { return isnan(arg) == std::isnan(static_cast<double>(arg)); });
-		unary_test("isnormal", [](half arg) { return isnormal(arg) == std::isnormal(static_cast<double>(arg)) || 
-			(!isnormal(arg) && fpclassify(arg)==FP_SUBNORMAL); });
-		unary_test("signbit", [](half arg) { return signbit(arg) == std::signbit(static_cast<double>(arg)); });
-
-		//test comparison functions
-		binary_test("isgreater", [](half a, half b) { return isgreater(a, b) == std::isgreater(static_cast<double>(a), static_cast<double>(b)); });
-		binary_test("isgreaterequal", [](half a, half b) { return isgreaterequal(a, b) == std::isgreaterequal(static_cast<double>(a), static_cast<double>(b)); });
-		binary_test("isless", [](half a, half b) { return isless(a, b) == std::isless(static_cast<double>(a), static_cast<double>(b)); });
-		binary_test("islessequal", [](half a, half b) { return islessequal(a, b) == std::islessequal(static_cast<double>(a), static_cast<double>(b)); });
-		binary_test("islessgreater", [](half a, half b) { return islessgreater(a, b) == std::islessgreater(static_cast<double>(a), static_cast<double>(b)); });
-		binary_test("isunordered", [](half a, half b) { return isunordered(a, b) == std::isunordered(static_cast<double>(a), static_cast<double>(b)); });
+		unary_except_test("ilogb", [](half arg) { return ilogb(arg) == std::ilogb(static_cast<double>(arg)); });
+		unary_double_test("logb", half_float::logb, [](double arg) { return std::logb(arg); });
+		binary_double_test("copysign", half_float::copysign, [](double x, double y) { return std::copysign(x, y); });
 	#endif
 
 		//test rounding
@@ -506,8 +528,8 @@ public:
 		UNARY_PERFORMANCE_TEST(expm1, finite, 1000);
 		UNARY_PERFORMANCE_TEST(log, positive, 1000);
 		UNARY_PERFORMANCE_TEST(log10, positive, 1000);
-		UNARY_PERFORMANCE_TEST(log1p, neg2inf, 1000);
 		UNARY_PERFORMANCE_TEST(log2, positive, 1000);
+		UNARY_PERFORMANCE_TEST(log1p, neg2inf, 1000);
 
 		UNARY_PERFORMANCE_TEST(sqrt, positive, 1000);
 		UNARY_PERFORMANCE_TEST(cbrt, finite, 1000);
@@ -727,6 +749,226 @@ private:
 		return passed;
 	}
 
+	template<typename F> bool unary_except_test(const std::string &name, F &&fn)
+	{
+		return unary_test(name, [&](half arg) -> bool {
+		#if HALF_ENABLE_CPP11_CFENV && CHECK_EXCEPT
+			half_float::feclearexcept(CHECK_EXCEPT);
+			std::feclearexcept(CHECK_EXCEPT);
+			bool equal = fn(arg);
+			int eh = half_float::fetestexcept(CHECK_EXCEPT), ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(HALF_FE_OVERFLOW|HALF_FE_UNDERFLOW|HALF_FE_INEXACT));
+//			if(eh != ed)
+//				std::cerr << arg << " = " << std::hex << eh << " vs " << ed << std::dec << '\n';
+			return equal && eh == ed;
+		#else
+			return fn(arg);
+		#endif
+		});
+	}
+
+	template<typename F> bool binary_except_test(const std::string &name, F &&fn)
+	{
+		return binary_test(name, [&](half x, half y) -> bool {
+		#if HALF_ENABLE_CPP11_CFENV && CHECK_EXCEPT
+			half_float::feclearexcept(CHECK_EXCEPT);
+			std::feclearexcept(CHECK_EXCEPT);
+			bool equal = fn(x, y);
+			int eh = half_float::fetestexcept(CHECK_EXCEPT), ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(HALF_FE_OVERFLOW|HALF_FE_UNDERFLOW|HALF_FE_INEXACT));
+//			if(eh != ed)
+//				std::cerr << std::hex << h2b(x) << ", " << h2b(y) << " = " << eh << " vs " << ed << std::dec << '\n';
+			return equal && eh == ed;
+		#else
+			return fn(x, y);
+		#endif
+		});
+	}
+
+	template<typename F> bool ternary_except_test(const std::string &name, F &&fn)
+	{
+		return ternary_test(name, [&](half x, half y, half z) -> bool {
+		#if HALF_ENABLE_CPP11_CFENV && CHECK_EXCEPT
+			half_float::feclearexcept(CHECK_EXCEPT);
+			std::feclearexcept(CHECK_EXCEPT);
+			bool equal = fn(x, y, z);
+			int eh = half_float::fetestexcept(CHECK_EXCEPT), ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(HALF_FE_OVERFLOW|HALF_FE_UNDERFLOW|HALF_FE_INEXACT));
+			return equal && eh == ed;
+		#else
+			return fn(x, y, z);
+		#endif
+		});
+	}
+
+	template<typename FH,typename FD> bool unary_double_test(const std::string &name, FH &&fh, FD &&fd)
+	{
+		return unary_test(name, [&](half arg) -> bool {
+		#if HALF_ENABLE_CPP11_CFENV && CHECK_EXCEPT
+			half_float::feclearexcept(CHECK_EXCEPT);
+			half a = fh(arg);
+			int eh = half_float::fetestexcept(CHECK_EXCEPT);
+			std::feclearexcept(CHECK_EXCEPT);
+			half b = half_cast<half>(fd(half_cast<double>(arg)));
+			int ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(HALF_FE_OVERFLOW|HALF_FE_UNDERFLOW|HALF_FE_INEXACT));
+			if(eh != ed)
+				std::cerr << std::hex << h2b(arg) << " = " << eh << " vs " << ed << std::dec << '\n';
+			return comp(a, b) && eh == ed;
+		#else
+			return comp(fh(arg), half_cast<half>(fd(half_cast<double>(arg))));
+		#endif
+		});
+	}
+
+	template<typename FH, typename FD> bool binary_double_test(const std::string &name, FH &&fh, FD &&fd)
+	{
+		return binary_test(name, [&](half x, half y) -> bool {
+		#if HALF_ENABLE_CPP11_CFENV && CHECK_EXCEPT
+			half_float::feclearexcept(CHECK_EXCEPT);
+			half a = fh(x, y);
+			int eh = half_float::fetestexcept(CHECK_EXCEPT);
+			std::feclearexcept(CHECK_EXCEPT);
+			half b = half_cast<half>(fd(half_cast<double>(x), half_cast<double>(y)));
+			int ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(HALF_FE_OVERFLOW|HALF_FE_UNDERFLOW|HALF_FE_INEXACT));
+//			if(eh != ed)
+//				std::cerr << std::hex << h2b(x) << ", " << h2b(y) << " = " << eh << " vs " << ed << std::dec << '\n';
+			return comp(a, b) && eh == ed;
+		#else
+			return comp(fh(x, y), half_cast<half>(fd(half_cast<double>(x), half_cast<double>(y))));
+		#endif
+		});
+	}
+
+	template<typename FH, typename FD> bool ternary_double_test(const std::string &name, FH &&fh, FD &&fd)
+	{
+		return ternary_test(name, [&](half x, half y, half z) -> bool {
+		#if HALF_ENABLE_CPP11_CFENV && CHECK_EXCEPT
+			half_float::feclearexcept(CHECK_EXCEPT);
+			half a = fh(x, y, z);
+			int eh = half_float::fetestexcept(CHECK_EXCEPT);
+			std::feclearexcept(CHECK_EXCEPT);
+			half b = half_cast<half>(fd(half_cast<double>(x), half_cast<double>(y), half_cast<double>(z)));
+			int ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(HALF_FE_OVERFLOW|HALF_FE_UNDERFLOW|HALF_FE_INEXACT));
+//			if(eh != ed)
+//				std::cerr << std::hex << h2b(x) << ", " << h2b(y) << ", " << h2b(z) << " = " << eh << " vs " << ed << std::dec << '\n';
+			return comp(a, b) && eh == ed;
+		#else
+			return comp(fh(x, y, z), half_cast<half>(fd(half_cast<double>(x), half_cast<double>(y), half_cast<double>(z))));
+		#endif
+		});
+	}
+
+	template<typename F> bool unary_reference_test(const std::string &name, F &&fn)
+	{
+		std::ifstream in("reference/"+name, std::ios_base::in|std::ios_base::binary);
+		if(!in)
+			throw std::runtime_error("cannot open reference file for "+name);
+		double err = 0.0, rel = 0.0; int bin = 0;
+		std::vector<results> reference(0x10000);
+		for(auto &ref : reference)
+			ref.read(in);
+		bool success = unary_test(name, [&](half arg) -> bool {
+			auto ref = reference[h2b(arg)];
+			half_float::feclearexcept(CHECK_EXCEPT);
+			half a = fn(arg), b = ref.value();
+			int ea = half_float::fetestexcept(CHECK_EXCEPT), eb = ref.except(CHECK_EXCEPT);
+			bool equal = comp(a, b);
+			if(!equal)
+			{
+				double error = std::abs(static_cast<double>(a)-static_cast<double>(b));
+//				if(std::abs(h2b(a)-h2b(b)) > 1)
+//				if(std::isinf(error/std::abs(b)))
+//				std::cerr << std::hex << arg << '(' << h2b(arg) << ") = " << a << '(' << h2b(a) << "), " << b << '(' << h2b(b) << ") -> " << error << '\n' << std::dec;
+				err = std::max(err, error); rel = std::max(rel, error/std::abs(b)); bin = std::max(bin, std::abs(h2b(a)-h2b(b)));
+			}
+			if(ea != eb)
+			{
+//				std::cerr << std::hex << arg << '(' << h2b(arg) << ") = " << a << '(' << h2b(a) << "), " << b << '(' << h2b(b) << ") @ " << ea << " vs " << eb << " -> " << (ea^eb) << '\n' << std::dec;
+			}
+			return equal && ea == eb;
+		});
+		if(err != 0.0 || rel != 0.0)
+			std::cout << name << " max error: " << err << ", max relative error: " << rel << ", max ulp error: " << /*ilog2*/(bin) << '\n';
+		return success;
+	}
+
+	template<typename F> bool binary_reference_test(const std::string &name, F &&fn)
+	{
+		std::ifstream in("reference/"+name, std::ios_base::in|std::ios_base::binary|std::ios_base::ate);
+		if(!in)
+			throw std::runtime_error("cannot open reference file for "+name);
+		unsigned int passed = 0, count = in.tellg() / 7;
+		in.seekg(0, std::ios_base::beg);
+		in.clear();
+		double err = 0.0, rel = 0.0; int bin = 0;
+		bool success = simple_test(name, [&]() -> bool {
+			for(unsigned int i=0; i<count; ++i)
+			{
+				half x, y;
+				results ref;
+				in.read(reinterpret_cast<char*>(&x), sizeof(x));
+				in.read(reinterpret_cast<char*>(&y), sizeof(y));
+				ref.read(in);
+				half a = fn(x, y), b = ref.value();
+				bool equal = comp(a, b);
+				if(!equal)
+				{
+					double error = std::abs(static_cast<double>(a)-static_cast<double>(b));
+//					if(std::abs(h2b(a)-h2b(b)) > 1)
+//					std::cerr << x << ", " << y << " = " << a << '(' << std::hex << h2b(a) << "), " << b << '(' << h2b(b) << ") -> " << error << '\n' << std::dec;
+					err = std::max(err, error); rel = std::max(rel, error/std::abs(b)); bin = std::max(bin, std::abs(h2b(a)-h2b(b)));
+				}
+				passed += equal;
+			}
+			if(csv_)
+				*csv_ << name << ";" << (count-passed) << '\n';
+			return passed == count;
+		});
+		if(passed != count)
+			std::cout << name << ": " << (count-passed) << " of " << count << " failed\n";
+		if(err != 0.0 || rel != 0.0)
+			std::cout << name << " max error: " << err << ", max relative error: " << rel << ", max ulp error: " << /*ilog2*/(bin) << '\n';
+		return success;
+	}
+
+	template<typename F> bool ternary_reference_test(const std::string &name, F &&fn)
+	{
+		struct record { half x, y, z; std::pair<half,half> result; };
+		std::ifstream in("reference/"+name, std::ios_base::in|std::ios_base::binary|std::ios_base::ate);
+		if(!in)
+			throw std::runtime_error("cannot open reference file for "+name);
+		unsigned int passed = 0, count = in.tellg() / 9;
+		in.seekg(0, std::ios_base::beg);
+		in.clear();
+		double err = 0.0, rel = 0.0; int bin = 0;
+		results ref;
+		bool success = simple_test(name, [&]() -> bool {
+			for(unsigned int i=0; i<count; ++i)
+			{
+				half x, y, z;
+				results ref;
+				in.read(reinterpret_cast<char*>(&x), sizeof(x));
+				in.read(reinterpret_cast<char*>(&y), sizeof(y));
+				in.read(reinterpret_cast<char*>(&z), sizeof(z));
+				ref.read(in);
+				half a = fn(x, y, z), b = ref.value();
+				bool equal = comp(a, b);
+				if(!equal)
+				{
+					double error = std::abs(static_cast<double>(a)-static_cast<double>(b));
+//					std::cerr << x << ", " << y << ", " << z << " = " << a << '(' << std::hex << h2b(a) << "), " << b << '(' << h2b(b) << ") -> " << error << '\n' << std::dec;
+					err = std::max(err, error); rel = std::max(rel, error/std::abs(b)); bin = std::max(bin, std::abs(h2b(a)-h2b(b)));
+				}
+				passed += equal;
+			}
+			if(csv_)
+				*csv_ << name << ";" << (count-passed) << '\n';
+			return passed == count;
+		});
+		if(passed != count)
+			std::cout << name << ": " << (count-passed) << " of " << count << " failed\n";
+		if(err != 0.0 || rel != 0.0)
+			std::cout << name << " max error: " << err << ", max relative error: " << rel << ", max ulp error: " << /*ilog2*/(bin) << '\n';
+		return success;
+	}
+
 	template<typename F> bool float_test(const std::string &name, F &&test)
 	{
 		auto rand32 = std::bind(std::uniform_int_distribution<std::uint32_t>(0, std::numeric_limits<std::uint32_t>::max()), std::default_random_engine());
@@ -771,108 +1013,6 @@ private:
 		}
 		++tests_;
 		return passed;
-	}
-
-	template<typename F> bool unary_reference_test(const std::string &name, F &&fn)
-	{
-		std::vector<std::pair<half,half>> reference(std::numeric_limits<std::uint16_t>::max()+1);
-		std::ifstream in("reference/"+name, std::ios_base::in|std::ios_base::binary);
-		if(!in)
-			throw std::runtime_error("cannot open reference file for "+name);
-		in.read(reinterpret_cast<char*>(reference.data()), reference.size()*sizeof(reference.front()));
-		double err = 0.0, rel = 0.0; int bin = 0;
-		bool success = unary_test(name, [&,this](half arg) -> bool {
-			auto ref = reference[h2b(arg)];
-			half a = fn(arg), b = select<std::numeric_limits<half>::round_style>(ref);
-			bool equal = (rough_||std::numeric_limits<half>::round_style==std::round_indeterminate) ? (comp(a, ref.first) || comp(a, ref.second)) : comp(a, b);
-			if(!equal)
-			{
-				double error = std::abs(static_cast<double>(a)-static_cast<double>(b));
-//				if(std::abs(h2b(a)-h2b(b)) > 1)
-//				if(std::isinf(error/std::abs(b)))
-//				std::cerr << arg << '(' << std::hex << h2b(arg) << ") = " << a << '(' << std::hex << h2b(a) << "), " << b << '(' << h2b(b) << ") -> " << error << '\n' << std::dec;
-				err = std::max(err, error); rel = std::max(rel, error/std::abs(b)); bin = std::max(bin, std::abs(h2b(a)-h2b(b)));
-			}
-			return equal;
-		});
-		if(err != 0.0 || rel != 0.0)
-			std::cout << name << " max error: " << err << ", max relative error: " << rel << ", max ulp error: " << /*ilog2*/(bin) << '\n';
-		return success;
-	}
-
-	template<typename F> bool binary_reference_test(const std::string &name, F &&fn)
-	{
-		struct record { half x, y; std::pair<half,half> result; };
-		std::ifstream in("reference/"+name, std::ios_base::in|std::ios_base::binary|std::ios_base::ate);
-		if(!in)
-			throw std::runtime_error("cannot open reference file for "+name);
-		unsigned int passed = 0, count = in.tellg() / sizeof(record);
-		std::vector<record> reference(count);
-		in.seekg(0, std::ios_base::beg);
-		in.clear();
-		in.read(reinterpret_cast<char*>(reference.data()), reference.size()*sizeof(reference.front()));
-		double err = 0.0, rel = 0.0; int bin = 0;
-		bool success = simple_test(name, [&,this]() -> bool {
-			for(unsigned int i=0; i<count; ++i)
-			{
-				auto ref = reference[i];
-				half x = ref.x, y = ref.y, a = fn(x, y), b = select<std::numeric_limits<half>::round_style>(ref.result);
-				bool equal = (rough_||std::numeric_limits<half>::round_style==std::round_indeterminate) ? (comp(a, ref.result.first) || comp(a, ref.result.second)) : comp(a, b);
-				if(!equal)
-				{
-					double error = std::abs(static_cast<double>(a)-static_cast<double>(b));
-//					if(std::abs(h2b(a)-h2b(b)) > 1)
-//					std::cerr << x << ", " << y << " = " << a << '(' << std::hex << h2b(a) << "), " << b << '(' << h2b(b) << ") -> " << error << '\n' << std::dec;
-					err = std::max(err, error); rel = std::max(rel, error/std::abs(b)); bin = std::max(bin, std::abs(h2b(a)-h2b(b)));
-				}
-				passed += equal;
-			}
-			if(csv_)
-				*csv_ << name << ";" << (count-passed) << '\n';
-			return passed == count;
-		});
-		if(passed != count)
-			std::cout << name << ": " << (count-passed) << " of " << count << " failed\n";
-		if(err != 0.0 || rel != 0.0)
-			std::cout << name << " max error: " << err << ", max relative error: " << rel << ", max ulp error: " << /*ilog2*/(bin) << '\n';
-		return success;
-	}
-
-	template<typename F> bool ternary_reference_test(const std::string &name, F &&fn)
-	{
-		struct record { half x, y, z; std::pair<half,half> result; };
-		std::ifstream in("reference/"+name, std::ios_base::in|std::ios_base::binary|std::ios_base::ate);
-		if(!in)
-			throw std::runtime_error("cannot open reference file for "+name);
-		unsigned int passed = 0, count = in.tellg() / sizeof(record);
-		std::vector<record> reference(count);
-		in.seekg(0, std::ios_base::beg);
-		in.clear();
-		in.read(reinterpret_cast<char*>(reference.data()), reference.size()*sizeof(reference.front()));
-		double err = 0.0, rel = 0.0; int bin = 0;
-		bool success = simple_test(name, [&, this]() -> bool {
-			for(unsigned int i=0; i<count; ++i)
-			{
-				auto ref = reference[i];
-				half x = ref.x, y = ref.y, z = ref.z, a = fn(x, y, z), b = select<std::numeric_limits<half>::round_style>(ref.result);
-				bool equal = (rough_||std::numeric_limits<half>::round_style==std::round_indeterminate) ? (comp(a, ref.result.first) || comp(a, ref.result.second)) : comp(a, b);
-				if(!equal)
-				{
-					double error = std::abs(static_cast<double>(a)-static_cast<double>(b));
-//					std::cerr << x << ", " << y << ", " << z << " = " << a << '(' << std::hex << h2b(a) << "), " << b << '(' << h2b(b) << ") -> " << error << '\n' << std::dec;
-					err = std::max(err, error); rel = std::max(rel, error/std::abs(b)); bin = std::max(bin, std::abs(h2b(a)-h2b(b)));
-				}
-				passed += equal;
-			}
-			if(csv_)
-				*csv_ << name << ";" << (count-passed) << '\n';
-			return passed == count;
-		});
-		if(passed != count)
-			std::cout << name << ": " << (count-passed) << " of " << count << " failed\n";
-		if(err != 0.0 || rel != 0.0)
-			std::cout << name << " max error: " << err << ", max relative error: " << rel << ", max ulp error: " << /*ilog2*/(bin) << '\n';
-		return success;
 	}
 
 	test_map halfs_;

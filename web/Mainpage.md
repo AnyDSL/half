@@ -1,16 +1,21 @@
-# Half-precision floating point library						{#mainpage}
+# Half-precision floating-point library						{#mainpage}
 
-This is a C++ header-only library to provide an [IEEE 754](http://en.wikipedia.org/wiki/IEEE_754-2008) conformant 16-bit [half-precision](http://en.wikipedia.org/wiki/Half_precision_floating-point_format) floating point type along with corresponding arithmetic operators, type conversions and common mathematical functions. It aims for both efficiency and ease of use, trying to accurately mimic the behaviour of the built-in floating point types at the best performance possible. It is hosted on [SourceForge.net](http://sourceforge.net/projects/half/).
+This is a C++ header-only library to provide an [IEEE 754](http://en.wikipedia.org/wiki/IEEE_754-2008) conformant 16-bit [half-precision](http://en.wikipedia.org/wiki/Half_precision_floating-point_format) floating-point type along with corresponding arithmetic operators, type conversions and common mathematical functions. It aims for both efficiency and ease of use, trying to accurately mimic the behaviour of the built-in floating-point types at the best performance possible. It is hosted on [SourceForge.net](http://sourceforge.net/projects/half/).
 
 [TOC]
 
 
 # News														{#new}
 
-July 23, 2019 - Release 2.0.0
-------------------------------
+XXX X, 2019 - Release 2.1.0: IEEE-conformant exception handling
+---------------------------------------------------------------
 
-[Version 2.0.0](https://sourceforge.net/projects/half/files/half/2.0.0) of the library has been released. It marks a major change in its internal implementation by implementing all operators and mathematical functions directly in half-precision without employing the built-in single- or double-precision implementation and without keeping temporary results as part of lenghtier statements in single-precision. This makes for a much cleaner implementation giving more reliable and IEEE-conformant computation results. Furthermore, and this marks a slight deviation from the previous interface, the default rounding mode has been changed to rounding to nearest, but is of course still configurable at compile-time. What isn't configurable anymore is the tie-breaking behaviour, which now always rounds ties to even as any proper floating point implementation does. In addition to these major cleanups there are a few new features. The `constexpr` support has been extended, primarily to comparisons, classifications and simple sign management functions (however, there are still no constant expression literals yet). The conversion functions can be accelerated by [F16C instructions](https://en.wikipedia.org/wiki/F16C) if supported. The C++11 feature detection has also been extended to Intel compilers (which hasn't been tested yet, though, so feedback is welcome).
+[Version 2.1.0](https://sourceforge.net/projects/half/files/half/2.1.0) of the library has been released. It adds proper detection of IEEE floating-point exceptions to all required operators and functions. In addition to this it also adds support for managing the exception flags and various means for additional processing of floating-point exceptions, like propagating them to the built-in floating-point platform or throwing C++ exceptions. For performance reasons all exception detection and handling is disabled by default and has to be enabled explicitly, though.
+
+July 23, 2019 - Release 2.0.0: Clean half-precision computations
+----------------------------------------------------------------
+
+[Version 2.0.0](https://sourceforge.net/projects/half/files/half/2.0.0) of the library has been released. It marks a major change in its internal implementation by implementing all operators and mathematical functions directly in half-precision without employing the built-in single- or double-precision implementation and without keeping temporary results as part of lenghtier statements in single-precision. This makes for a much cleaner implementation giving more reliable and IEEE-conformant computation results. Furthermore, and this marks a slight deviation from the previous interface, the default rounding mode has been changed to rounding to nearest, but is of course still configurable at compile-time. What isn't configurable anymore is the tie-breaking behaviour, which now always rounds ties to even as any proper floating-point implementation does. In addition to these major cleanups there are a few new features. The `constexpr` support has been extended, primarily to comparisons, classifications and simple sign management functions (however, there are still no constant expression literals yet). The conversion functions can be accelerated by [F16C instructions](https://en.wikipedia.org/wiki/F16C) if supported. The C++11 feature detection has also been extended to Intel compilers (which hasn't been tested yet, though, so feedback is welcome).
 
 [more](news.html)
 
@@ -28,17 +33,19 @@ Conveniently, the library consists of just a single header file containing all t
 
 Whereas this library is fully C++98-compatible, it can profit from certain C++11 features. Support for those features is checked and enabled automatically at compile (or rather preprocessing) time, but can be explicitly enabled or disabled by defining the corresponding preprocessor symbols to either 1 or 0 yourself. This is useful when the automatic detection fails (for more exotic implementations) or when a feature should be explicitly disabled:
 
-C++11 feature                        | used for                           | enabled for (and newer)                         | override with
--------------------------------------|------------------------------------|-------------------------------------------------|----------------------------------
-`long long` integer type             | functions returning `long long`    | *VC++ 2003*, *gcc*, *clang*, *icc 11.1*         | `HALF_ENABLE_CPP11_LONG_LONG`
-static assertions                    | extended compile-time checks       | *VC++ 2010*, *gcc 4.3*, *clang 2.9*, *icc 11.1* | `HALF_ENABLE_CPP11_STATIC_ASSERT`
-generalized constant expressions     | constant operations                | *VC++ 2015*, *gcc 4.6*, *clang 3.1*, *icc 14.0* | `HALF_ENABLE_CPP11_CONSTEXPR`
-`noexcept` specifications            | proper `noexcept` functions        | *VC++ 2015*, *gcc 4.6*, *clang 3.0*, *icc 14.0* | `HALF_ENABLE_CPP11_NOEXCEPT`
-user-defined literals                | half-precision literals            | *VC++ 2015*, *gcc 4.7*, *clang 3.1*, *icc 15.0* | `HALF_ENABLE_CPP11_USER_LITERALS`
-type traits from `<type_traits>`     | TMP and extended checks            | *VC++ 2010*, *libstdc++ 4.3*, <i>libc++</i>     | `HALF_ENABLE_CPP11_TYPE_TRAITS`
-sized integer types from `<cstdint>` | more flexible type sizes           | *VC++ 2010*, *libstdc++ 4.3*, <i>libc++</i>     | `HALF_ENABLE_CPP11_CSTDINT`
-certain new `<cmath>` functions      | classifications during conversions | *VC++ 2013*, *libstdc++ 4.3*, <i>libc++</i>     | `HALF_ENABLE_CPP11_CMATH`
-`std::hash` from `<functional>`      | hash function for halfs            | *VC++ 2010*, *libstdc++ 4.3*, <i>libc++</i>     | `HALF_ENABLE_CPP11_HASH`
+C++11 feature                         | used for                             | enabled for (and newer)                         | override with
+--------------------------------------|--------------------------------------|-------------------------------------------------|----------------------------------
+`long long` integer type              | functions returning `long long`      | *VC++ 2003*, *gcc*, *clang*, *icc 11.1*         | `HALF_ENABLE_CPP11_LONG_LONG`
+static assertions                     | extended compile-time checks         | *VC++ 2010*, *gcc 4.3*, *clang 2.9*, *icc 11.1* | `HALF_ENABLE_CPP11_STATIC_ASSERT`
+generalized constant expressions      | constant operations                  | *VC++ 2015*, *gcc 4.6*, *clang 3.1*, *icc 14.0* | `HALF_ENABLE_CPP11_CONSTEXPR`
+`noexcept` specifications             | proper `noexcept` functions          | *VC++ 2015*, *gcc 4.6*, *clang 3.0*, *icc 14.0* | `HALF_ENABLE_CPP11_NOEXCEPT`
+user-defined literals                 | half-precision literals              | *VC++ 2015*, *gcc 4.7*, *clang 3.1*, *icc 15.0* | `HALF_ENABLE_CPP11_USER_LITERALS`
+thread-local storage                  | thread-local exception flags         | *VC++ 2015*, *gcc 4.8*, *clang 3.3*, *icc 15.0* | `HALF_ENABLE_CPP11_THREAD_LOCAL`
+type traits from `<type_traits>`      | TMP and extended checks              | *VC++ 2010*, *libstdc++ 4.3*, <i>libc++</i>     | `HALF_ENABLE_CPP11_TYPE_TRAITS`
+sized integer types from `<cstdint>`  | more flexible type sizes             | *VC++ 2010*, *libstdc++ 4.3*, <i>libc++</i>     | `HALF_ENABLE_CPP11_CSTDINT`
+certain new `<cmath>` functions       | classifications during conversions   | *VC++ 2013*, *libstdc++ 4.3*, <i>libc++</i>     | `HALF_ENABLE_CPP11_CMATH`
+floating-point control from `<cfenv>` | floating-point exception propagation | *VC++ 2013*, *libstdc++ 4.3*, <i>libc++</i>     | `HALF_ENABLE_CPP11_CFENV`
+`std::hash` from `<functional>`       | hash function for halfs              | *VC++ 2010*, *libstdc++ 4.3*, <i>libc++</i>     | `HALF_ENABLE_CPP11_HASH`
 
 The library has been tested successfully with *Visual C++ 2005* - *2015*, *gcc 4* - *8* and *clang 3* - *8* on 32- and 64-bit x86 systems. Please [contact me](#contact) if you have any problems, suggestions or even just success testing it on other platforms.
 
@@ -50,7 +57,7 @@ What follows are some general words about the usage of the library and its imple
 
 ## Basic usage												{#usage}
 
-To make use of the library just include its only header file half.hpp, which defines all half-precision functionality inside the half_float namespace. The actual 16-bit half-precision data type is represented by the [half](\ref half_float::half) type. This type behaves like the builtin floating point types as much as possible, supporting the usual arithmetic, comparison and streaming operators, which makes its use pretty straight-forward:
+To make use of the library just include its only header file half.hpp, which defines all half-precision functionality inside the half_float namespace. The actual 16-bit half-precision data type is represented by the [half](\ref half_float::half) type, which uses the standard IEEE representation with 1 sign bit, 5 exponent bits and 11 mantissa bits (including the hidden bit) and supports all types of special values, like subnormal values, infinity and NaNs. This type behaves like the builtin floating-point types as much as possible, supporting the usual arithmetic, comparison and streaming operators, which makes its use pretty straight-forward:
 
 ~~~~{.cpp}
 using half_float::half;
@@ -107,21 +114,42 @@ assert( half_cast<half,std::round_toward_infinity>( std::numeric_limits<double>:
 
 ## Accuracy and Performance									{#implementation}
 
-From version 2.0 onward the library is implemented without employing the underlying floating point implementation of the system (except for conversions, of course), providing an entirely self-contained half-precision implementation with results independent from the system's existing single- or double-precision implementation and its rounding behaviour.
+From version 2.0 onward the library is implemented without employing the underlying floating-point implementation of the system (except for conversions, of course), providing an entirely self-contained half-precision implementation with results independent from the system's existing single- or double-precision implementation and its rounding behaviour.
 
 As to accuracy, many of the operators and functions provided by this library are exact to rounding for all [rounding modes](\ref HALF_ROUND_STYLE), i.e. the error to the exact result is at most 0.5 ULP (unit in the last place) for rounding to nearest and less than 1 ULP for all other rounding modes. This holds for all the operations required by the IEEE 754 standard and many more. Specifically, the following functions might exhibit a deviation from the correctly rounded result by 1 ULP for a select few input values: expm1(), log1p(), pow(), [atan2()](\ref half_float::atan2), [erf()](\ref half_float::erf), erfc(), lgamma(), tgamma() (for more details see the documentation of the individual functions). All other functions and operators are always exact to rounding or independent of the rounding mode altogether.
 
 The increased IEEE-conformance and cleanliness of this implementation comes with a certain performance cost compared to doing computations and mathematical functions in hardware-accelerated single-precision. On average and depending on the platform, the arithemtic operators are about 75% as fast and the mathematical functions about 50% as fast as performing the corresponding operations in single-precision and converting between the inputs and outputs. However, directly computing with half-precision values is a rather rare use-case and usually using actual `float` values for all computations and temproraries and using [half](\ref half_float::half)s only for storage is the recommended way. But nevertheless the goal of this library was to provide a complete and conceptually clean IEEE-confromant half-precision implementation and in the few cases when you do need to compute directly in half-precision you do so for a reason and want accurate results.
 
-If necessary, this internal implementation can be overridden by defining the [HALF_ARITHMETIC_TYPE](\ref HALF_ARITHMETIC_TYPE) preprocessor symbol (before including half.hpp) to one of the built-in floating point types (`float`, `double` or `long double`), which will cause the library to use this type for computing arithmetic operations and mathematical functions (if available). However, due to using the platform's floating point implementation (and its rounding behaviour) internally, this might cause results to deviate from the specified half-precision rounding mode.
+If necessary, this internal implementation can be overridden by defining the [HALF_ARITHMETIC_TYPE](\ref HALF_ARITHMETIC_TYPE) preprocessor symbol (before including half.hpp) to one of the built-in floating-point types (`float`, `double` or `long double`), which will cause the library to use this type for computing arithmetic operations and mathematical functions (if available). However, due to using the platform's floating-point implementation (and its rounding behaviour) internally, this might cause results to deviate from the specified half-precision rounding mode. It will of course also inhibit any of the automatic exception handling facilities described below.
 
 The conversion operations between half-precision and single-precision types can also make use of the [F16C extension](https://en.wikipedia.org/wiki/F16C) for x86 processors by using the corresponding compiler intrinsics from `<immintrin.h>`. Support for this is checked at compile-time by looking for the `__F16C__` macro which at least *gcc* and *clang* define based on the target platform. It can also be enabled manually by defining the [HALF_ENABLE_F16C_INTRINSICS](\ref HALF_ENABLE_F16C_INTRINSICS) preprocessor symbol to 1 (before including half.hpp), or 0 for explicitly disabling it. However, this will directly use the corresponding intrinsics for conversion without checking if they are available at runtime (possibly crashing if they are not), so make sure they are supported on the target platform before enabling this.
 
-## IEEE conformance											{#ieee}
+## Exception Handling										{#exceptions}
 
-The [half](\ref half_float::half) type uses the standard IEEE representation with 1 sign bit, 5 exponent bits and 10 mantissa bits (11 when counting the hidden bit). It supports all types of special values, like subnormal values, infinity and NaNs, as well as all required operators and functions. But there are some limitations to the complete conformance to the IEEE 754 standard, specifically in the area of floating point exceptions and signaling NaNs. The library does not differentiate between signalling and quiet NaNs, this means operations on [half](\ref half_float::half)s are not specified to trap on signalling NaNs. The library also does not provide any floating point exceptions, thus arithmetic operations or mathematical functions are not specified to invoke proper floating point exceptions.
+The half-precision implementation supports all 5 required floating-point exceptions from the IEEE standard to indicate erroneous inputs or inexact results during operations. These are represented by exception flags which actually use the same values as the corresponding [flags defined in C++11's `<cfenv>` header](https://en.cppreference.com/w/cpp/numeric/fenv/FE_exceptions) if supported, specifically:
 
-Some of those points could have been circumvented by controlling the floating point environment using `<cfenv>` or implementing a similar exception mechanism. But this would have required excessive runtime checks giving two high an impact on performance for something that is rarely ever needed, so it was reserved for possible future versions. If you really need to rely on proper floating point exceptions, it is recommended to explicitly perform computations using the built-in floating point types to be on the safe side.
+flag                                          | meaning                                           | C++ equivalent
+----------------------------------------------|---------------------------------------------------|---------------
+[HALF_FE_INVALID](\ref HALF_FE_INVALID)       | domain error: invalid input for operation         | `FE_INEXACT`
+[HALF_FE_DIVBYZERO](\ref HALF_FE_DIVBYZERO)   | pole error: finite input produced infinite result | `FE_DIVBYZERO`
+[HALF_FE_OVERFLOW](\ref HALF_FE_OVERFLOW)     | result too large to represent finitely            | `FE_OVERFLOW`
+[HALF_FE_UNDERFLOW](\ref HALF_FE_UNDERFLOW)   | subnormal or zero result after rounding           | `FE_UNDERFLOW`
+[HALF_FE_INEXACT](\ref HALF_FE_INEXACT)       | result was rounded to be representable            | `FE_INEXACT`
+[HALF_FE_ALL_EXCEPT](\ref HALF_FE_ALL_EXCEPT) | OR of all possible exception flags                | `FE_ALL_EXCEPT`
+
+The internal exception flag state is stored per thread if C++11 thread-local storage is supported, otherwise it will be stored globally and will theoretically *not* be thread-safe (while practically being as thread-safe as a simple integer variable can be). These flags can be managed explicitly using the library's [error handling functions](\ref errors), which again try to mimic the [built-in functions for handling floating-point exceptions](https://en.cppreference.com/w/cpp/numeric/fenv) from `<cfenv>`. You can clear them with feclearexcept() (which is the only way a flag can be cleared), test them with fetestexcept(), explicitly raise errors with feraiseexcept() and save and restore their state using fegetexceptflag() and fesetexceptflag(). You can also throw corresponding C++ exceptions based on the current flag state using fethrowexcept().
+
+However, any automatic exception detection and handling during half-precision operations and functions is **disabled by default**, since it comes with a minor performance overhead due to runtime checks, and reacting to IEEE floating-point exceptions is rarely ever needed in application code. But the library fully supports IEEE-conformant detection of floating-point exceptions and various ways for handling them, which can be enabled by defining the corresponding preprocessor symbols to 1 (before includidng half.hpp). They can be enabled individually or all at once and they will be processed in the order they are listed here:
+
+- [HALF_ERRHANDLING_FLAGS](\ref HALF_ERRHANDLING_FLAGS) sets the internal exception flags described above whenever the corresponding exception occurs.
+- [HALF_ERRHANDLING_ERRNO](\ref HALF_ERRHANDLING_ERRNO) sets the value of [`errno` from `<cerrno>`](https://en.cppreference.com/w/cpp/error/errno) similar to the behaviour of the built-in floating-point types when [MATH_ERRNO](https://en.cppreference.com/w/cpp/numeric/math/math_errhandling) is used.
+- [HALF_ERRHANDLING_FENV](\ref HALF_ERRHANDLING_FENV) will propagate exceptions to the built-in floating-point implementation using [std::feraiseexcept](https://en.cppreference.com/w/cpp/numeric/fenv/feraiseexcept) if support for C++11 floating-point control is enabled.
+- [HALF_ERRHANDLING_THROW_...](\ref HALF_ERRHANDLING_THROW_INVALID) can be defined to a string literal which will be used as description message for a C++ exception that is thrown whenever a `HALF_FE_...` exception occurs, similar to the behaviour of fethrowexcept().
+
+If any of the above error handling is activated, non-quiet operations on half-precision values will also raise a [HALF_FE_INVALID](\ref HALF_FE_INVALID) exception whenever they encounter a signaling NaN value, in addition to transforming the value into a quiet NaN. If error handling is disabled, signaling NaNs will be treated like quiet NaNs (while still getting explicitly quieted if propagated to the result). There can also be additional treatment of overflow and underflow errors after they have been processed as above, which is **enabled by default** unless overridden by defining the corresponding preprocessor symbol to 0 (before includidng half.hpp):
+
+- [HALF_ERRHANDLING_OVERFLOW_TO_INEXACT](\ref HALF_ERRHANDLING_OVERFLOW_TO_INEXACT) will cause overflow errors to also raise a [HALF_FE_INEXACT](\ref HALF_FE_INEXACT) exception.
+- [HALF_ERRHANDLING_UNDERFLOW_TO_INEXACT](\ref HALF_ERRHANDLING_UNDERFLOW_TO_INEXACT) will cause underflow errors to also raise a [HALF_FE_INEXACT](\ref HALF_FE_INEXACT) exception. This will also slightly change the behaviour of the underflow exception, which will *only* be raised if the result is actually inexact due to underflow. If this is disabled, underflow exceptions will be raised for *any* (possibly exact) subnormal result.
 
 
 ---------------------

@@ -1,4 +1,4 @@
-// half - IEEE 754-based half-precision floating point library.
+// half - IEEE 754-based half-precision floating-point library.
 //
 // Copyright (c) 2012-2019 Christian Rau <rauy@users.sourceforge.net>
 //
@@ -14,7 +14,7 @@
 // COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, 
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Version 2.0.0
+// Version 2.1.0
 
 /// \file
 /// Main header file for half precision functionality.
@@ -34,7 +34,7 @@
 	#define HALF_ICC_VERSION 0
 #endif
 
-//check C++11 language features
+// check C++11 language features
 #if defined(__clang__)															//clang
 	#if __has_feature(cxx_static_assert) && !defined(HALF_ENABLE_CPP11_STATIC_ASSERT)
 		#define HALF_ENABLE_CPP11_STATIC_ASSERT 1
@@ -48,10 +48,16 @@
 	#if __has_feature(cxx_user_literals) && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
 		#define HALF_ENABLE_CPP11_USER_LITERALS 1
 	#endif
+	#if __has_feature(cxx_thread_local) && !defined(HALF_ENABLE_CPP11_THREAD_LOCAL)
+		#define HALF_ENABLE_CPP11_THREAD_LOCAL 1
+	#endif
 	#if (defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L) && !defined(HALF_ENABLE_CPP11_LONG_LONG)
 		#define HALF_ENABLE_CPP11_LONG_LONG 1
 	#endif
 #elif HALF_ICC_VERSION && defined(__INTEL_CXX11_MODE__)				//Intel C++
+	#if HALF_ICC_VERSION >= 1500 && !defined(HALF_ENABLE_CPP11_THREAD_LOCAL)
+		#define HALF_ENABLE_CPP11_THREAD_LOCAL 1
+	#endif
 	#if HALF_ICC_VERSION >= 1500 && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
 		#define HALF_ENABLE_CPP11_USER_LITERALS 1
 	#endif
@@ -69,6 +75,9 @@
 	#endif
 #elif defined(__GNUC__)															//gcc
 	#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
+		#if HALF_GCC_VERSION >= 408 && !defined(HALF_ENABLE_CPP11_THREAD_LOCAL)
+			#define HALF_ENABLE_CPP11_THREAD_LOCAL 1
+		#endif
 		#if HALF_GCC_VERSION >= 407 && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
 			#define HALF_ENABLE_CPP11_USER_LITERALS 1
 		#endif
@@ -87,6 +96,9 @@
 	#endif
 	#define HALF_TWOS_COMPLEMENT_INT 1
 #elif defined(_MSC_VER)															//Visual C++
+	#if _MSC_VER >= 1900 && !defined(HALF_ENABLE_CPP11_THREAD_LOCAL)
+		#define HALF_ENABLE_CPP11_THREAD_LOCAL 1
+	#endif
 	#if _MSC_VER >= 1900 && !defined(HALF_ENABLE_CPP11_USER_LITERALS)
 		#define HALF_ENABLE_CPP11_USER_LITERALS 1
 	#endif
@@ -111,7 +123,7 @@
 	#define HALF_ENABLE_F16C_INTRINSICS 1
 #endif
 
-//check C++11 library features
+// check C++11 library features
 #include <utility>
 #if defined(_LIBCPP_VERSION)								//libc++
 	#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103
@@ -126,6 +138,9 @@
 		#endif
 		#ifndef HALF_ENABLE_CPP11_HASH
 			#define HALF_ENABLE_CPP11_HASH 1
+		#endif
+		#ifndef HALF_ENABLE_CPP11_CFENV
+			#define HALF_ENABLE_CPP11_CFENV 1
 		#endif
 	#endif
 #elif defined(__GLIBCXX__)									//libstdc++
@@ -143,6 +158,9 @@
 			#if __GLIBCXX__ >= 20080606 && !defined(HALF_ENABLE_CPP11_HASH)
 				#define HALF_ENABLE_CPP11_HASH 1
 			#endif
+			#if __GLIBCXX__ >= 20080606 && !defined(HALF_ENABLE_CPP11_CFENV)
+				#define HALF_ENABLE_CPP11_CFENV 1
+			#endif
 		#else
 			#if HALF_GCC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_TYPE_TRAITS)
 				#define HALF_ENABLE_CPP11_TYPE_TRAITS 1
@@ -155,6 +173,9 @@
 			#endif
 			#if HALF_GCC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_HASH)
 				#define HALF_ENABLE_CPP11_HASH 1
+			#endif
+			#if HALF_GCC_VERSION >= 403 && !defined(HALF_ENABLE_CPP11_CFENV)
+				#define HALF_ENABLE_CPP11_CFENV 1
 			#endif
 		#endif
 	#endif
@@ -171,20 +192,37 @@
 	#if _CPPLIB_VER >= 610 && !defined(HALF_ENABLE_CPP11_CMATH)
 		#define HALF_ENABLE_CPP11_CMATH 1
 	#endif
+	#if _CPPLIB_VER >= 610 && !defined(HALF_ENABLE_CPP11_CFENV)
+		#define HALF_ENABLE_CPP11_CFENV 1
+	#endif
 #endif
 #undef HALF_GCC_VERSION
 #undef HALF_ICC_VERSION
 
-//support constexpr
-#if HALF_ENABLE_CPP11_CONSTEXPR
-	#define HALF_CONSTEXPR			constexpr
-	#define HALF_CONSTEXPR_CONST	constexpr
-#else
-	#define HALF_CONSTEXPR
-	#define HALF_CONSTEXPR_CONST	const
+// any error throwing C++ exceptions?
+#if defined(HALF_ERRHANDLING_THROW_INVALID) || defined(HALF_ERRHANDLING_THROW_DIVBYZERO) || defined(HALF_ERRHANDLING_THROW_OVERFLOW) || defined(HALF_ERRHANDLING_THROW_UNDERFLOW) || defined(HALF_ERRHANDLING_THROW_INEXACT)
+#define HALF_ERRHANDLING_THROWS 1
 #endif
 
-//support noexcept
+// any error handling enabled?
+#define HALF_ERRHANDLING	((HALF_ERRHANDLING_FLAGS) || (HALF_ERRHANDLING_ERRNO) || (HALF_ERRHANDLING_FENV) || (HALF_ERRHANDLING_THROWS))
+
+// support constexpr
+#if HALF_ENABLE_CPP11_CONSTEXPR
+	#define HALF_CONSTEXPR				constexpr
+	#define HALF_CONSTEXPR_CONST		constexpr
+	#if HALF_ERRHANDLING
+		#define HALF_CONSTEXPR_NOERR
+	#else
+		#define HALF_CONSTEXPR_NOERR	constexpr
+	#endif
+#else
+	#define HALF_CONSTEXPR
+	#define HALF_CONSTEXPR_CONST		const
+	#define HALF_CONSTEXPR_NOERR
+#endif
+
+// support noexcept
 #if HALF_ENABLE_CPP11_NOEXCEPT
 	#define HALF_NOEXCEPT	noexcept
 	#define HALF_NOTHROW	noexcept
@@ -193,11 +231,19 @@
 	#define HALF_NOTHROW	throw()
 #endif
 
+// support thread storage
+#if HALF_ENABLE_CPP11_THREAD_LOCAL
+	#define HALF_THREAD_LOCAL	thread_local
+#else
+	#define HALF_THREAD_LOCAL	static
+#endif
+
 #include <utility>
 #include <algorithm>
 #include <istream>
 #include <ostream>
 #include <limits>
+#include <stdexcept>
 #include <climits>
 #include <cmath>
 #include <cstring>
@@ -208,6 +254,12 @@
 #if HALF_ENABLE_CPP11_CSTDINT
 	#include <cstdint>
 #endif
+#if HALF_ERRHANDLING_ERRNO
+	#include <cerrno>
+#endif
+#if HALF_ENABLE_CPP11_CFENV
+	#include <cfenv>
+#endif
 #if HALF_ENABLE_CPP11_HASH
 	#include <functional>
 #endif
@@ -217,8 +269,8 @@
 
 
 #ifdef HALF_DOXYGEN_ONLY
-/// Type for internal floating point computations.
-/// This can be defined to a built-in floating point type (`float`, `double` or `long double`) to override the internal 
+/// Type for internal floating-point computations.
+/// This can be defined to a built-in floating-point type (`float`, `double` or `long double`) to override the internal 
 /// half-precision implementation to use this type for computing arithmetic operations and mathematical function (if available). 
 /// This might cause results to deviate from the specified half-precision rounding mode but can result in improved performance 
 /// for arithmetic operators and mathematical functions.
@@ -229,6 +281,70 @@
 /// half-precision and single-precision values which may result in improved performance. This will not perform additional checks 
 /// for support of the F16C instruction set, so an appropriate target platform is required when enabling this feature.
 #define HALF_ENABLE_F16C_INTRINSICS (undefined)
+
+/// Enable internal exception flags.
+/// Defining this to 1 causes operations on half-precision values to raise internal floating-point exception flags according to 
+/// the IEEE 754 standard. These can then be cleared and checked with clearexcept(), testexcept().
+///
+/// This is disabled by default since it incurs additional runtime checks that are rarely ever needed.
+#define HALF_ERRHANDLING_FLAGS	0
+
+/// Enable exception propagation to `errno`.
+/// Defining this to 1 causes operations on half-precision values to propagate floating-point exceptions to 
+/// [errno](https://en.cppreference.com/w/cpp/error/errno) from `<cerrno>`. Specifically this will propagate domain errors as 
+/// [EDOM](https://en.cppreference.com/w/cpp/error/errno_macros) and pole, overflow and underflow errors as 
+/// [ERANGE](https://en.cppreference.com/w/cpp/error/errno_macros). Inexact errors won't be propagated.
+#define HALF_ERRHANDLING_ERRNO	0
+
+/// Enable exception propagation to built-in floating-point platform.
+/// Defining this to 1 causes operations on half-precision values to propagate floating-point exceptions to the built-in 
+/// single- and double-precision implementation's exception flags using the 
+/// [C++11 floating-point environment control](https://en.cppreference.com/w/cpp/numeric/fenv) from `<cfenv>`. However, this 
+/// does not work in reverse and single- or double-precision exceptions will not raise the corresponding half-precision 
+/// exception flags.
+#define HALF_ERRHANDLING_FENV	0
+
+/// Throw C++ exception on domain errors.
+/// Defining this to a string literal causes operations on half-precision values to throw a 
+/// [std::domain_error](https://en.cppreference.com/w/cpp/error/domain_error) with the specified message on domain errors.
+#define HALF_ERRHANDLING_THROW_INVALID		(undefined)
+
+/// Throw C++ exception on pole errors.
+/// Defining this to a string literal causes operations on half-precision values to throw a 
+/// [std::domain_error](https://en.cppreference.com/w/cpp/error/domain_error) with the specified message on pole errors.
+#define HALF_ERRHANDLING_THROW_DIVBYZERO	(undefined)
+
+/// Throw C++ exception on overflow errors.
+/// Defining this to a string literal causes operations on half-precision values to throw a 
+/// [std::overflow_error](https://en.cppreference.com/w/cpp/error/overflow_error) with the specified message on overflows.
+#define HALF_ERRHANDLING_THROW_OVERFLOW		(undefined)
+
+/// Throw C++ exception on underflow errors.
+/// Defining this to a string literal causes operations on half-precision values to throw a 
+/// [std::underflow_error](https://en.cppreference.com/w/cpp/error/underflow_error) with the specified message on underflows.
+#define HALF_ERRHANDLING_THROW_UNDERFLOW	(undefined)
+
+/// Throw C++ exception on rounding errors.
+/// Defining this to 1 causes operations on half-precision values to throw a 
+/// [std::range_error](https://en.cppreference.com/w/cpp/error/range_error) with the specified message on general rounding errors.
+#define HALF_ERRHANDLING_THROW_INEXACT		(undefined)
+#endif
+
+#ifndef HALF_ERRHANDLING_OVERFLOW_TO_INEXACT
+/// Raise INEXACT exception on overflow.
+/// Defining this to 1 (default) causes overflow errors to automatically raise inexact exceptions in addition.
+/// These will be raised after any possible handling of the underflow exception.
+#define HALF_ERRHANDLING_OVERFLOW_TO_INEXACT	1
+#endif
+
+#ifndef HALF_ERRHANDLING_UNDERFLOW_TO_INEXACT
+/// Raise INEXACT exception on underflow.
+/// Defining this to 1 (default) causes underflow errors to automatically raise inexact exceptions in addition.
+/// These will be raised after any possible handling of the underflow exception.
+///
+/// **Note:** This will actually cause underflow (and the accompanying inexact) exceptions to be raised *only* when the result 
+/// is inexact, while if disabled bare underflow errors will be raised for *any* (possibly exact) subnormal result.
+#define HALF_ERRHANDLING_UNDERFLOW_TO_INEXACT	1
 #endif
 
 /// Default rounding mode.
@@ -236,7 +352,7 @@
 /// (unless using half_cast() and specifying the rounding mode directly) as well as in arithmetic operations and mathematical 
 /// functions. It can be redefined (before including half.hpp) to one of the standard rounding modes using their respective 
 /// constants or the equivalent values of 
-/// [std::float_round_style](http://en.cppreference.com/w/cpp/types/numeric_limits/float_round_style):
+/// [std::float_round_style](https://en.cppreference.com/w/cpp/types/numeric_limits/float_round_style):
 ///
 /// `std::float_round_style`         | value | rounding
 /// ---------------------------------|-------|-------------------------
@@ -247,24 +363,24 @@
 /// `std::round_toward_neg_infinity` | 3     | toward negative infinity
 ///
 /// By default this is set to `1` (`std::round_to_nearest`), which rounds results to the nearest representable value. It can even 
-/// be set to [std::numeric_limits<float>::round_style](http://en.cppreference.com/w/cpp/types/numeric_limits/round_style) to synchronize 
+/// be set to [std::numeric_limits<float>::round_style](https://en.cppreference.com/w/cpp/types/numeric_limits/round_style) to synchronize 
 /// the rounding mode with that of the built-in single-precision implementation (which is likely `std::round_to_nearest`, though).
 #ifndef HALF_ROUND_STYLE
-	#define HALF_ROUND_STYLE	(1)		// = std::round_to_nearest
+	#define HALF_ROUND_STYLE	1		// = std::round_to_nearest
 #endif
 
 /// Value signaling overflow.
 /// In correspondence with `HUGE_VAL[F|L]` from `<cmath>` this symbol expands to a positive value signaling the overflow of an 
 /// operation, in particular it just evaluates to positive infinity.
 ///
-/// **See also:** Documentation for [HUGE_VAL](http://en.cppreference.com/w/cpp/numeric/math/HUGE_VAL)
+/// **See also:** Documentation for [HUGE_VAL](https://en.cppreference.com/w/cpp/numeric/math/HUGE_VAL)
 #define HUGE_VALH	std::numeric_limits<half_float::half>::infinity()
 
 /// Fast half-precision fma function.
 /// This symbol is defined if the fma() function generally executes as fast as, or faster than, a separate 
 /// half-precision multiplication followed by an addition, which is always the case.
 ///
-/// **See also:** Documentation for [FP_FAST_FMA](http://en.cppreference.com/w/cpp/numeric/math/fma)
+/// **See also:** Documentation for [FP_FAST_FMA](https://en.cppreference.com/w/cpp/numeric/math/fma)
 #define FP_FAST_FMAH	1
 
 ///	Half rounding mode.
@@ -296,6 +412,38 @@
 	#define FP_NORMAL		4
 #endif
 
+#if HALF_ENABLE_CPP11_CFENV
+	/// Exception flag for floating-point domain error.
+	/// This is equal to [FE_INVALID](https://en.cppreference.com/w/cpp/numeric/fenv/FE_exceptions) from `<cfenv>` if supported.
+	#define HALF_FE_INVALID		FE_INVALID
+
+	/// Exception flag for floating-point pole error.
+	/// This is equal to [FE_DIVBYZERO](https://en.cppreference.com/w/cpp/numeric/fenv/FE_exceptions) from `<cfenv>` if supported.
+	#define HALF_FE_DIVBYZERO	FE_DIVBYZERO
+
+	/// Exception flag for floating-point overflow error.
+	/// This is equal to [FE_OVERFLOW](https://en.cppreference.com/w/cpp/numeric/fenv/FE_exceptions) from `<cfenv>` if supported.
+	#define HALF_FE_OVERFLOW	FE_OVERFLOW
+
+	/// Exception flag for floating-point underflow error.
+	/// This is equal to [FE_UNDERFLOW](https://en.cppreference.com/w/cpp/numeric/fenv/FE_exceptions) from `<cfenv>` if supported.
+	#define HALF_FE_UNDERFLOW	FE_UNDERFLOW
+
+	/// Exception flag for floating-point rounding error.
+	/// This is equal to [FE_INEXACT](https://en.cppreference.com/w/cpp/numeric/fenv/FE_exceptions) from `<cfenv>` if supported.
+	#define HALF_FE_INEXACT		FE_INEXACT
+#else
+	#define HALF_FE_INVALID		0x10
+	#define HALF_FE_DIVBYZERO	0x08
+	#define HALF_FE_OVERFLOW	0x04
+	#define HALF_FE_UNDERFLOW	0x02
+	#define HALF_FE_INEXACT		0x01
+#endif
+
+/// OR of all floating-point exception flags.
+/// This is a subset of [FE_ALL_EXCEPT](https://en.cppreference.com/w/cpp/numeric/fenv/FE_exceptions) from `<cfenv>` if supported.
+#define HALF_FE_ALL_EXCEPT	((HALF_FE_INVALID)|(HALF_FE_DIVBYZERO)|(HALF_FE_OVERFLOW)|(HALF_FE_UNDERFLOW)|(HALF_FE_INEXACT))
+
 
 /// Main namespace for half precision functionality.
 /// This namespace contains all the functionality provided by the library.
@@ -305,7 +453,7 @@ namespace half_float
 
 #if HALF_ENABLE_CPP11_USER_LITERALS
 	/// Library-defined half-precision literals.
-	/// Import this namespace to enable half-precision floating point literals:
+	/// Import this namespace to enable half-precision floating-point literals:
 	/// ~~~~{.cpp}
 	/// using namespace half_float::literal;
 	/// half_float::half = 4.2_h;
@@ -329,7 +477,7 @@ namespace half_float
 		using std::true_type;
 		using std::false_type;
 
-		/// Type traits for floating point types.
+		/// Type traits for floating-point types.
 		template<typename T> struct is_float : std::is_floating_point<T> {};
 	#else
 		/// Conditional type.
@@ -341,7 +489,7 @@ namespace half_float
 		typedef bool_type<true> true_type;
 		typedef bool_type<false> false_type;
 
-		/// Type traits for floating point types.
+		/// Type traits for floating-point types.
 		template<typename> struct is_float : false_type {};
 		template<typename T> struct is_float<const T> : is_float<T> {};
 		template<typename T> struct is_float<volatile T> : is_float<T> {};
@@ -351,7 +499,7 @@ namespace half_float
 		template<> struct is_float<long double> : true_type {};
 	#endif
 
-		/// Type traits for floating point bits.
+		/// Type traits for floating-point bits.
 		template<typename T> struct bits { typedef unsigned char type; };
 		template<typename T> struct bits<const T> : bits<T> {};
 		template<typename T> struct bits<volatile T> : bits<T> {};
@@ -409,7 +557,7 @@ namespace half_float
 		/// \{
 
 		/// Check for infinity.
-		/// \tparam T argument type (builtin floating point type)
+		/// \tparam T argument type (builtin floating-point type)
 		/// \param arg value to query
 		/// \retval true if infinity
 		/// \retval false else
@@ -425,7 +573,7 @@ namespace half_float
 		}
 
 		/// Check for NaN.
-		/// \tparam T argument type (builtin floating point type)
+		/// \tparam T argument type (builtin floating-point type)
 		/// \param arg value to query
 		/// \retval true if not a number
 		/// \retval false else
@@ -441,7 +589,7 @@ namespace half_float
 		}
 
 		/// Check sign.
-		/// \tparam T argument type (builtin floating point type)
+		/// \tparam T argument type (builtin floating-point type)
 		/// \param arg value to query
 		/// \retval true if signbit set
 		/// \retval false else
@@ -482,6 +630,150 @@ namespace half_float
 		}
 
 		/// \}
+		/// \name Error handling
+		/// \{
+
+		/// Internal exception flags.
+		/// \return reference to global exception flags
+		inline int& errflags() { HALF_THREAD_LOCAL int flags = 0; return flags; }
+
+	#if HALF_ERRHANDLING
+		/// Raise floating-point exception.
+		/// \param flags exceptions to raise
+		/// \param cond condition to raise exceptions for
+		inline void raise(unsigned int flags, bool cond = true)
+		{
+			if(!cond)
+				return;
+		#if HALF_ERRHANDLING_FLAGS
+			errflags() |= static_cast<int>(flags);
+		#endif
+		#if HALF_ERRHANDLING_ERRNO
+			if(flags & HALF_FE_INVALID)
+				errno = EDOM;
+			else if(flags & (HALF_FE_DIVBYZERO|HALF_FE_OVERFLOW|HALF_FE_UNDERFLOW))
+				errno = ERANGE;
+		#endif
+		#if HALF_ERRHANDLING_FENV && HALF_ENABLE_CPP11_CFENV
+			std::feraiseexcept(static_cast<int>(flags));
+		#endif
+		#ifdef HALF_ERRHANDLING_THROW_INVALID
+			if(flags & HALF_FE_INVALID)
+				throw std::domain_error(HALF_ERRHANDLING_THROW_INVALID);
+		#endif
+		#ifdef HALF_ERRHANDLING_THROW_DIVBYZERO
+			if(flags & HALF_FE_DIVBYZERO)
+				throw std::domain_error(HALF_ERRHANDLING_THROW_DIVBYZERO);
+		#endif
+		#ifdef HALF_ERRHANDLING_THROW_OVERFLOW
+			if(flags & HALF_FE_OVERFLOW)
+				throw std::overflow_error(HALF_ERRHANDLING_THROW_OVERFLOW);
+		#endif
+		#ifdef HALF_ERRHANDLING_THROW_UNDERFLOW
+			if(flags & HALF_FE_UNDERFLOW)
+				throw std::underflow_error(HALF_ERRHANDLING_THROW_UNDERFLOW);
+		#endif
+		#ifdef HALF_ERRHANDLING_THROW_INEXACT
+			if(flags & HALF_FE_INEXACT)
+				throw std::range_error(HALF_ERRHANDLING_THROW_INEXACT);
+		#endif
+		#if HALF_ERRHANDLING_UNDERFLOW_TO_INEXACT
+			if((flags & HALF_FE_UNDERFLOW) && !(flags & HALF_FE_INEXACT))
+				raise(HALF_FE_INEXACT);
+		#endif
+		#if HALF_ERRHANDLING_OVERFLOW_TO_INEXACT
+			if((flags & HALF_FE_OVERFLOW) && !(flags & HALF_FE_INEXACT))
+				raise(HALF_FE_INEXACT);
+		#endif
+		}
+	#else
+		/// Raise floating-point exception.
+		inline void raise(unsigned int, bool = true) {}
+	#endif
+
+		/// Signal and silence signaling NaNs.
+		/// \param x first half-precision value to check
+		/// \param y second half-precision value to check
+		/// \return quiet NaN
+		inline HALF_CONSTEXPR_NOERR bool compsignal(unsigned int x, unsigned int y)
+		{
+		#if HALF_ERRHANDLING
+			raise(HALF_FE_INVALID, (x&0x7FFF)>0x7C00 || (y&0x7FFF)>0x7C00);
+		#endif
+			return (x&0x7FFF) > 0x7C00 || (y&0x7FFF) > 0x7C00;
+		}
+
+		/// Signal and silence signaling NaN.
+		/// \param nan half-precision NaN value
+		/// \return quiet NaN
+		inline HALF_CONSTEXPR_NOERR unsigned int signal(unsigned int nan)
+		{
+		#if HALF_ERRHANDLING
+			raise(HALF_FE_INVALID, (nan&0x200)==0);
+		#endif
+			return nan | 0x200;
+		}
+
+		/// Signal and silence signaling NaNs.
+		/// \param x first half-precision value to check
+		/// \param y second half-precision value to check
+		/// \return quiet NaN
+		inline HALF_CONSTEXPR_NOERR unsigned int signal(unsigned int x, unsigned int y)
+		{
+		#if HALF_ERRHANDLING
+			raise(HALF_FE_INVALID, ((x&0x7FFF)>0x7C00 && !(x&0x200)) || ((y&0x7FFF)>0x7C00 && !(y&0x200)));
+		#endif
+			return ((x&0x7FFF)>0x7C00) ? (x|0x200) : (y|0x200);
+		}
+
+		/// Signal and silence signaling NaNs.
+		/// \param x first half-precision value to check
+		/// \param y second half-precision value to check
+		/// \param z third half-precision value to check
+		/// \return quiet NaN
+		inline HALF_CONSTEXPR_NOERR unsigned int signal(unsigned int x, unsigned int y, unsigned int z)
+		{
+		#if HALF_ERRHANDLING
+			raise(HALF_FE_INVALID, ((x&0x7FFF)>0x7C00 && !(x&0x200)) || ((y&0x7FFF)>0x7C00 && !(y&0x200)) || ((z&0x7FFF)>0x7C00 && !(z&0x200)));
+		#endif
+			return ((x&0x7FFF)>0x7C00) ? (x|0x200) : ((y&0x7FFF)>0x7C00) ? (y|0x200) : (z|0x200);
+		}
+
+	#if HALF_ERRHANDLING
+		/// Select value or signaling NaN.
+		/// \param x preferred half-precision value
+		/// \param y ignored half-precision value except for signaling NaN
+		/// \return \a y if signaling NaN, \a x otherwise
+		inline HALF_CONSTEXPR_NOERR unsigned int select(unsigned int x, unsigned int y) { return (((y&0x7FFF)>0x7C00) && !(y&0x200)) ? signal(y) : x; }
+	#else
+		/// Select value or signaling NaN.
+		/// \param x preferred half-precision value
+		/// \return always x
+		inline HALF_CONSTEXPR_NOERR unsigned int select(unsigned int x, unsigned int) { return x; }
+	#endif
+
+		/// Raise domain error and return NaN.
+		/// return quiet NaN
+		inline HALF_CONSTEXPR_NOERR unsigned int invalid()
+		{
+		#if HALF_ERRHANDLING
+			raise(HALF_FE_INVALID);
+		#endif
+			return 0x7FFF;
+		}
+
+		/// Raise pole error and return infinity.
+		/// \param value half-precision value with sign bit only
+		/// \return half-precision infinity with sign of \a value
+		inline HALF_CONSTEXPR_NOERR unsigned int pole(unsigned int value = 0)
+		{
+		#if HALF_ERRHANDLING
+			raise(HALF_FE_DIVBYZERO);
+		#endif
+			return value | 0x7C00;
+		}
+
+		/// \}
 		/// \name Conversion and rounding
 		/// \{
 
@@ -489,8 +781,11 @@ namespace half_float
 		/// \tparam R rounding mode to use
 		/// \param value half-precision value with sign bit only
 		/// \return rounded overflowing half-precision value
-		template<std::float_round_style R> HALF_CONSTEXPR unsigned int overflow(unsigned int value = 0)
+		template<std::float_round_style R> HALF_CONSTEXPR_NOERR unsigned int overflow(unsigned int value = 0)
 		{
+		#if HALF_ERRHANDLING
+			raise(HALF_FE_OVERFLOW);
+		#endif
 			return	(R==std::round_toward_infinity) ? (value+0x7C00-(value>>15)) :
 					(R==std::round_toward_neg_infinity) ? (value+0x7BFF+(value>>15)) :
 					(R==std::round_toward_zero) ? (value|0x7BFF) :
@@ -501,8 +796,11 @@ namespace half_float
 		/// \tparam R rounding mode to use
 		/// \param value half-precision value with sign bit only
 		/// \return rounded underflowing half-precision value
-		template<std::float_round_style R> HALF_CONSTEXPR unsigned int underflow(unsigned int value = 0)
+		template<std::float_round_style R> HALF_CONSTEXPR_NOERR unsigned int underflow(unsigned int value = 0)
 		{
+		#if HALF_ERRHANDLING
+			raise(HALF_FE_UNDERFLOW);
+		#endif
 			return	(R==std::round_toward_infinity) ? (value+1-(value>>15)) :
 					(R==std::round_toward_neg_infinity) ? (value+(value>>15)) :
 					value;
@@ -510,16 +808,30 @@ namespace half_float
 
 		/// Round half-precision number.
 		/// \tparam R rounding mode to use
-		/// \param value half-precision number to round
+		/// \tparam I `true` to always raise INEXACT exception, `false` to raise only for rounded results
+		/// \param value finite half-precision number to round
 		/// \param g guard bit (most significant discarded bit)
 		/// \param s sticky bit (or of all but the most significant discarded bits)
 		/// \return rounded half-precision value
-		template<std::float_round_style R> HALF_CONSTEXPR unsigned int rounded(unsigned int value, int g, int s)
+		template<std::float_round_style R,bool I> HALF_CONSTEXPR_NOERR unsigned int rounded(unsigned int value, int g, int s)
 		{
+		#if HALF_ERRHANDLING
+			value +=	(R==std::round_to_nearest) ? (g&(s|value)) :
+						(R==std::round_toward_infinity) ? (~(value>>15)&(g|s)) :
+						(R==std::round_toward_neg_infinity) ? ((value>>15)&(g|s)) : 0;
+			if((value&0x7C00) == 0x7C00)
+				raise(HALF_FE_OVERFLOW);
+			else if(value & 0x7C00)
+				raise(HALF_FE_INEXACT, I || (g|s)!=0);
+			else
+				raise(HALF_FE_UNDERFLOW, !(HALF_ERRHANDLING_UNDERFLOW_TO_INEXACT) || (g|s)!=0);
+			return value;
+		#else
 			return	(R==std::round_to_nearest) ? (value+(g&(s|value))) :
 					(R==std::round_toward_infinity) ? (value+(~(value>>15)&(g|s))) :
 					(R==std::round_toward_neg_infinity) ? (value+((value>>15)&(g|s))) :
 					value;
+		#endif
 		}
 
 		/// Convert IEEE single-precision to half-precision.
@@ -548,14 +860,16 @@ namespace half_float
 			if(bits >= 0x47800000)
 				return overflow<R>(sign);
 			if(bits >= 0x38800000)
-				return rounded<R>(sign|(((bits>>23)-112)<<10)|((bits>>13)&0x3FF), (bits>>12)&1, (bits&0xFFF)!=0);
+				return rounded<R,false>(sign|(((bits>>23)-112)<<10)|((bits>>13)&0x3FF), (bits>>12)&1, (bits&0xFFF)!=0);
 			if(bits >= 0x33000000)
 			{
 				int i = 125 - (bits>>23);
 				bits = (bits&0x7FFFFF) | 0x800000;
-				return rounded<R>(sign|(bits>>(i+1)), (bits>>i)&1, (bits&((static_cast<uint32>(1)<<i)-1))!=0);
+				return rounded<R,false>(sign|(bits>>(i+1)), (bits>>i)&1, (bits&((static_cast<uint32>(1)<<i)-1))!=0);
 			}
-			return rounded<R>(sign, 0, bits!=0);
+			if(bits != 0)
+				return underflow<R>(sign);
+			return sign;
 		#elif 0
 			static const uint16 base_table[512] = {
 				0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 
@@ -602,66 +916,7 @@ namespace half_float
 			int sexp = bits >> 23, exp = sexp & 0xFF, i = shift_table[exp];
 			bits &= 0x7FFFFF;
 			uint32 m = (bits|((exp!=0)<<23)) & -static_cast<uint32>(exp!=0xFF);
-			return rounded<R>(base_table[sexp]+(bits>>i), (m>>(i-1))&1, (((static_cast<uint32>(1)<<(i-1))-1)&m)!=0);
-		#else
-			static const uint16 base_table[512] = {
-				0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 
-				0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 
-				0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 
-				0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 
-				0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 
-				0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 
-				0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080, 0x0100, 
-				0x0200, 0x0400, 0x0800, 0x0C00, 0x1000, 0x1400, 0x1800, 0x1C00, 0x2000, 0x2400, 0x2800, 0x2C00, 0x3000, 0x3400, 0x3800, 0x3C00, 
-				0x4000, 0x4400, 0x4800, 0x4C00, 0x5000, 0x5400, 0x5800, 0x5C00, 0x6000, 0x6400, 0x6800, 0x6C00, 0x7000, 0x7400, 0x7800, 0x7C00, 
-				0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 
-				0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 
-				0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 
-				0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 
-				0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 
-				0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 
-				0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 0x7C00, 
-				0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 
-				0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 
-				0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 
-				0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 
-				0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 
-				0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 
-				0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8000, 0x8001, 0x8002, 0x8004, 0x8008, 0x8010, 0x8020, 0x8040, 0x8080, 0x8100, 
-				0x8200, 0x8400, 0x8800, 0x8C00, 0x9000, 0x9400, 0x9800, 0x9C00, 0xA000, 0xA400, 0xA800, 0xAC00, 0xB000, 0xB400, 0xB800, 0xBC00, 
-				0xC000, 0xC400, 0xC800, 0xCC00, 0xD000, 0xD400, 0xD800, 0xDC00, 0xE000, 0xE400, 0xE800, 0xEC00, 0xF000, 0xF400, 0xF800, 0xFC00, 
-				0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 
-				0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 
-				0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 
-				0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 
-				0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 
-				0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 
-				0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00, 0xFC00 };
-			static const unsigned char shift_table[512] = {
-				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
-				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
-				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
-				24, 24, 24, 24, 24, 24, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 
-				13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
-				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
-				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
-				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 13, 
-				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
-				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
-				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
-				24, 24, 24, 24, 24, 24, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 
-				13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
-				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
-				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
-				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 13 };
-			int exp = bits >> 23, i = shift_table[exp];
-			bits &= 0x7FFFFF;
-			unsigned int hbits = base_table[exp] + (bits>>i);
-			return hbits + (
-				(R==std::round_to_nearest) ? (((bits>>(i-1))|((exp&0xFF)==102))&(((((static_cast<uint32>(1)<<(i-1))-1)&bits)!=0)|hbits)&((hbits&0x7C00)!=0x7C00)) :
-				(R==std::round_toward_zero) ? -(((hbits&0x7FFF)==0x7C00)&~i) :
-				(R==std::round_toward_infinity) ? (((((bits&((static_cast<uint32>(1)<<i)-1))!=0)|((exp<=102)&(exp!=0)))&(hbits<0x7C00))-((hbits==0xFC00)&(exp!=511))) :
-				(R==std::round_toward_neg_infinity) ? (((((bits&((static_cast<uint32>(1)<<i)-1))!=0)|((exp<=358)&(exp!=256)))&(hbits<0xFC00)&(hbits>>15))-((hbits==0x7C00)&(exp!=255))) : 0);
+			return rounded<R,false>(base_table[sexp]+(bits>>i), (m>>(i-1))&1, (((static_cast<uint32>(1)<<(i-1))-1)&m)!=0);
 		#endif
 		#endif
 		}
@@ -687,20 +942,22 @@ namespace half_float
 			if(hi >= 0x40F00000)
 				return overflow<R>(sign);
 			if(hi >= 0x3F100000)
-				return rounded<R>(sign|(((hi>>20)-1008)<<10)|((hi>>10)&0x3FF), (hi>>9)&1, ((hi&0x1FF)|lo)!=0);
+				return rounded<R,false>(sign|(((hi>>20)-1008)<<10)|((hi>>10)&0x3FF), (hi>>9)&1, ((hi&0x1FF)|lo)!=0);
 			if(hi >= 0x3E600000)
 			{
 				int i = 1018 - (hi>>20);
 				hi = (hi&0xFFFFF) | 0x100000;
-				return rounded<R>(sign|(hi>>(i+1)), (hi>>i)&1, ((hi&((static_cast<uint32>(1)<<i)-1))|lo)!=0);
+				return rounded<R,false>(sign|(hi>>(i+1)), (hi>>i)&1, ((hi&((static_cast<uint32>(1)<<i)-1))|lo)!=0);
 			}
-			return rounded<R>(sign, 0, (hi|lo)!=0);
+			if((hi|lo) != 0)
+				return underflow<R>(sign);
+			return sign;
 		}
 
-		/// Convert non-IEEE floating point to half-precision.
+		/// Convert non-IEEE floating-point to half-precision.
 		/// \tparam R rounding mode to use, `std::round_indeterminate` for fastest rounding
-		/// \tparam T source type (builtin floating point type)
-		/// \param value floating point value
+		/// \tparam T source type (builtin floating-point type)
+		/// \param value floating-point value
 		/// \return binary representation of half-precision value
 		template<std::float_round_style R,typename T> unsigned int float2half_impl(T value, ...)
 		{
@@ -724,20 +981,20 @@ namespace half_float
 			}
 			T ival, frac = std::modf(value, &ival);
 			int m = std::abs(static_cast<int>(ival));
-			return rounded<R>(hbits+(m>>1), m&1, frac!=T());
+			return rounded<R,false>(hbits+(m>>1), m&1, frac!=T());
 		}
 
-		/// Convert floating point to half-precision.
+		/// Convert floating-point to half-precision.
 		/// \tparam R rounding mode to use, `std::round_indeterminate` for fastest rounding
-		/// \tparam T source type (builtin floating point type)
-		/// \param value floating point value
+		/// \tparam T source type (builtin floating-point type)
+		/// \param value floating-point value
 		/// \return binary representation of half-precision value
 		template<std::float_round_style R,typename T> unsigned int float2half(T value)
 		{
 			return float2half_impl<R>(value, bool_type<std::numeric_limits<T>::is_iec559&&sizeof(typename bits<T>::type)==sizeof(T)>());
 		}
 
-		/// Convert integer to half-precision floating point.
+		/// Convert integer to half-precision floating-point.
 		/// \tparam R rounding mode to use, `std::round_indeterminate` for fastest rounding
 		/// \tparam T type to convert (builtin integer type)
 		/// \param value integral value
@@ -755,20 +1012,21 @@ namespace half_float
 			for(; m<0x400; m<<=1,--exp) ;
 			for(; m>0x7FF; m>>=1,++exp) ;
 			bits |= (exp<<10) + m;
-			return (exp>24) ? rounded<R>(bits, (value>>(exp-25))&1, (((1<<(exp-25))-1)&value)!=0) : bits;
+			return (exp>24) ? rounded<R,false>(bits, (value>>(exp-25))&1, (((1<<(exp-25))-1)&value)!=0) : bits;
 		}
 
-		/// Convert fixed point to half-precision floating point.
+		/// Convert fixed point to half-precision floating-point.
 		/// \tparam R rounding mode to use
 		/// \tparam F number of fractional bits (at least 11)
 		/// \tparam S `true` for signed, `false` for unsigned
 		/// \tparam N `true` for additional normalization step, `false` if already normalized to 1.X
+		/// \tparam I `true` to always raise INEXACT exception, `false` to raise only for rounded results
 		/// \param m mantissa in Q1.F fixed point format
 		/// \param exp exponent
 		/// \param value half-precision value with sign bit only
 		/// \param s sticky bit (or of all but the most significant already discarded bits)
 		/// \return value converted to half-precision
-		template<std::float_round_style R,unsigned int F,bool S,bool N> unsigned int fixed2half(uint32 m, int exp = 14, unsigned int value = 0, int s = 0)
+		template<std::float_round_style R,unsigned int F,bool S,bool N,bool I> unsigned int fixed2half(uint32 m, int exp = 14, unsigned int value = 0, int s = 0)
 		{
 			if(S)
 			{
@@ -779,8 +1037,8 @@ namespace half_float
 			if(N)
 				for(; m<(static_cast<uint32>(1)<<F) && exp; m<<=1,--exp) ;
 			else if(exp < 0)
-				return rounded<R>(value|(m>>(F-10-exp)), (m>>(F-11-exp))&1, s|((m&((static_cast<uint32>(1)<<(F-11-exp))-1))!=0));
-			return rounded<R>(value|((exp<<10)+(m>>(F-10))), (m>>(F-11))&1, s|((m&((static_cast<uint32>(1)<<(F-11))-1))!=0));
+				return rounded<R,I>(value|(m>>(F-10-exp)), (m>>(F-11-exp))&1, s|((m&((static_cast<uint32>(1)<<(F-11-exp))-1))!=0));
+			return rounded<R,I>(value|((exp<<10)+(m>>(F-10))), (m>>(F-11))&1, s|((m&((static_cast<uint32>(1)<<(F-11))-1))!=0));
 		}
 
 		/// Convert half-precision to IEEE single-precision.
@@ -972,10 +1230,10 @@ namespace half_float
 		#endif
 		}
 
-		/// Convert half-precision to non-IEEE floating point.
+		/// Convert half-precision to non-IEEE floating-point.
 		/// \tparam T type to convert to (builtin integer type)
 		/// \param value binary representation of half-precision value
-		/// \return floating point value
+		/// \return floating-point value
 		template<typename T> T half2float_impl(unsigned int value, T, ...)
 		{
 			T out;
@@ -991,58 +1249,74 @@ namespace half_float
 			return (value&0x8000) ? -out : out;
 		}
 
-		/// Convert half-precision to floating point.
+		/// Convert half-precision to floating-point.
 		/// \tparam T type to convert to (builtin integer type)
 		/// \param value binary representation of half-precision value
-		/// \return floating point value
+		/// \return floating-point value
 		template<typename T> T half2float(unsigned int value)
 		{
 			return half2float_impl(value, T(), bool_type<std::numeric_limits<T>::is_iec559&&sizeof(typename bits<T>::type)==sizeof(T)>());
 		}
 
-		/// Convert half-precision floating point to integer.
+		/// Convert half-precision floating-point to integer.
 		/// \tparam R rounding mode to use, `std::round_indeterminate` for fastest rounding
 		/// \tparam E `true` for round to even, `false` for round away from zero
+		/// \tparam F `true` to raise INEXACT exception, `false` not to raise it
 		/// \tparam T type to convert to (buitlin integer type with at least 16 bits precision, excluding any implicit sign bits)
 		/// \param value binary representation of half-precision value
 		/// \return integral value
-		template<std::float_round_style R,bool E,typename T> T half2int(unsigned int value)
+		template<std::float_round_style R,bool E,bool F,typename T> T half2int(unsigned int value)
 		{
 			unsigned int abs = value & 0x7FFF;
 			if(abs >= 0x7C00)
+			{
+				raise(HALF_FE_INVALID);
 				return (value&0x8000) ? std::numeric_limits<T>::min() : std::numeric_limits<T>::max();
+			}
 			if(abs < 0x3800)
+			{
+				raise(HALF_FE_INEXACT, F);
 				return	(R==std::round_toward_infinity) ? T(~(value>>15)&(abs!=0)) :
 						(R==std::round_toward_neg_infinity) ? -T(value>0x8000) :
 						T();
+			}
 			unsigned int m = (value&0x3FF) | 0x400;
 			int exp = 25 - (abs>>10);
 			if(exp > 0)
+			{
+				raise(HALF_FE_INEXACT, F && (m&((1<<exp)-1U))!=0);
 				m =	((	(R==std::round_to_nearest) ? ((1<<(exp-1))-(~(m>>exp)&E)) :
 						(R==std::round_toward_infinity) ? (((1<<exp)-1U)&((value>>15)-1)) :
 						(R==std::round_toward_neg_infinity) ? (((1<<exp)-1U)&-(value>>15)) :
 						0) + m) >> exp;
+			}
 			else
 				m <<= -exp;
+//			raise(HALF_FE_INVALID&-static_cast<unsigned>());
 			return (value&0x8000) ? -static_cast<T>(m) : static_cast<T>(m);
 		}
 
 		/// Round half-precision number to nearest integer value.
 		/// \tparam R rounding mode to use, `std::round_indeterminate` for fastest rounding
 		/// \tparam E `true` for round to even, `false` for round away from zero
+		/// \tparam F `true` to raise INEXACT exception, `false` not to raise it
 		/// \param value binary representation of half-precision value
 		/// \return half-precision bits for nearest integral value
-		template<std::float_round_style R,bool E> unsigned int round_half(unsigned int value)
+		template<std::float_round_style R,bool E,bool F> unsigned int round_half(unsigned int value)
 		{
 			unsigned int abs = value & 0x7FFF;
 			if(abs < 0x3C00)
+			{
+				raise(HALF_FE_INEXACT, F);
 				return ((R==std::round_to_nearest) ? (0x3C00&-static_cast<unsigned>(abs>=(0x3800+E))) :
 						(R==std::round_toward_infinity) ? (0x3C00&-(~(value>>15)&(abs!=0))) :
 						(R==std::round_toward_neg_infinity) ? (0x3C00&-static_cast<unsigned>(value>0x8000)) :
 						0) | (value&0x8000);
+			}
 			if(abs >= 0x6400)
-				return value;
+				return (abs>0x7C00) ? signal(value) : value;
 			unsigned int exp = 25 - (abs>>10), mask = (1<<exp) - 1;
+			raise(HALF_FE_INEXACT, F && (value&mask)!=0);
 			return ((	(R==std::round_to_nearest) ? ((1<<(exp-1))-(~(value>>exp)&E)) :
 						(R==std::round_toward_infinity) ? (mask&((value>>15)-1)) :
 						(R==std::round_toward_neg_infinity) ? (mask&-(value>>15)) :
@@ -1214,17 +1488,16 @@ namespace half_float
 				0x00B84E23, 0x005C3E10, 0x002E24CA, 0x001713D6, 0x000B8A47, 0x0005C53B, 0x0002E2A3, 0x00017153,
 				0x0000B8AA, 0x00005C55, 0x00002E2B, 0x00001715, 0x00000B8B, 0x000005C5, 0x000002E3, 0x00000171,
 				0x000000B9, 0x0000005C, 0x0000002E, 0x00000017, 0x0000000C, 0x00000006, 0x00000003, 0x00000001 };
+			if(!m)
+				return 0x80000000;
 			uint32 mx = 0x80000000, my = 0;
-			if(m)
+			for(unsigned int i=1; i<n; ++i)
 			{
-				for(unsigned int i=1; i<n; ++i)
+				uint32 mz = my + logs[i];
+				if(mz <= m)
 				{
-					uint32 mz = my + logs[i];
-					if(mz <= m)
-					{
-						my = mz;
-						mx += mx >> i;
-					}
+					my = mz;
+					mx += mx >> i;
 				}
 			}
 			return mx;
@@ -1242,17 +1515,16 @@ namespace half_float
 				0x00B84E23, 0x005C3E10, 0x002E24CA, 0x001713D6, 0x000B8A47, 0x0005C53B, 0x0002E2A3, 0x00017153,
 				0x0000B8AA, 0x00005C55, 0x00002E2B, 0x00001715, 0x00000B8B, 0x000005C5, 0x000002E3, 0x00000171,
 				0x000000B9, 0x0000005C, 0x0000002E, 0x00000017, 0x0000000C, 0x00000006, 0x00000003, 0x00000001 };
+			if(m == 0x40000000)
+				return 0;
 			uint32 mx = 0x40000000, my = 0;
-			if(m != mx)
+			for(unsigned int i=1; i<n; ++i)
 			{
-				for(unsigned int i=1; i<n; ++i)
+				uint32 mz = mx + (mx>>i);
+				if(mz <= m)
 				{
-					uint32 mz = mx + (mx>>i);
-					if(mz <= m)
-					{
-						mx = mz;
-						my += logs[i];
-					}
+					mx = mz;
+					my += logs[i];
 				}
 			}
 			return my;
@@ -1306,7 +1578,7 @@ namespace half_float
 		}
 
 		/// Reduce argument for trigonometric functions.
-		/// \param abs half-precision floating point value
+		/// \param abs half-precision floating-point value
 		/// \param k value to take quarter period
 		/// \return \a abs reduced to [-pi/4,pi/4] as Q0.30
 		inline uint32 angle_arg(unsigned int abs, int &k)
@@ -1330,7 +1602,7 @@ namespace half_float
 		}
 
 		/// Get arguments for atan2 function.
-		/// \param abs half-precision floating point value
+		/// \param abs half-precision floating-point value
 		/// \return \a abs and sqrt(1 - \a abs^2) as Q0.30
 		inline std::pair<uint32,uint32> atan2_args(unsigned int abs)
 		{
@@ -1351,7 +1623,7 @@ namespace half_float
 		}
 
 		/// Get exponentials for hyperbolic computation
-		/// \param abs half-precision floating point value
+		/// \param abs half-precision floating-point value
 		/// \param exp variable to take unbiased exponent of larger result
 		/// \param n number of BKM iterations (at most 32)
 		/// \return exp(abs) and exp(-\a abs) as Q1.31 with same exponent
@@ -1384,12 +1656,13 @@ namespace half_float
 
 		/// Postprocessing for binary exponential.
 		/// \tparam R rounding mode to use
+		/// \tparam I `true` to always raise INEXACT exception, `false` to raise only for rounded results
 		/// \param m mantissa as Q1.31
 		/// \param exp absolute value of unbiased exponent
 		/// \param sign sign of actual exponent
-		/// \param value half-precision value with sign bit only
+		/// \param value sign bit of result
 		/// \return value converted to half precision
-		template<std::float_round_style R> unsigned int exp2_post(uint32 m, int exp, bool sign, unsigned int value = 0)
+		template<std::float_round_style R,bool I> unsigned int exp2_post(uint32 m, int exp, bool sign, unsigned int value = 0)
 		{
 			int s = 0;
 			if(sign)
@@ -1402,23 +1675,23 @@ namespace half_float
 				if(exp > 25)
 					return underflow<R>(value);
 				else if(exp == 25)
-					return rounded<R>(value, 1, (m&0x7FFFFFFF)!=0);
+					return rounded<R,I>(value, 1, (m&0x7FFFFFFF)!=0);
 				exp = -exp;
 			}
 			else if(exp > 15)
 				return overflow<R>(value);
-			return fixed2half<R,31,false,false>(m, exp+14, value, s);
+			return fixed2half<R,31,false,false,I>(m, exp+14, value, s);
 		}
 
 		/// Postprocessing for binary logarithm.
 		/// \tparam R rounding mode to use
 		/// \tparam L logarithm for base transformation as Q1.31
 		/// \param m fractional part of logarithm as Q0.31
-		/// \param exp biased exponent
 		/// \param ilog signed integer part of logarithm
-		/// \param value half-precision value with sign bit only
+		/// \param exp biased exponent of result
+		/// \param value sign bit of result
 		/// \return value base-transformed and converted to half precision
-		template<std::float_round_style R,uint32 L> unsigned int log2_post(uint32 m, int exp, int ilog, unsigned int value = 0)
+		template<std::float_round_style R,uint32 L> unsigned int log2_post(uint32 m, int ilog, int exp, unsigned int value = 0)
 		{
 			uint32 sign = sign_mask(ilog);
 			m = (((static_cast<uint32>(ilog)<<27)+(m>>4))^sign) - sign;
@@ -1432,7 +1705,7 @@ namespace half_float
 			if(exp < -11)
 				return underflow<R>(value);
 			m = divide64(m, L, s);
-			return fixed2half<R,30,false,false>(m, exp, value, 1);
+			return fixed2half<R,30,false,false,true>(m, exp, value, 1);
 		}
 
 		/// Hypotenuse square root and postprocessing.
@@ -1449,7 +1722,7 @@ namespace half_float
 				return underflow<R>();
 			r = (r>>i) | (r&i);
 			uint32 m = sqrt<30>(r, exp+=15);
-			return fixed2half<R,15,false,false>(m, exp-1, 0, r!=0);
+			return fixed2half<R,15,false,false,false>(m, exp-1, 0, r!=0);
 		}
 
 		/// Division and postprocessing for tangents.
@@ -1457,7 +1730,7 @@ namespace half_float
 		/// \param my dividend as Q1.31
 		/// \param mx divisor as Q1.31
 		/// \param exp biased exponent of result
-		/// \param value half-precision value with sign bit only
+		/// \param value sign bit of result
 		/// \return quotient converted to half-precision
 		template<std::float_round_style R> unsigned int tangent_post(uint32 my, uint32 mx, int exp, unsigned int value = 0)
 		{
@@ -1468,7 +1741,7 @@ namespace half_float
 			if(exp < -11)
 				return underflow<R>(value);
 			uint32 m = divide64(my>>(i+1), mx, s);
-			return fixed2half<R,30,false,false>(m, exp, value, s);
+			return fixed2half<R,30,false,false,true>(m, exp, value, s);
 		}
 
 		/// Area function and postprocessing.
@@ -1523,10 +1796,10 @@ namespace half_float
 			my += mx;
 			i = my >> 31;
 			static const int G = S && (R==std::round_to_nearest);
-			return log2_post<R,0xB8AA3B2A>(log2(my>>i, 26+S+G)+(G<<3), 17, ilog+i, arg&(static_cast<unsigned>(S)<<15));
+			return log2_post<R,0xB8AA3B2A>(log2(my>>i, 26+S+G)+(G<<3), ilog+i, 17, arg&(static_cast<unsigned>(S)<<15));
 		}
 
-		/// Class for 1.31 unsigned floating point computation
+		/// Class for 1.31 unsigned floating-point computation
 		struct f31
 		{
 			/// Constructor.
@@ -1610,15 +1883,15 @@ namespace half_float
 			f31 x(abs), x2 = x * x * f31(0xB8AA3B29, 0), t = f31(0x80000000, 0) / (f31(0x80000000, 0)+f31(0xA7BA054A, -2)*x), t2 = t * t;
 			f31 e = ((f31(0x87DC2213, 0)*t2+f31(0xB5F0E2AE, 0))*t2+f31(0x82790637, -2)-(f31(0xBA00E2B8, 0)*t2+f31(0x91A98E62, -2))*t) * t /
 					((x2.exp<0) ? f31(exp2((x2.exp>-32) ? (x2.m>>-x2.exp) : 0, 30), 0) : f31(exp2((x2.m<<x2.exp)&0x7FFFFFFF, 22), x2.m>>(31-x2.exp)));
-			return (!C || sign) ? fixed2half<R,31,false,true>(0x80000000-(e.m>>(C-e.exp)), 14+C, sign&(C-1U)) :
-					(e.exp<-25) ? underflow<R>() : fixed2half<R,30,false,false>(e.m>>1, e.exp+14, 0, e.m&1);
+			return (!C || sign) ? fixed2half<R,31,false,true,true>(0x80000000-(e.m>>(C-e.exp)), 14+C, sign&(C-1U)) :
+					(e.exp<-25) ? underflow<R>() : fixed2half<R,30,false,false,true>(e.m>>1, e.exp+14, 0, e.m&1);
 		}
 
-		/// Logarithm of gamma function.
-		/// This approximates the value directly in Q1.31.
+		/// Gamma function and postprocessing.
+		/// This approximates the value of either the gamma function or its logarithm directly in Q1.31.
 		/// \tparam R rounding mode to use
 		/// \tparam L `true` for lograithm of gamma function, `false` for gamma function
-		/// \param arg half-precision floating point value
+		/// \param arg half-precision floating-point value
 		/// \return lgamma/tgamma(\a arg) in half-precision
 		template<std::float_round_style R,bool L> unsigned int gamma(unsigned int arg)
 		{
@@ -1708,19 +1981,21 @@ namespace half_float
 					if(s.exp < -24)
 						return underflow<R>(value);
 				}
+				else if(z.exp > 0 && !(z.m&((1<<(31-z.exp))-1)))
+					return fixed2half<R,31,false,false,false>(s.m, s.exp+14, value);
 				if(s.exp > 15)
 					return overflow<R>(value);
 			}
-			return fixed2half<R,31,false,false>(s.m, s.exp+14, value);
+			return fixed2half<R,31,false,false,true>(s.m, s.exp+14, value);
 		}
 		/// \}
 
 		template<typename,typename,std::float_round_style> struct half_caster;
 	}
 
-	/// Half-precision floating point type.
-	/// This class implements an IEEE-conformant half-precision floating point type with the usual arithmetic 
-	/// operators and conversions. It is implicitly convertible to single-precision floating point, which makes artihmetic 
+	/// Half-precision floating-point type.
+	/// This class implements an IEEE-conformant half-precision floating-point type with the usual arithmetic 
+	/// operators and conversions. It is implicitly convertible to single-precision floating-point, which makes artihmetic 
 	/// expressions and functions with mixed-type operands to be of the most precise operand type.
 	///
 	/// According to the C++98/03 definition, the half type is not a POD type. But according to C++11's less strict and 
@@ -1840,12 +2115,12 @@ namespace half_float
 		detail::uint16 data_;
 
 	#ifndef HALF_DOXYGEN_ONLY
-		friend HALF_CONSTEXPR bool operator==(half, half);
-		friend HALF_CONSTEXPR bool operator!=(half, half);
-		friend HALF_CONSTEXPR bool operator<(half, half);
-		friend HALF_CONSTEXPR bool operator>(half, half);
-		friend HALF_CONSTEXPR bool operator<=(half, half);
-		friend HALF_CONSTEXPR bool operator>=(half, half);
+		friend HALF_CONSTEXPR_NOERR bool operator==(half, half);
+		friend HALF_CONSTEXPR_NOERR bool operator!=(half, half);
+		friend HALF_CONSTEXPR_NOERR bool operator<(half, half);
+		friend HALF_CONSTEXPR_NOERR bool operator>(half, half);
+		friend HALF_CONSTEXPR_NOERR bool operator<=(half, half);
+		friend HALF_CONSTEXPR_NOERR bool operator>=(half, half);
 		friend HALF_CONSTEXPR half operator-(half);
 		friend half operator+(half, half);
 		friend half operator-(half, half);
@@ -1858,17 +2133,17 @@ namespace half_float
 		friend half remainder(half, half);
 		friend half remquo(half, half, int*);
 		friend half fma(half, half, half);
-		friend HALF_CONSTEXPR half fmax(half, half);
-		friend HALF_CONSTEXPR half fmin(half, half);
+		friend HALF_CONSTEXPR_NOERR half fmax(half, half);
+		friend HALF_CONSTEXPR_NOERR half fmin(half, half);
 		friend half fdim(half, half);
 		friend half nanh(const char*);
 		friend half exp(half);
-		friend half expm1(half);
 		friend half exp2(half);
+		friend half expm1(half);
 		friend half log(half);
 		friend half log10(half);
-		friend half log1p(half);
 		friend half log2(half);
+		friend half log1p(half);
 		friend half sqrt(half);
 		friend half cbrt(half);
 		friend half hypot(half, half);
@@ -1899,6 +2174,7 @@ namespace half_float
 		friend long lround(half);
 		friend half rint(half);
 		friend long lrint(half);
+		friend half nearbyint(half);
 	#ifdef HALF_ENABLE_CPP11_LONG_LONG
 		friend long long llround(half);
 		friend long long llrint(half);
@@ -1917,6 +2193,11 @@ namespace half_float
 		friend HALF_CONSTEXPR bool isnan(half);
 		friend HALF_CONSTEXPR bool isnormal(half);
 		friend HALF_CONSTEXPR bool signbit(half);
+		friend HALF_CONSTEXPR bool isgreater(half, half);
+		friend HALF_CONSTEXPR bool isgreaterequal(half, half);
+		friend HALF_CONSTEXPR bool isless(half, half);
+		friend HALF_CONSTEXPR bool islessequal(half, half);
+		friend HALF_CONSTEXPR bool islessgreater(half, half);
 		template<typename,typename,std::float_round_style> friend struct detail::half_caster;
 		friend class std::numeric_limits<half>;
 	#if HALF_ENABLE_CPP11_HASH
@@ -1972,7 +2253,7 @@ namespace half_float
 
 		private:
 			static T cast_impl(half arg, true_type) { return half2float<T>(arg.data_); }
-			static T cast_impl(half arg, false_type) { return half2int<R,true,T>(arg.data_); }
+			static T cast_impl(half arg, false_type) { return half2int<R,true,true,T>(arg.data_); }
 		};
 		template<std::float_round_style R> struct half_caster<half,half,R>
 		{
@@ -1985,7 +2266,7 @@ namespace half_float
 namespace std
 {
 	/// Numeric limits for half-precision floats.
-	/// **See also:** Documentation for [std::numeric_limits](http://en.cppreference.com/w/cpp/types/numeric_limits)
+	/// **See also:** Documentation for [std::numeric_limits](https://en.cppreference.com/w/cpp/types/numeric_limits)
 	template<> class numeric_limits<half_float::half>
 	{
 	public:
@@ -2016,7 +2297,7 @@ namespace std
 		/// Supports quiet NaNs.
 		static HALF_CONSTEXPR_CONST bool has_quiet_NaN = true;
 
-		/// Supports signaling NaNs (even though they never actually signal ;-)).
+		/// Supports signaling NaNs.
 		static HALF_CONSTEXPR_CONST bool has_signaling_NaN = true;
 
 		/// Supports subnormal values.
@@ -2025,10 +2306,14 @@ namespace std
 		/// Supports no denormalization detection.
 		static HALF_CONSTEXPR_CONST bool has_denorm_loss = false;
 
-		/// Does not trap.
+	#if HALF_ERRHANDLING_THROWS
+		static HALF_CONSTEXPR_CONST bool traps = true;
+	#else
+		/// Traps only if [HALF_ERRHANDLING_THROW_...](\ref HALF_ERRHANDLING_THROW_INVALID) is acitvated.
 		static HALF_CONSTEXPR_CONST bool traps = false;
+	#endif
 
-		/// Supports no prepended underflow detection.
+		/// Does not support no pre-rounding underflow detection.
 		static HALF_CONSTEXPR_CONST bool tinyness_before = false;
 
 		/// Rounding mode.
@@ -2080,7 +2365,7 @@ namespace std
 		/// Quiet NaN.
 		static HALF_CONSTEXPR half_float::half quiet_NaN() HALF_NOTHROW { return half_float::half(half_float::detail::binary, 0x7FFF); }
 
-		/// Signaling NaN (that never actually signals, though ;-)).
+		/// Signaling NaN.
 		static HALF_CONSTEXPR half_float::half signaling_NaN() HALF_NOTHROW { return half_float::half(half_float::detail::binary, 0x7DFF); }
 
 		/// Smallest positive subnormal value.
@@ -2091,7 +2376,7 @@ namespace std
 	/// Hash function for half-precision floats.
 	/// This is only defined if C++11 `std::hash` is supported and enabled.
 	///
-	/// **See also:** Documentation for [std::hash](http://en.cppreference.com/w/cpp/utility/hash)
+	/// **See also:** Documentation for [std::hash](https://en.cppreference.com/w/cpp/utility/hash)
 	template<> struct hash<half_float::half>
 	{
 		/// Type of function argument.
@@ -2119,9 +2404,9 @@ namespace half_float
 	/// \param y second operand
 	/// \retval true if operands equal
 	/// \retval false else
-	inline HALF_CONSTEXPR bool operator==(half x, half y)
+	inline HALF_CONSTEXPR_NOERR bool operator==(half x, half y)
 	{
-		return (x.data_==y.data_ || !((x.data_|y.data_)&0x7FFF)) && !isnan(x);
+		return !detail::compsignal(x.data_, y.data_) && (x.data_==y.data_ || !((x.data_|y.data_)&0x7FFF));
 	}
 
 	/// Comparison for inequality.
@@ -2129,9 +2414,9 @@ namespace half_float
 	/// \param y second operand
 	/// \retval true if operands not equal
 	/// \retval false else
-	inline HALF_CONSTEXPR bool operator!=(half x, half y)
+	inline HALF_CONSTEXPR_NOERR bool operator!=(half x, half y)
 	{
-		return (x.data_!=y.data_ && ((x.data_|y.data_)&0x7FFF)) || isnan(x);
+		return detail::compsignal(x.data_, y.data_) || (x.data_!=y.data_ && ((x.data_|y.data_)&0x7FFF));
 	}
 
 	/// Comparison for less than.
@@ -2139,9 +2424,10 @@ namespace half_float
 	/// \param y second operand
 	/// \retval true if \a x less than \a y
 	/// \retval false else
-	inline HALF_CONSTEXPR bool operator<(half x, half y)
+	inline HALF_CONSTEXPR_NOERR bool operator<(half x, half y)
 	{
-		return ((x.data_^(0x8000|(0x8000-(x.data_>>15))))+(x.data_>>15)) < ((y.data_^(0x8000|(0x8000-(y.data_>>15))))+(y.data_>>15)) && !isnan(x) && !isnan(y);
+		return !detail::compsignal(x.data_, y.data_) &&
+			((x.data_^(0x8000|(0x8000-(x.data_>>15))))+(x.data_>>15)) < ((y.data_^(0x8000|(0x8000-(y.data_>>15))))+(y.data_>>15));
 	}
 
 	/// Comparison for greater than.
@@ -2149,9 +2435,10 @@ namespace half_float
 	/// \param y second operand
 	/// \retval true if \a x greater than \a y
 	/// \retval false else
-	inline HALF_CONSTEXPR bool operator>(half x, half y)
+	inline HALF_CONSTEXPR_NOERR bool operator>(half x, half y)
 	{
-		return ((x.data_^(0x8000|(0x8000-(x.data_>>15))))+(x.data_>>15)) > ((y.data_^(0x8000|(0x8000-(y.data_>>15))))+(y.data_>>15)) && !isnan(x) && !isnan(y);
+		return !detail::compsignal(x.data_, y.data_) &&
+			((x.data_^(0x8000|(0x8000-(x.data_>>15))))+(x.data_>>15)) > ((y.data_^(0x8000|(0x8000-(y.data_>>15))))+(y.data_>>15));
 	}
 
 	/// Comparison for less equal.
@@ -2159,9 +2446,10 @@ namespace half_float
 	/// \param y second operand
 	/// \retval true if \a x less equal \a y
 	/// \retval false else
-	inline HALF_CONSTEXPR bool operator<=(half x, half y)
+	inline HALF_CONSTEXPR_NOERR bool operator<=(half x, half y)
 	{
-		return ((x.data_^(0x8000|(0x8000-(x.data_>>15))))+(x.data_>>15)) <= ((y.data_^(0x8000|(0x8000-(y.data_>>15))))+(y.data_>>15)) && !isnan(x) && !isnan(y);
+		return !detail::compsignal(x.data_, y.data_) &&
+			((x.data_^(0x8000|(0x8000-(x.data_>>15))))+(x.data_>>15)) <= ((y.data_^(0x8000|(0x8000-(y.data_>>15))))+(y.data_>>15));
 	}
 
 	/// Comparison for greater equal.
@@ -2169,9 +2457,10 @@ namespace half_float
 	/// \param y second operand
 	/// \retval true if \a x greater equal \a y
 	/// \retval false else
-	inline HALF_CONSTEXPR bool operator>=(half x, half y)
+	inline HALF_CONSTEXPR_NOERR bool operator>=(half x, half y)
 	{
-		return ((x.data_^(0x8000|(0x8000-(x.data_>>15))))+(x.data_>>15)) >= ((y.data_^(0x8000|(0x8000-(y.data_>>15))))+(y.data_>>15)) && !isnan(x) && !isnan(y);
+		return !detail::compsignal(x.data_, y.data_) &&
+			((x.data_^(0x8000|(0x8000-(x.data_>>15))))+(x.data_>>15)) >= ((y.data_^(0x8000|(0x8000-(y.data_>>15))))+(y.data_>>15));
 	}
 
 	/// \}
@@ -2202,8 +2491,8 @@ namespace half_float
 		int absx = x.data_ & 0x7FFF, absy = y.data_ & 0x7FFF;
 		bool sub = ((x.data_^y.data_)&0x8000) != 0;
 		if(absx >= 0x7C00 || absy >= 0x7C00)
-			return	(absx>0x7C00 || absy>0x7C00) ? half(detail::binary, 0x7FFF) :
-					(absx==0x7C00) ? ((sub && absy==0x7C00) ? half(detail::binary, 0x7FFF) : x) : y;
+			return half(detail::binary,	(absx>0x7C00 || absy>0x7C00) ? detail::signal(x.data_, y.data_) : (absy!=0x7C00) ? x.data_ :
+										(sub && absx==0x7C00) ? detail::invalid() : y.data_);
 		if(!absx)
 			return absy ? y : half(detail::binary, (half::round_style==std::round_toward_neg_infinity) ? (x.data_|y.data_) : (x.data_&y.data_));
 		if(!absy)
@@ -2233,7 +2522,7 @@ namespace half_float
 				return half(detail::binary, detail::overflow<half::round_style>(value));
 			mx = (mx>>i) | (mx&i);
 		}
-		return half(detail::binary, detail::rounded<half::round_style>(value+((exp-1)<<10)+(mx>>3), (mx>>2)&1, (mx&0x3)!=0));
+		return half(detail::binary, detail::rounded<half::round_style,false>(value+((exp-1)<<10)+(mx>>3), (mx>>2)&1, (mx&0x3)!=0));
 	#endif
 	}
 
@@ -2264,9 +2553,8 @@ namespace half_float
 		int absx = x.data_ & 0x7FFF, absy = y.data_ & 0x7FFF, exp = -16;
 		unsigned int value = (x.data_^y.data_) & 0x8000;
 		if(absx >= 0x7C00 || absy >= 0x7C00)
-			return	(absx>0x7C00 || absy>0x7C00) ? half(detail::binary, 0x7FFF) :
-					(absx==0x7C00) ? half(detail::binary, !absy ? 0x7FFF : (value|0x7C00)) :
-					half(detail::binary, !absx ? 0x7FFF : (value|0x7C00));
+			return half(detail::binary,	(absx>0x7C00 || absy>0x7C00) ? detail::signal(x.data_, y.data_) :
+										((absx==0x7C00 && !absy)||(absy==0x7C00 && !absx)) ? detail::invalid() : (value|0x7C00));
 		if(!absx || !absy)
 			return half(detail::binary, value);
 		for(; absx<0x400; absx<<=1,--exp) ;
@@ -2278,7 +2566,7 @@ namespace half_float
 			return half(detail::binary, detail::overflow<half::round_style>(value));
 		else if(exp < -11)
 			return half(detail::binary, detail::underflow<half::round_style>(value));
-		return half(detail::binary, detail::fixed2half<half::round_style,20,false,false>(m>>i, exp, value, s));
+		return half(detail::binary, detail::fixed2half<half::round_style,20,false,false,false>(m>>i, exp, value, s));
 	#endif
 	}
 
@@ -2295,12 +2583,12 @@ namespace half_float
 		int absx = x.data_ & 0x7FFF, absy = y.data_ & 0x7FFF, exp = 14;
 		unsigned int value = (x.data_^y.data_) & 0x8000;
 		if(absx >= 0x7C00 || absy >= 0x7C00)
-			return	(absx>0x7C00 || absy>0x7C00 || absx==absy) ? half(detail::binary, 0x7FFF) :
-					half(detail::binary, value|((absx==0x7C00) ? 0x7C00 : 0));
+			return half(detail::binary,	(absx>0x7C00 || absy>0x7C00) ? detail::signal(x.data_, y.data_) :
+										(absx==absy) ? detail::invalid() : (value|((absx==0x7C00) ? 0x7C00 : 0)));
 		if(!absx)
-			return half(detail::binary, absy ? value : 0x7FFF);
+			return half(detail::binary, absy ? value : detail::invalid());
 		if(!absy)
-			return half(detail::binary, value|0x7C00);
+			return half(detail::binary, detail::pole(value));
 		for(; absx<0x400; absx<<=1,--exp) ;
 		for(; absy<0x400; absy<<=1,++exp) ;
 		detail::uint32 mx = (absx&0x3FF) | 0x400, my = (absy&0x3FF) | 0x400;
@@ -2312,7 +2600,7 @@ namespace half_float
 			return half(detail::binary, detail::underflow<half::round_style>(value));
 		mx <<= 12 + i;
 		my <<= 1;
-		return half(detail::binary, detail::fixed2half<half::round_style,11,false,false>(mx/my, exp, value, mx%my!=0));
+		return half(detail::binary, detail::fixed2half<half::round_style,11,false,false,false>(mx/my, exp, value, mx%my!=0));
 	#endif
 	}
 
@@ -2322,7 +2610,7 @@ namespace half_float
 	/// \{
 
 	/// Output operator.
-	///	This uses the built-in functionality for streaming out floating point numbers.
+	///	This uses the built-in functionality for streaming out floating-point numbers.
 	/// \param out output stream to write into
 	/// \param arg half expression to write
 	/// \return reference to output stream
@@ -2336,9 +2624,9 @@ namespace half_float
 	}
 
 	/// Input operator.
-	///	This uses the built-in functionality for streaming in floating point numbers, specifically double precision floating 
+	///	This uses the built-in functionality for streaming in floating-point numbers, specifically double precision floating 
 	/// point numbers (unless overridden with [HALF_ARITHMETIC_TYPE](\ref HALF_ARITHMETIC_TYPE)). So the input string is first 
-	/// rounded to double precision using the underlying platform's current floating point rounding mode before being rounded 
+	/// rounded to double precision using the underlying platform's current floating-point rounding mode before being rounded 
 	/// to half precision using the library's half precision rounding mode.
 	/// \param in input stream to read from
 	/// \param arg half to read into
@@ -2361,25 +2649,31 @@ namespace half_float
 	/// \{
 
 	/// Absolute value.
+	/// **See also:** Documentation for [std::fabs](https://en.cppreference.com/w/cpp/numeric/math/fabs).
 	/// \param arg operand
 	/// \return absolute value of \a arg
 	inline HALF_CONSTEXPR half fabs(half arg) { return half(detail::binary, arg.data_&0x7FFF); }
 
 	/// Absolute value.
+	/// **See also:** Documentation for [std::abs](https://en.cppreference.com/w/cpp/numeric/math/fabs).
 	/// \param arg operand
 	/// \return absolute value of \a arg
 	inline HALF_CONSTEXPR half abs(half arg) { return fabs(arg); }
 
 	/// Remainder of division.
+	/// **See also:** Documentation for [std::fmod](https://en.cppreference.com/w/cpp/numeric/math/fmod).
 	/// \param x first operand
 	/// \param y second operand
-	/// \return remainder of floating point division.
+	/// \return remainder of floating-point division.
 	inline half fmod(half x, half y)
 	{
 		unsigned int absx = x.data_ & 0x7FFF, absy = y.data_ & 0x7FFF, sign = x.data_ & 0x8000;
-		if(absx >= 0x7C00 || absy > 0x7C00 || !absy)
-			return half(detail::binary, 0x7FFF);
-		if(absy == 0x7C00 || !absx)
+		if(absx >= 0x7C00 || absy >= 0x7C00)
+			return half(detail::binary,	(absx>0x7C00 || absy>0x7C00) ? detail::signal(x.data_, y.data_) :
+										(absx==0x7C00) ? detail::invalid() : x.data_);
+		if(!absy)
+			return half(detail::binary, detail::invalid());
+		if(!absx)
 			return x;
 		if(absx == absy)
 			return half(detail::binary, sign);
@@ -2387,33 +2681,37 @@ namespace half_float
 	}
 
 	/// Remainder of division.
+	/// **See also:** Documentation for [std::remainder](https://en.cppreference.com/w/cpp/numeric/math/remainder).
 	/// \param x first operand
 	/// \param y second operand
-	/// \return remainder of floating point division.
+	/// \return remainder of floating-point division.
 	inline half remainder(half x, half y)
 	{
 		unsigned int absx = x.data_ & 0x7FFF, absy = y.data_ & 0x7FFF, sign = x.data_ & 0x8000;
-		if(absx >= 0x7C00 || absy > 0x7C00 || !absy)
-			return half(detail::binary, 0x7FFF);
-		if(absy == 0x7C00)
-			return x;
+		if(absx >= 0x7C00 || absy >= 0x7C00)
+			return half(detail::binary,	(absx>0x7C00 || absy>0x7C00) ? detail::signal(x.data_, y.data_) :
+										(absx==0x7C00) ? detail::invalid() : x.data_);
+		if(!absy)
+			return half(detail::binary, detail::invalid());
 		if(absx == absy)
 			return half(detail::binary, sign);
 		return half(detail::binary, sign^detail::mod<false,true>(absx, absy));
 	}
 
 	/// Remainder of division.
+	/// **See also:** Documentation for [std::remquo](https://en.cppreference.com/w/cpp/numeric/math/remquo).
 	/// \param x first operand
 	/// \param y second operand
 	/// \param quo address to store some bits of quotient at
-	/// \return remainder of floating point division.
+	/// \return remainder of floating-point division.
 	inline half remquo(half x, half y, int *quo)
 	{
 		unsigned int absx = x.data_ & 0x7FFF, absy = y.data_ & 0x7FFF, value = x.data_ & 0x8000;
-		if(absx >= 0x7C00 || absy > 0x7C00 || !absy)
-			return half(detail::binary, 0x7FFF);
-		if(absy == 0x7C00)
-			return *quo = 0, x;
+		if(absx >= 0x7C00 || absy >= 0x7C00)
+			return half(detail::binary,	(absx>0x7C00 || absy>0x7C00) ? detail::signal(x.data_, y.data_) :
+										(absx==0x7C00) ? detail::invalid() : (*quo = 0, x.data_));
+		if(!absy)
+			return half(detail::binary, detail::invalid());
 		bool qsign = ((value^y.data_)&0x8000) != 0;
 		int q = 1;
 		if(absx != absy)
@@ -2423,6 +2721,8 @@ namespace half_float
 
 	/// Fused multiply add.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::fma](https://en.cppreference.com/w/cpp/numeric/math/fma).
 	/// \param x first operand
 	/// \param y second operand
 	/// \param z third operand
@@ -2441,9 +2741,9 @@ namespace half_float
 		unsigned int value = (x.data_^y.data_) & 0x8000;
 		bool sub = ((value^z.data_)&0x8000) != 0;
 		if(absx >= 0x7C00 || absy >= 0x7C00 || absz >= 0x7C00)
-			return	(absx>0x7C00 || absy>0x7C00 || absz>0x7C00) ? half(detail::binary, 0x7FFF) :
-					(absx==0x7C00) ? half(detail::binary, (!absy || (sub && absz==0x7C00)) ? 0x7FFF : (value|0x7C00)) :
-					(absy==0x7C00) ? half(detail::binary, (!absx || (sub && absz==0x7C00)) ? 0x7FFF : (value|0x7C00)) : z;
+			return	(absx>0x7C00 || absy>0x7C00 || absz>0x7C00) ? half(detail::binary, detail::signal(x.data_, y.data_, z.data_)) :
+					(absx==0x7C00) ? half(detail::binary, (!absy || (sub && absz==0x7C00)) ? detail::invalid() : (value|0x7C00)) :
+					(absy==0x7C00) ? half(detail::binary, (!absx || (sub && absz==0x7C00)) ? detail::invalid() : (value|0x7C00)) : z;
 		if(!absx || !absy)
 			return absz ? z : half(detail::binary, (half::round_style==std::round_toward_neg_infinity) ? (z.data_|value) : (z.data_&value));
 		for(; absx<0x400; absx<<=1,--exp) ;
@@ -2486,43 +2786,48 @@ namespace half_float
 			return half(detail::binary, detail::overflow<half::round_style>(value));
 		else if(exp < -10)
 			return half(detail::binary, detail::underflow<half::round_style>(value));
-		return half(detail::binary, detail::fixed2half<half::round_style,23,false,false>(m, exp-1, value));
+		return half(detail::binary, detail::fixed2half<half::round_style,23,false,false,false>(m, exp-1, value));
 	#endif
 	}
 
 	/// Maximum of half expressions.
+	/// **See also:** Documentation for [std::fmax](https://en.cppreference.com/w/cpp/numeric/math/fmax).
 	/// \param x first operand
 	/// \param y second operand
 	/// \return maximum of operands
-	inline HALF_CONSTEXPR half fmax(half x, half y)
+	inline HALF_CONSTEXPR_NOERR half fmax(half x, half y)
 	{
-		return (!isnan(y) && (isnan(x) || (x.data_^(0x8000|(0x8000-(x.data_>>15)))) < (y.data_^(0x8000|(0x8000-(y.data_>>15)))))) ? y : x;
+		return half(detail::binary, (!isnan(y) && (isnan(x) || (x.data_^(0x8000|(0x8000-(x.data_>>15)))) < 
+			(y.data_^(0x8000|(0x8000-(y.data_>>15)))))) ? detail::select(y.data_, x.data_) : detail::select(x.data_, y.data_));
 	}
 
 	/// Minimum of half expressions.
+	/// **See also:** Documentation for [std::fmin](https://en.cppreference.com/w/cpp/numeric/math/fmin).
 	/// \param x first operand
 	/// \param y second operand
 	/// \return minimum of operands
-	inline HALF_CONSTEXPR half fmin(half x, half y)
+	inline HALF_CONSTEXPR_NOERR half fmin(half x, half y)
 	{
-		return (!isnan(y) && (isnan(x) || (x.data_^(0x8000|(0x8000-(x.data_>>15)))) > (y.data_^(0x8000|(0x8000-(y.data_>>15)))))) ? y : x;
+		return half(detail::binary, (!isnan(y) && (isnan(x) || (x.data_^(0x8000|(0x8000-(x.data_>>15)))) >
+			(y.data_^(0x8000|(0x8000-(y.data_>>15)))))) ? detail::select(y.data_, x.data_) : detail::select(x.data_, y.data_));
 	}
 
 	/// Positive difference.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::fdim](https://en.cppreference.com/w/cpp/numeric/math/fdim).
 	/// \param x first operand
 	/// \param y second operand
 	/// \return \a x - \a y or 0 if difference negative
 	inline half fdim(half x, half y)
 	{
-		if(isnan(x))
-			return x;
-		if(isnan(y))
-			return y;
+		if(isnan(x) || isnan(y))
+			return half(detail::binary, detail::signal(x.data_, y.data_));
 		return (x.data_^(0x8000|(0x8000-(x.data_>>15)))) <= (y.data_^(0x8000|(0x8000-(y.data_>>15)))) ? half(detail::binary, 0) : (x-y);
 	}
 
 	/// Get NaN value.
+	/// **See also:** Documentation for [std::nan](https://en.cppreference.com/w/cpp/numeric/math/nan).
 	/// \param arg string code
 	/// \return quiet NaN
 	inline half nanh(const char *arg)
@@ -2540,6 +2845,8 @@ namespace half_float
 
 	/// Exponential function.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::exp](https://en.cppreference.com/w/cpp/numeric/math/exp).
 	/// \param arg function argument
 	/// \return e raised to \a arg
 	inline half exp(half arg)
@@ -2548,12 +2855,12 @@ namespace half_float
 		return half(detail::binary, detail::float2half<half::round_style>(std::exp(detail::half2float<detail::internal_t>(arg.data_))));
 	#else
 		int abs = arg.data_ & 0x7FFF;
-		if(abs >= 0x7C00)
-			return (abs==0x7C00) ? half(detail::binary, 0x7C00&((arg.data_>>15)-1U)) : arg;
-		if(abs >= 0x4C80)
-			return half(detail::binary, (arg.data_&0x8000) ? detail::underflow<half::round_style>() : detail::overflow<half::round_style>());
 		if(!abs)
 			return half(detail::binary, 0x3C00);
+		if(abs >= 0x7C00)
+			return half(detail::binary, (abs==0x7C00) ? (0x7C00&((arg.data_>>15)-1U)) : detail::signal(arg.data_));
+		if(abs >= 0x4C80)
+			return half(detail::binary, (arg.data_&0x8000) ? detail::underflow<half::round_style>() : detail::overflow<half::round_style>());
 		detail::uint32 m = detail::multiply64(static_cast<detail::uint32>((abs&0x3FF)+((abs>0x3FF)<<10))<<21, 0xB8AA3B29);
 		int e = (abs>>10) + (abs<=0x3FF), exp;
 		if(e < 14)
@@ -2566,12 +2873,14 @@ namespace half_float
 			exp = m >> (45-e);
 			m = (m<<(e-14)) & 0x7FFFFFFF;
 		}
-		return half(detail::binary, detail::exp2_post<half::round_style>(detail::exp2(m, 26), exp, (arg.data_&0x8000)!=0));
+		return half(detail::binary, detail::exp2_post<half::round_style,true>(detail::exp2(m, 26), exp, (arg.data_&0x8000)!=0));
 	#endif
 	}
 
 	/// Binary exponential.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::exp2](https://en.cppreference.com/w/cpp/numeric/math/exp2).
 	/// \param arg function argument
 	/// \return 2 raised to \a arg
 	inline half exp2(half arg)
@@ -2580,21 +2889,32 @@ namespace half_float
 		return half(detail::binary, detail::float2half<half::round_style>(std::exp2(detail::half2float<detail::internal_t>(arg.data_))));
 	#else
 		int abs = arg.data_ & 0x7FFF;
-		if(abs >= 0x7C00)
-			return (abs==0x7C00) ? half(detail::binary, 0x7C00&((arg.data_>>15)-1U)) : arg;
-		if(abs >= 0x4E40)
-			return half(detail::binary, (arg.data_&0x8000) ? detail::underflow<half::round_style>() : detail::overflow<half::round_style>());
 		if(!abs)
 			return half(detail::binary, 0x3C00);
+		if(abs >= 0x7C00)
+			return half(detail::binary, (abs==0x7C00) ? (0x7C00&((arg.data_>>15)-1U)) : detail::signal(arg.data_));
+		if(abs >= 0x4E40)
+			return half(detail::binary, (arg.data_&0x8000) ? detail::underflow<half::round_style>() : detail::overflow<half::round_style>());
 		int e = (abs>>10) + (abs<=0x3FF), exp = (abs&0x3FF) + ((abs>0x3FF)<<10);
-		return half(detail::binary, detail::exp2_post<half::round_style>(detail::exp2(
-			(static_cast<detail::uint32>(exp)<<(6+e))&0x7FFFFFFF, 28), exp>>(25-e), (arg.data_&0x8000)!=0));
+		detail::uint32 m = detail::exp2((static_cast<detail::uint32>(exp)<<(6+e))&0x7FFFFFFF, 28);
+		exp >>= 25 - e;
+		if(m == 0x80000000)
+		{
+			if(arg.data_&0x8000)
+				exp = -exp;
+			else if(exp > 15)
+				return half(detail::binary, detail::overflow<half::round_style>());
+			return half(detail::binary, detail::fixed2half<half::round_style,31,false,false,false>(m, exp+14));
+		}
+		return half(detail::binary, detail::exp2_post<half::round_style,true>(m, exp, (arg.data_&0x8000)!=0));
 	#endif
 	}
 
 	/// Exponential minus one.
 	/// This function may be 1 ULP off the correctly rounded result in <0.05% of inputs for `std::round_to_nearest` 
 	/// and in <1% of inputs for any other rounding mode.
+	///
+	/// **See also:** Documentation for [std::expm1](https://en.cppreference.com/w/cpp/numeric/math/expm1).
 	/// \param arg function argument
 	/// \return e raised to \a arg and subtracted by 1
 	inline half expm1(half arg)
@@ -2603,10 +2923,12 @@ namespace half_float
 		return half(detail::binary, detail::float2half<half::round_style>(std::expm1(detail::half2float<detail::internal_t>(arg.data_))));
 	#else
 		unsigned int abs = arg.data_ & 0x7FFF, value = arg.data_ & 0x8000;
-		if(abs >= 0x7C00 || !abs)
-			return (abs==0x7C00) ? half(detail::binary, 0x7C00+(value>>1)) : arg;
+		if(!abs)
+			return arg;
+		if(abs >= 0x7C00)
+			return half(detail::binary, (abs==0x7C00) ? (0x7C00+(value>>1)) : detail::signal(arg.data_));
 		if(abs >= 0x4A00)
-			return half(detail::binary, (arg.data_&0x8000) ? detail::rounded<half::round_style>(0xBBFF, 1, 1) : detail::overflow<half::round_style>());
+			return half(detail::binary, (arg.data_&0x8000) ? detail::rounded<half::round_style,true>(0xBBFF, 1, 1) : detail::overflow<half::round_style>());
 		detail::uint32 m = detail::multiply64(static_cast<detail::uint32>((abs&0x3FF)+((abs>0x3FF)<<10))<<21, 0xB8AA3B29);
 		int e = (abs>>10) + (abs<=0x3FF), exp;
 		if(e < 14)
@@ -2636,12 +2958,14 @@ namespace half_float
 		for(exp+=14; m<0x80000000 && exp; m<<=1,--exp) ;
 		if(exp > 29)
 			return half(detail::binary, detail::overflow<half::round_style>());
-		return half(detail::binary, detail::rounded<half::round_style>(value+(exp<<10)+(m>>21), (m>>20)&1, (m&0xFFFFF)!=0));
+		return half(detail::binary, detail::rounded<half::round_style,true>(value+(exp<<10)+(m>>21), (m>>20)&1, (m&0xFFFFF)!=0));
 	#endif
 	}
 
 	/// Natural logarithm.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::log](https://en.cppreference.com/w/cpp/numeric/math/log).
 	/// \param arg function argument
 	/// \return logarithm of \a arg to base e
 	inline half log(half arg)
@@ -2651,20 +2975,22 @@ namespace half_float
 	#else
 		int abs = arg.data_ & 0x7FFF, exp = -15;
 		if(!abs)
-			return half(detail::binary, 0xFC00);
+			return half(detail::binary, detail::pole(0x8000));
 		if(arg.data_ & 0x8000)
-			return half(detail::binary, 0x7FFF);
+			return half(detail::binary, (arg.data_<=0xFC00) ? detail::invalid() : detail::signal(arg.data_));
 		if(abs >= 0x7C00)
-			return arg;
+			return (abs==0x7C00) ? arg : half(detail::binary, detail::signal(arg.data_));
 		for(; abs<0x400; abs<<=1,--exp) ;
 		exp += abs >> 10;
 		return half(detail::binary, detail::log2_post<half::round_style,0xB8AA3B2A>(
-			detail::log2(static_cast<detail::uint32>((abs&0x3FF)|0x400)<<20, 27)+8, 17, exp));
+			detail::log2(static_cast<detail::uint32>((abs&0x3FF)|0x400)<<20, 27)+8, exp, 17));
 	#endif
 	}
 
 	/// Common logarithm.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::log10](https://en.cppreference.com/w/cpp/numeric/math/log10).
 	/// \param arg function argument
 	/// \return logarithm of \a arg to base 10
 	inline half log10(half arg)
@@ -2674,29 +3000,69 @@ namespace half_float
 	#else
 		int abs = arg.data_ & 0x7FFF, exp = -15;
 		if(!abs)
-			return half(detail::binary, 0xFC00);
+			return half(detail::binary, detail::pole(0x8000));
 		if(arg.data_ & 0x8000)
-			return half(detail::binary, 0x7FFF);
+			return half(detail::binary, (arg.data_<=0xFC00) ? detail::invalid() : detail::signal(arg.data_));
 		if(abs >= 0x7C00)
-			return arg;
-		if(half::round_style != std::round_to_nearest)
-			switch(abs)
-			{
+			return (abs==0x7C00) ? arg : half(detail::binary, detail::signal(arg.data_));
+		switch(abs)
+		{
 			case 0x4900: return half(detail::binary, 0x3C00);
 			case 0x5640: return half(detail::binary, 0x4000);
 			case 0x63D0: return half(detail::binary, 0x4200);
 			case 0x70E2: return half(detail::binary, 0x4400);
-			}
+		}
 		for(; abs<0x400; abs<<=1,--exp) ;
 		exp += abs >> 10;
 		return half(detail::binary, detail::log2_post<half::round_style,0xD49A784C>(
-			detail::log2(static_cast<detail::uint32>((abs&0x3FF)|0x400)<<20, 27)+8, 16, exp));
+			detail::log2(static_cast<detail::uint32>((abs&0x3FF)|0x400)<<20, 27)+8, exp, 16));
+	#endif
+	}
+
+	/// Binary logarithm.
+	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::log2](https://en.cppreference.com/w/cpp/numeric/math/log2).
+	/// \param arg function argument
+	/// \return logarithm of \a arg to base 2
+	inline half log2(half arg)
+	{
+	#if defined(HALF_ARITHMETIC_TYPE) && HALF_ENABLE_CPP11_CMATH
+		return half(detail::binary, detail::float2half<half::round_style>(std::log2(detail::half2float<detail::internal_t>(arg.data_))));
+	#else
+		int abs = arg.data_ & 0x7FFF, exp = -15, s = 0;
+		if(!abs)
+			return half(detail::binary, detail::pole(0x8000));
+		if(arg.data_ & 0x8000)
+			return half(detail::binary, (arg.data_<=0xFC00) ? detail::invalid() : detail::signal(arg.data_));
+		if(abs >= 0x7C00)
+			return (abs==0x7C00) ? arg : half(detail::binary, detail::signal(arg.data_));
+		if(abs == 0x3C00)
+			return half(detail::binary, 0);
+		for(; abs<0x400; abs<<=1,--exp) ;
+		exp += (abs>>10);
+		if(!(abs&0x3FF))
+		{
+			unsigned int value = static_cast<unsigned>(exp<0) << 15, m = std::abs(exp) << 6;
+			for(exp=18; m<0x400; m<<=1,--exp) ;
+			return half(detail::binary, value+(exp<<10)+m);
+		}
+		detail::uint32 ilog = exp, sign = detail::sign_mask(ilog), m = 
+			(((ilog<<27)+(detail::log2(static_cast<detail::uint32>((abs&0x3FF)|0x400)<<20, 28)>>4))^sign) - sign;
+		if(!m)
+			return half(detail::binary, 0);
+		for(exp=14; m<0x8000000 && exp; m<<=1,--exp) ;
+		for(; m>0xFFFFFFF; m>>=1,++exp)
+			s |= m & 1;
+		return half(detail::binary, detail::fixed2half<half::round_style,27,false,false,true>(m, exp, sign&0x8000, s));
 	#endif
 	}
 
 	/// Natural logarithm plus one.
 	/// This function may be 1 ULP off the correctly rounded result in <0.05% of inputs for `std::round_to_nearest` 
 	/// and in ~1% of inputs for any other rounding mode.
+	///
+	/// **See also:** Documentation for [std::log1p](https://en.cppreference.com/w/cpp/numeric/math/log1p).
 	/// \param arg function argument
 	/// \return logarithm of \a arg plus 1 to base e
 	inline half log1p(half arg)
@@ -2705,10 +3071,10 @@ namespace half_float
 		return half(detail::binary, detail::float2half<half::round_style>(std::log1p(detail::half2float<detail::internal_t>(arg.data_))));
 	#else
 		if(arg.data_ >= 0xBC00)
-			return half(detail::binary, (arg.data_==0xBC00) ? 0xFC00 : 0x7FFF);
+			return half(detail::binary, (arg.data_==0xBC00) ? detail::pole(0x8000) : (arg.data_<=0xFC00) ? detail::invalid() : detail::signal(arg.data_));
 		int abs = arg.data_ & 0x7FFF, exp = -15;
 		if(!abs || abs >= 0x7C00)
-			return arg;
+			return (abs>0x7C00) ? half(detail::binary, detail::signal(arg.data_)) : arg;
 		for(; abs<0x400; abs<<=1,--exp) ;
 		exp += abs >> 10;
 		detail::uint32 m = static_cast<detail::uint32>((abs&0x3FF)|0x400) << 20;
@@ -2732,33 +3098,7 @@ namespace half_float
 				exp += i;
 			}
 		}
-		return half(detail::binary, detail::log2_post<half::round_style,0xB8AA3B2A>(detail::log2(m), 17, exp));
-	#endif
-	}
-
-	/// Binary logarithm.
-	/// This function is exact to rounding for all rounding modes.
-	/// \param arg function argument
-	/// \return logarithm of \a arg to base 2
-	inline half log2(half arg)
-	{
-	#if defined(HALF_ARITHMETIC_TYPE) && HALF_ENABLE_CPP11_CMATH
-		return half(detail::binary, detail::float2half<half::round_style>(std::log2(detail::half2float<detail::internal_t>(arg.data_))));
-	#else
-		int abs = arg.data_ & 0x7FFF, exp = -15, s = 0;
-		if(!abs)
-			return half(detail::binary, 0xFC00);
-		if(arg.data_ & 0x8000)
-			return half(detail::binary, 0x7FFF);
-		if(abs >= 0x7C00)
-			return arg;
-		for(; abs<0x400; abs<<=1,--exp) ;
-		detail::uint32 ilog = exp + (abs>>10), sign = detail::sign_mask(ilog), m = 
-			(((ilog<<27)+(detail::log2(static_cast<detail::uint32>((abs&0x3FF)|0x400)<<20, 28)>>4))^sign) - sign;
-		for(exp=14; m<0x8000000 && exp; m<<=1,--exp) ;
-		for(; m>0xFFFFFFF; m>>=1,++exp)
-			s |= m & 1;
-		return half(detail::binary, detail::rounded<half::round_style>((sign&0x8000)+(exp<<10)+(m>>17), (m>>16)&1, s|((m&0xFFFF)!=0)));
+		return half(detail::binary, detail::log2_post<half::round_style,0xB8AA3B2A>(detail::log2(m), exp, 17));
 	#endif
 	}
 
@@ -2769,6 +3109,8 @@ namespace half_float
 
 	/// Square root.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::sqrt](https://en.cppreference.com/w/cpp/numeric/math/sqrt).
 	/// \param arg function argument
 	/// \return square root of \a arg
 	inline half sqrt(half arg)
@@ -2778,17 +3120,17 @@ namespace half_float
 	#else
 		int abs = arg.data_ & 0x7FFF, exp = 15;
 		if(!abs || arg.data_ >= 0x7C00)
-			return (arg.data_>0x8000) ? half(detail::binary, 0x7FFF) : arg;
+			return half(detail::binary, (abs>0x7C00) ? detail::signal(arg.data_) : (arg.data_>0x8000) ? detail::invalid() : arg.data_);
 		for(; abs<0x400; abs<<=1,--exp) ;
 		detail::uint32 r = static_cast<detail::uint32>((abs&0x3FF)|0x400) << 10, m = detail::sqrt<20>(r, exp+=abs>>10);
-		return half(detail::binary, ((half::round_style==std::round_to_nearest) ? (r>m) : 
-									(half::round_style==std::round_toward_infinity) ? (r!=0) :
-									0) + (exp<<10) + (m&0x3FF));
+		return half(detail::binary, detail::rounded<half::round_style,false>((exp<<10)+(m&0x3FF), r>m, r!=0));
 	#endif
 	}
 
 	/// Cubic root.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::cbrt](https://en.cppreference.com/w/cpp/numeric/math/cbrt).
 	/// \param arg function argument
 	/// \return cubic root of \a arg
 	inline half cbrt(half arg)
@@ -2797,8 +3139,8 @@ namespace half_float
 		return half(detail::binary, detail::float2half<half::round_style>(std::cbrt(detail::half2float<detail::internal_t>(arg.data_))));
 	#else
 		int abs = arg.data_ & 0x7FFF, exp = -15;
-		if(!abs || abs >= 0x7C00 || abs == 0x3C00)
-			return arg;
+		if(!abs || abs == 0x3C00 || abs >= 0x7C00)
+			return (abs>0x7C00) ? half(detail::binary, detail::signal(arg.data_)) : arg;
 		for(; abs<0x400; abs<<=1, --exp);
 		detail::uint32 ilog = exp + (abs>>10), sign = detail::sign_mask(ilog), f, m = 
 			(((ilog<<27)+(detail::log2(static_cast<detail::uint32>((abs&0x3FF)|0x400)<<20, 24)>>4))^sign) - sign;
@@ -2828,13 +3170,15 @@ namespace half_float
 			exp = -exp;
 		}
 		return half(detail::binary, (half::round_style==std::round_to_nearest) ?
-			detail::fixed2half<half::round_style,31,false,false>(m, exp+14, arg.data_&0x8000) :
-			detail::fixed2half<half::round_style,23,false,false>((m+0x80)>>8, exp+14, arg.data_&0x8000));
+			detail::fixed2half<half::round_style,31,false,false,false>(m, exp+14, arg.data_&0x8000) :
+			detail::fixed2half<half::round_style,23,false,false,false>((m+0x80)>>8, exp+14, arg.data_&0x8000));
 	#endif
 	}
 
 	/// Hypotenuse function.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::hypot](https://en.cppreference.com/w/cpp/numeric/math/hypot).
 	/// \param x first argument
 	/// \param y second argument
 	/// \return square root of sum of squares without internal over- or underflows
@@ -2849,12 +3193,13 @@ namespace half_float
 		#endif
 	#else
 		int absx = x.data_ & 0x7FFF, absy = y.data_ & 0x7FFF, expx = 0, expy = 0;
+		if(absx >= 0x7C00 || absy >= 0x7C00)
+			return half(detail::binary,	(absx==0x7C00) ? detail::select(0x7C00, y.data_) :
+				(absy==0x7C00) ? detail::select(0x7C00, x.data_) : detail::signal(x.data_, y.data_));
 		if(!absx)
 			return half(detail::binary, absy);
 		if(!absy)
 			return half(detail::binary, absx);
-		if(absx >= 0x7C00 || absy >= 0x7C00)
-			return half(detail::binary, (absx==0x7C00 || absy==0x7C00) ? 0x7C00 : 0x7FFF);
 		if(absy > absx)
 			std::swap(absx, absy);
 		for(; absx<0x400; absx<<=1,--expx) ;
@@ -2875,6 +3220,8 @@ namespace half_float
 
 	/// Hypotenuse function.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::hypot](https://en.cppreference.com/w/cpp/numeric/math/hypot).
 	/// \param x first argument
 	/// \param y second argument
 	/// \param z third argument
@@ -2893,7 +3240,10 @@ namespace half_float
 		if(!absz)
 			return hypot(x, y);
 		if(absx >= 0x7C00 || absy >= 0x7C00 || absz >= 0x7C00)
-			return half(detail::binary, (absx==0x7C00 || absy==0x7C00 || absz == 0x7C00) ? 0x7C00 : 0x7FFF);
+			return half(detail::binary,	(absx==0x7C00) ? detail::select(0x7C00, detail::select(y.data_, z.data_)) :
+										(absy==0x7C00) ? detail::select(0x7C00, detail::select(x.data_, z.data_)) :
+										(absz==0x7C00) ? detail::select(0x7C00, detail::select(x.data_, y.data_)) :
+										detail::signal(x.data_, y.data_, z.data_));
 		if(absz > absy)
 			std::swap(absy, absz);
 		if(absy > absx)
@@ -2933,8 +3283,9 @@ namespace half_float
 	}
 
 	/// Power function.
-	/// This function may be 1 ULP off the correctly rounded result in <0.0005% of inputs for `std::round_to_nearest` 
-	/// and in <0.05% of inputs for any other rounding mode.
+	/// This function may be 1 ULP off the correctly rounded result for any rounding mode in <0.002%.
+	///
+	/// **See also:** Documentation for [std::pow](https://en.cppreference.com/w/cpp/numeric/math/pow).
 	/// \param x base
 	/// \param y exponent
 	/// \return \a x raised to \a y
@@ -2945,18 +3296,25 @@ namespace half_float
 	#else
 		int absx = x.data_ & 0x7FFF, absy = y.data_ & 0x7FFF, exp = -15;
 		if(!absy || x.data_ == 0x3C00)
-			return half(detail::binary, 0x3C00);
+			return half(detail::binary, detail::select(0x3C00, (x.data_==0x3C00) ? y.data_ : x.data_));
 		bool is_int = absy >= 0x6400 || (absy>=0x3C00 && !(absy&((1<<(25-(absy>>10)))-1)));
 		unsigned int value = x.data_ & (static_cast<unsigned>((absy<0x6800)&&is_int&&((absy>>(25-(absy>>10)))&1))<<15);
 		if(absx >= 0x7C00 || absy >= 0x7C00)
-			return (absx>0x7C00 || absy>0x7C00) ? half(detail::binary, 0x7FFF) : ((absy==0x7C00) ? half(detail::binary, (absx==0x3C00) ? 
-				0x3C00 : (0x7C00&-((y.data_>>15)^(absx>0x3C00)))) : half(detail::binary, value|(0x7C00&((y.data_>>15)-1U))));
+			return half(detail::binary,	(absx>0x7C00 || absy>0x7C00) ? detail::signal(x.data_, y.data_) :
+										(absy==0x7C00) ? ((absx==0x3C00) ? 0x3C00 : (!absx && y.data_==0xFC00) ? detail::pole() :
+										(0x7C00&-((y.data_>>15)^(absx>0x3C00)))) : (value|(0x7C00&((y.data_>>15)-1U))));
 		if(!absx)
-			return half(detail::binary, value|(0x7C00&-(y.data_>>15)));
+			return half(detail::binary, (y.data_&0x8000) ? detail::pole(value) : value);
 		if((x.data_&0x8000) && !is_int)
-			return half(detail::binary, 0x7FFF);
+			return half(detail::binary, detail::invalid());
 		if(x.data_ == 0xBC00)
 			return half(detail::binary, value|0x3C00);
+//		if(y.data_ == 0x3800)
+//			return sqrt(x);
+		if(y.data_ == 0x3C00)
+			return x;
+//		if(y.data_ == 0x4000)
+//			return x * x;
 		for(; absx<0x400; absx<<=1,--exp) ;
 		detail::uint32 ilog = exp + (absx>>10), sign = detail::sign_mask(ilog), f, m = 
 			(((ilog<<27)+((detail::log2(static_cast<detail::uint32>((absx&0x3FF)|0x400)<<20)+8)>>4))^sign) - sign;
@@ -2976,7 +3334,7 @@ namespace half_float
 			f = (m<<exp) & 0x7FFFFFFF;
 			exp = m >> (31-exp);
 		}
-		return half(detail::binary, detail::exp2_post<half::round_style>(detail::exp2(f), exp, ((sign&1)^(y.data_>>15))!=0, value));
+		return half(detail::binary, detail::exp2_post<half::round_style,false>(detail::exp2(f), exp, ((sign&1)^(y.data_>>15))!=0, value));
 	#endif
 	}
 
@@ -3001,13 +3359,16 @@ namespace half_float
 	#else
 		int abs = arg.data_ & 0x7FFF, sign = arg.data_ >> 15, k;
 		if(abs >= 0x7C00)
-			{ *sin = half(detail::binary, 0x7FFF); *cos = half(detail::binary, 0x7FFF); }
+			*sin = *cos = half(detail::binary, (abs==0x7C00) ? detail::invalid() : detail::signal(arg.data_));
 		else if(!abs)
-			{ *sin = arg; *cos = half(detail::binary, 0x3C00); }
+		{
+			*sin = arg;
+			*cos = half(detail::binary, 0x3C00);
+		}
 		else if(abs < 0x2500)
 		{
-			*sin = half(detail::binary, detail::rounded<half::round_style>(arg.data_-1, 1, 1));
-			*cos = half(detail::binary, detail::rounded<half::round_style>(0x3BFF, 1, 1));
+			*sin = half(detail::binary, detail::rounded<half::round_style,true>(arg.data_-1, 1, 1));
+			*cos = half(detail::binary, detail::rounded<half::round_style,true>(0x3BFF, 1, 1));
 		}
 		else
 		{
@@ -3016,20 +3377,20 @@ namespace half_float
 				switch(abs)
 				{
 				case 0x48B7:
-					*sin = half(detail::binary, detail::rounded<half::round_style>((~arg.data_&0x8000)|0x1D07, 1, 1));
-					*cos = half(detail::binary, detail::rounded<half::round_style>(0xBBFF, 1, 1));
+					*sin = half(detail::binary, detail::rounded<half::round_style,true>((~arg.data_&0x8000)|0x1D07, 1, 1));
+					*cos = half(detail::binary, detail::rounded<half::round_style,true>(0xBBFF, 1, 1));
 					return;
 				case 0x598C:
-					*sin = half(detail::binary, detail::rounded<half::round_style>((arg.data_&0x8000)|0x3BFF, 1, 1));
-					*cos = half(detail::binary, detail::rounded<half::round_style>(0x80FC, 1, 1));
+					*sin = half(detail::binary, detail::rounded<half::round_style,true>((arg.data_&0x8000)|0x3BFF, 1, 1));
+					*cos = half(detail::binary, detail::rounded<half::round_style,true>(0x80FC, 1, 1));
 					return;
 				case 0x6A64:
-					*sin = half(detail::binary, detail::rounded<half::round_style>((~arg.data_&0x8000)|0x3BFE, 1, 1));
-					*cos = half(detail::binary, detail::rounded<half::round_style>(0x27FF, 1, 1));
+					*sin = half(detail::binary, detail::rounded<half::round_style,true>((~arg.data_&0x8000)|0x3BFE, 1, 1));
+					*cos = half(detail::binary, detail::rounded<half::round_style,true>(0x27FF, 1, 1));
 					return;
 				case 0x6D8C:
-					*sin = half(detail::binary, detail::rounded<half::round_style>((arg.data_&0x8000)|0x0FE6, 1, 1));
-					*cos = half(detail::binary, detail::rounded<half::round_style>(0x3BFF, 1, 1));
+					*sin = half(detail::binary, detail::rounded<half::round_style,true>((arg.data_&0x8000)|0x0FE6, 1, 1));
+					*cos = half(detail::binary, detail::rounded<half::round_style,true>(0x3BFF, 1, 1));
 					return;
 				}
 			}
@@ -3040,14 +3401,16 @@ namespace half_float
 				case 2: sc = std::make_pair(-sc.first, -sc.second); break;
 				case 3: sc = std::make_pair(-sc.second, sc.first); break;
 			}
-			*sin = half(detail::binary, detail::fixed2half<half::round_style,30,true,true>((sc.first^-static_cast<detail::uint32>(sign))+sign));
-			*cos = half(detail::binary, detail::fixed2half<half::round_style,30,true,true>(sc.second));
+			*sin = half(detail::binary, detail::fixed2half<half::round_style,30,true,true,true>((sc.first^-static_cast<detail::uint32>(sign))+sign));
+			*cos = half(detail::binary, detail::fixed2half<half::round_style,30,true,true,true>(sc.second));
 		}
 	#endif
 	}
 
 	/// Sine function.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::sin](https://en.cppreference.com/w/cpp/numeric/math/sin).
 	/// \param arg function argument
 	/// \return sine value of \a arg
 	inline half sin(half arg)
@@ -3056,27 +3419,29 @@ namespace half_float
 		return half(detail::binary, detail::float2half<half::round_style>(std::sin(detail::half2float<detail::internal_t>(arg.data_))));
 	#else
 		int abs = arg.data_ & 0x7FFF, k;
-		if(abs >= 0x7C00)
-			return half(detail::binary, 0x7FFF);
 		if(!abs)
 			return arg;
+		if(abs >= 0x7C00)
+			return half(detail::binary, (abs==0x7C00) ? detail::invalid() : detail::signal(arg.data_));
 		if(abs < 0x2900)
-			return half(detail::binary, detail::rounded<half::round_style>(arg.data_-1, 1, 1));
+			return half(detail::binary, detail::rounded<half::round_style,true>(arg.data_-1, 1, 1));
 		if(half::round_style != std::round_to_nearest)
 			switch(abs)
 			{
-			case 0x48B7: return half(detail::binary, detail::rounded<half::round_style>((~arg.data_&0x8000)|0x1D07, 1, 1));
-			case 0x6A64: return half(detail::binary, detail::rounded<half::round_style>((~arg.data_&0x8000)|0x3BFE, 1, 1));
-			case 0x6D8C: return half(detail::binary, detail::rounded<half::round_style>((arg.data_&0x8000)|0x0FE6, 1, 1));
+				case 0x48B7: return half(detail::binary, detail::rounded<half::round_style,true>((~arg.data_&0x8000)|0x1D07, 1, 1));
+				case 0x6A64: return half(detail::binary, detail::rounded<half::round_style,true>((~arg.data_&0x8000)|0x3BFE, 1, 1));
+				case 0x6D8C: return half(detail::binary, detail::rounded<half::round_style,true>((arg.data_&0x8000)|0x0FE6, 1, 1));
 			}
 		std::pair<detail::uint32,detail::uint32> sc = detail::sincos(detail::angle_arg(abs, k), 28);
 		detail::uint32 sign = -static_cast<detail::uint32>(((k>>1)&1)^(arg.data_>>15));
-		return half(detail::binary, detail::fixed2half<half::round_style,30,true,true>((((k&1) ? sc.second : sc.first)^sign) - sign));
+		return half(detail::binary, detail::fixed2half<half::round_style,30,true,true,true>((((k&1) ? sc.second : sc.first)^sign) - sign));
 	#endif
 	}
 
 	/// Cosine function.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::cos](https://en.cppreference.com/w/cpp/numeric/math/cos).
 	/// \param arg function argument
 	/// \return cosine value of \a arg
 	inline half cos(half arg)
@@ -3085,22 +3450,24 @@ namespace half_float
 		return half(detail::binary, detail::float2half<half::round_style>(std::cos(detail::half2float<detail::internal_t>(arg.data_))));
 	#else
 		int abs = arg.data_ & 0x7FFF, k;
-		if(abs >= 0x7C00)
-			return half(detail::binary, 0x7FFF);
 		if(!abs)
 			return half(detail::binary, 0x3C00);
+		if(abs >= 0x7C00)
+			return half(detail::binary, (abs==0x7C00) ? detail::invalid() : detail::signal(arg.data_));
 		if(abs < 0x2500)
-			return half(detail::binary, detail::rounded<half::round_style>(0x3BFF, 1, 1));
+			return half(detail::binary, detail::rounded<half::round_style,true>(0x3BFF, 1, 1));
 		if(half::round_style != std::round_to_nearest && abs == 0x598C)
-			return half(detail::binary, detail::rounded<half::round_style>(0x80FC, 1, 1));
+			return half(detail::binary, detail::rounded<half::round_style,true>(0x80FC, 1, 1));
 		std::pair<detail::uint32,detail::uint32> sc = detail::sincos(detail::angle_arg(abs, k), 28);
 		detail::uint32 sign = -static_cast<detail::uint32>(((k>>1)^k)&1);
-		return half(detail::binary, detail::fixed2half<half::round_style,30,true,true>((((k&1) ? sc.first : sc.second)^sign) - sign));
+		return half(detail::binary, detail::fixed2half<half::round_style,30,true,true,true>((((k&1) ? sc.first : sc.second)^sign) - sign));
 	#endif
 	}
 
 	/// Tangent function.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::tan](https://en.cppreference.com/w/cpp/numeric/math/tan).
 	/// \param arg function argument
 	/// \return tangent value of \a arg
 	inline half tan(half arg)
@@ -3109,17 +3476,17 @@ namespace half_float
 		return half(detail::binary, detail::float2half<half::round_style>(std::tan(detail::half2float<detail::internal_t>(arg.data_))));
 	#else
 		int abs = arg.data_ & 0x7FFF, exp = 13, k;
-		if(abs >= 0x7C00)
-			return half(detail::binary, 0x7FFF);
 		if(!abs)
 			return arg;
+		if(abs >= 0x7C00)
+			return half(detail::binary, (abs==0x7C00) ? detail::invalid() : detail::signal(arg.data_));
 		if(abs < 0x2700)
-			return half(detail::binary, detail::rounded<half::round_style>(arg.data_, 0, 1));
+			return half(detail::binary, detail::rounded<half::round_style,true>(arg.data_, 0, 1));
 		if(half::round_style != std::round_to_nearest)
 			switch(abs)
 			{
-			case 0x658C: return half(detail::binary, detail::rounded<half::round_style>((arg.data_&0x8000)|0x07E6, 1, 1));
-			case 0x7330: return half(detail::binary, detail::rounded<half::round_style>((~arg.data_&0x8000)|0x4B62, 1, 1));
+				case 0x658C: return half(detail::binary, detail::rounded<half::round_style,true>((arg.data_&0x8000)|0x07E6, 1, 1));
+				case 0x7330: return half(detail::binary, detail::rounded<half::round_style,true>((~arg.data_&0x8000)|0x4B62, 1, 1));
 			}
 		std::pair<detail::uint32,detail::uint32> sc = detail::sincos(detail::angle_arg(abs, k), 30);
 		if(k & 1)
@@ -3134,6 +3501,8 @@ namespace half_float
 
 	/// Arc sine.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::asin](https://en.cppreference.com/w/cpp/numeric/math/asin).
 	/// \param arg function argument
 	/// \return arc sine value of \a arg
 	inline half asin(half arg)
@@ -3145,19 +3514,22 @@ namespace half_float
 		if(!abs)
 			return arg;
 		if(abs >= 0x3C00)
-			return half(detail::binary, (abs==0x3C00) ? detail::rounded<half::round_style>(value|0x3E48, 0, 1) : 0x7FFF);
+			return half(detail::binary, (abs>0x7C00) ? detail::signal(arg.data_) : (abs>0x3C00) ? detail::invalid() :
+										detail::rounded<half::round_style,true>(value|0x3E48, 0, 1));
 		if(abs < 0x2900)
-			return half(detail::binary, detail::rounded<half::round_style>(arg.data_, 0, 1));
+			return half(detail::binary, detail::rounded<half::round_style,true>(arg.data_, 0, 1));
 		if(half::round_style != std::round_to_nearest && (abs == 0x2B44 || abs == 0x2DC3))
-			return half(detail::binary, detail::rounded<half::round_style>(arg.data_+1, 1, 1));
+			return half(detail::binary, detail::rounded<half::round_style,true>(arg.data_+1, 1, 1));
 		std::pair<detail::uint32,detail::uint32> sc = detail::atan2_args(abs);
 		detail::uint32 m = detail::atan2(sc.first, sc.second, (half::round_style==std::round_to_nearest) ? 27 : 26);
-		return half(detail::binary, detail::fixed2half<half::round_style,30,false,true>(m, 14, value));
+		return half(detail::binary, detail::fixed2half<half::round_style,30,false,true,true>(m, 14, value));
 	#endif
 	}
 
 	/// Arc cosine function.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::acos](https://en.cppreference.com/w/cpp/numeric/math/acos).
 	/// \param arg function argument
 	/// \return arc cosine value of \a arg
 	inline half acos(half arg)
@@ -3167,17 +3539,20 @@ namespace half_float
 	#else
 		unsigned int abs = arg.data_ & 0x7FFF, sign = arg.data_ >> 15;
 		if(!abs)
-			return half(detail::binary, detail::rounded<half::round_style>(0x3E48, 0, 1));
+			return half(detail::binary, detail::rounded<half::round_style,true>(0x3E48, 0, 1));
 		if(abs >= 0x3C00)
-			return half(detail::binary, (abs==0x3C00) ? (detail::rounded<half::round_style>(0x4248, 0, 1)&-sign) : 0x7FFF);
+			return half(detail::binary,	(abs>0x7C00) ? detail::signal(arg.data_) : (abs>0x3C00) ? detail::invalid() :
+										sign ? detail::rounded<half::round_style,true>(0x4248, 0, 1) : 0);
 		std::pair<detail::uint32,detail::uint32> cs = detail::atan2_args(abs);
 		detail::uint32 m = detail::atan2(cs.second, cs.first, 28);
-		return half(detail::binary, detail::fixed2half<half::round_style,31,false,true>(sign ? (0xC90FDAA2-m) : m, 15, 0, sign));
+		return half(detail::binary, detail::fixed2half<half::round_style,31,false,true,true>(sign ? (0xC90FDAA2-m) : m, 15, 0, sign));
 	#endif
 	}
 
 	/// Arc tangent function.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::atan](https://en.cppreference.com/w/cpp/numeric/math/atan).
 	/// \param arg function argument
 	/// \return arc tangent value of \a arg
 	inline half atan(half arg)
@@ -3186,21 +3561,25 @@ namespace half_float
 		return half(detail::binary, detail::float2half<half::round_style>(std::atan(detail::half2float<detail::internal_t>(arg.data_))));
 	#else
 		unsigned int abs = arg.data_ & 0x7FFF, value = arg.data_ & 0x8000;
-		if(!abs || abs >= 0x7C00)
-			return (abs==0x7C00) ? half(detail::binary, detail::rounded<half::round_style>(value|0x3E48, 0, 1)) : arg;
+		if(!abs)
+			return arg;
+		if(abs >= 0x7C00)
+			return half(detail::binary, (abs==0x7C00) ? detail::rounded<half::round_style,true>(value|0x3E48, 0, 1) : detail::signal(arg.data_));
 		if(abs <= 0x2700)
-			return half(detail::binary, detail::rounded<half::round_style>(arg.data_-1, 1, 1));
+			return half(detail::binary, detail::rounded<half::round_style,true>(arg.data_-1, 1, 1));
 		int exp = (abs>>10) + (abs<=0x3FF);
 		detail::uint32 my = (abs&0x3FF) | ((abs>0x3FF)<<10);
 		detail::uint32 m = (exp>15) ?	detail::atan2(my<<19, 0x20000000>>(exp-15), (half::round_style==std::round_to_nearest) ? 26 : 24) :
 										detail::atan2(my<<(exp+4), 0x20000000, (half::round_style==std::round_to_nearest) ? 30 : 28);
-		return half(detail::binary, detail::fixed2half<half::round_style,30,false,true>(m, 14, value));
+		return half(detail::binary, detail::fixed2half<half::round_style,30,false,true,true>(m, 14, value));
 	#endif
 	}
 
 	/// Arc tangent function.
 	/// This function may be 1 ULP off the correctly rounded result in <0.2% of inputs for `std::round_to_nearest` 
 	/// and in <0.5% of inputs for any other rounding mode.
+	///
+	/// **See also:** Documentation for [std::atan2](https://en.cppreference.com/w/cpp/numeric/math/atan2).
 	/// \param y numerator
 	/// \param x denominator
 	/// \return arc tangent value
@@ -3213,17 +3592,17 @@ namespace half_float
 		if(absx >= 0x7C00 || absy >= 0x7C00)
 		{
 			if(absx > 0x7C00 || absy > 0x7C00)
-				return half(detail::binary, 0x7FFF);
+				return half(detail::binary, detail::signal(x.data_, y.data_));
 			if(absy == 0x7C00)
-				return	(absx<0x7C00) ?	half(detail::binary, detail::rounded<half::round_style>(signy|0x3E48, 0, 1)) :
-						signx ?			half(detail::binary, detail::rounded<half::round_style>(signy|0x40B6, 0, 1)) :
-										half(detail::binary, detail::rounded<half::round_style>(signy|0x3A48, 0, 1));
-			return (x.data_==0x7C00) ? half(detail::binary, signy) : half(detail::binary, detail::rounded<half::round_style>(signy|0x4248, 0, 1));
+				return half(detail::binary, (absx<0x7C00) ?	detail::rounded<half::round_style,true>(signy|0x3E48, 0, 1) :
+													signx ?	detail::rounded<half::round_style,true>(signy|0x40B6, 0, 1) :
+															detail::rounded<half::round_style,true>(signy|0x3A48, 0, 1));
+			return (x.data_==0x7C00) ? half(detail::binary, signy) : half(detail::binary, detail::rounded<half::round_style,true>(signy|0x4248, 0, 1));
 		}
 		if(!absy)
-			return signx ? half(detail::binary, detail::rounded<half::round_style>(signy|0x4248, 0, 1)) : y;
+			return signx ? half(detail::binary, detail::rounded<half::round_style,true>(signy|0x4248, 0, 1)) : y;
 		if(!absx)
-			return half(detail::binary, detail::rounded<half::round_style>(signy|0x3E48, 0, 1));
+			return half(detail::binary, detail::rounded<half::round_style,true>(signy|0x3E48, 0, 1));
 		int d = (absy>>10) + (absy<=0x3FF) - (absx>>10) - (absx<=0x3FF);
 		detail::uint32 my = (absy&0x3FF) | ((absy>0x3FF)<<10), mx = (absx&0x3FF) | ((absx>0x3FF)<<10);
 		if(d < 0)
@@ -3239,7 +3618,7 @@ namespace half_float
 		}
 		detail::uint32 m = detail::atan2(my, mx), sign = detail::sign_mask(m);
 		m = (m^sign) - sign;
-		return half(detail::binary, detail::fixed2half<half::round_style,31,false,true>(signx ? (0xC90FDAA2-m) : m, 15, signy, signx));
+		return half(detail::binary, detail::fixed2half<half::round_style,31,false,true,true>(signx ? (0xC90FDAA2-m) : m, 15, signy, signx));
 	#endif
 	}
 
@@ -3250,6 +3629,8 @@ namespace half_float
 
 	/// Hyperbolic sine.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::sinh](https://en.cppreference.com/w/cpp/numeric/math/sinh).
 	/// \param arg function argument
 	/// \return hyperbolic sine value of \a arg
 	inline half sinh(half arg)
@@ -3259,21 +3640,23 @@ namespace half_float
 	#else
 		int abs = arg.data_ & 0x7FFF, exp;
 		if(!abs || abs >= 0x7C00)
-			return arg;
+			return (abs>0x7C00) ? half(detail::binary, detail::signal(arg.data_)) : arg;
 		if(abs <= 0x2900)
-			return half(detail::binary, detail::rounded<half::round_style>(arg.data_, 0, 1));
+			return half(detail::binary, detail::rounded<half::round_style,true>(arg.data_, 0, 1));
 		std::pair<detail::uint32,detail::uint32> mm = detail::hyperbolic_args(abs, exp, (half::round_style==std::round_to_nearest) ? 29 : 27);
 		detail::uint32 m = mm.first - mm.second;
 		for(exp+=13; m<0x80000000 && exp; m<<=1,--exp) ;
 		unsigned int value = arg.data_ & 0x8000;
 		if(exp > 29)
 			return half(detail::binary, detail::overflow<half::round_style>(value));
-		return half(detail::binary, detail::fixed2half<half::round_style,31,false,false>(m, exp, value));
+		return half(detail::binary, detail::fixed2half<half::round_style,31,false,false,true>(m, exp, value));
 	#endif
 	}
 
 	/// Hyperbolic cosine.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::cosh](https://en.cppreference.com/w/cpp/numeric/math/cosh).
 	/// \param arg function argument
 	/// \return hyperbolic cosine value of \a arg
 	inline half cosh(half arg)
@@ -3285,18 +3668,20 @@ namespace half_float
 		if(!abs)
 			return half(detail::binary, 0x3C00);
 		if(abs >= 0x7C00)
-			return half(detail::binary, 0x7C00|-static_cast<unsigned>(abs>0x7C00));
+			return half(detail::binary, (abs>0x7C00) ? detail::signal(arg.data_) : 0x7C00);
 		std::pair<detail::uint32,detail::uint32> mm = detail::hyperbolic_args(abs, exp, (half::round_style==std::round_to_nearest) ? 23 : 26);
 		detail::uint32 m = mm.first + mm.second, i = (~m&0xFFFFFFFF) >> 31;
 		m = (m>>i) | (m&i) | 0x80000000;
 		if((exp+=13+i) > 29)
 			return half(detail::binary, detail::overflow<half::round_style>());
-		return half(detail::binary, detail::fixed2half<half::round_style,31,false,false>(m, exp));
+		return half(detail::binary, detail::fixed2half<half::round_style,31,false,false,true>(m, exp));
 	#endif
 	}
 
 	/// Hyperbolic tangent.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::tanh](https://en.cppreference.com/w/cpp/numeric/math/tanh).
 	/// \param arg function argument
 	/// \return hyperbolic tangent value of \a arg
 	inline half tanh(half arg)
@@ -3305,14 +3690,16 @@ namespace half_float
 		return half(detail::binary, detail::float2half<half::round_style>(std::tanh(detail::half2float<detail::internal_t>(arg.data_))));
 	#else
 		int abs = arg.data_ & 0x7FFF, exp;
-		if(!abs || abs >= 0x7C00)
-			return (abs==0x7C00) ? half(detail::binary, arg.data_-0x4000) : arg;
+		if(!abs)
+			return arg;
+		if(abs >= 0x7C00)
+			return half(detail::binary, (abs>0x7C00) ? detail::signal(arg.data_) : (arg.data_-0x4000));
 		if(abs >= 0x4500)
-			return half(detail::binary, detail::rounded<half::round_style>((arg.data_&0x8000)|0x3BFF, 1, 1));
+			return half(detail::binary, detail::rounded<half::round_style,true>((arg.data_&0x8000)|0x3BFF, 1, 1));
 		if(abs < 0x2700)
-			return half(detail::binary, detail::rounded<half::round_style>(arg.data_-1, 1, 1));
+			return half(detail::binary, detail::rounded<half::round_style,true>(arg.data_-1, 1, 1));
 		if(half::round_style != std::round_to_nearest && abs == 0x2D3F)
-			return half(detail::binary, detail::rounded<half::round_style>(arg.data_-3, 0, 1));
+			return half(detail::binary, detail::rounded<half::round_style,true>(arg.data_-3, 0, 1));
 		std::pair<detail::uint32,detail::uint32> mm = detail::hyperbolic_args(abs, exp, 27);
 		detail::uint32 my = mm.first - mm.second - (half::round_style!=std::round_to_nearest), mx = mm.first + mm.second, i = (~mx&0xFFFFFFFF) >> 31;
 		for(exp=13; my<0x80000000; my<<=1,--exp) ;
@@ -3323,6 +3710,8 @@ namespace half_float
 
 	/// Hyperbolic area sine.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::asinh](https://en.cppreference.com/w/cpp/numeric/math/asinh).
 	/// \param arg function argument
 	/// \return area sine value of \a arg
 	inline half asinh(half arg)
@@ -3332,14 +3721,14 @@ namespace half_float
 	#else
 		int abs = arg.data_ & 0x7FFF;
 		if(!abs || abs >= 0x7C00)
-			return arg;
+			return (abs>0x7C00) ? half(detail::binary, detail::signal(arg.data_)) : arg;
 		if(abs <= 0x2900)
-			return half(detail::binary, detail::rounded<half::round_style>(arg.data_-1, 1, 1));
+			return half(detail::binary, detail::rounded<half::round_style,true>(arg.data_-1, 1, 1));
 		if(half::round_style != std::round_to_nearest)
 			switch(abs)
 			{
-			case 0x32D4: return half(detail::binary, detail::rounded<half::round_style>(arg.data_-13, 1, 1));
-			case 0x3B5B: return half(detail::binary, detail::rounded<half::round_style>(arg.data_-197, 1, 1));
+				case 0x32D4: return half(detail::binary, detail::rounded<half::round_style,true>(arg.data_-13, 1, 1));
+				case 0x3B5B: return half(detail::binary, detail::rounded<half::round_style,true>(arg.data_-197, 1, 1));
 			}
 		return half(detail::binary, detail::area<half::round_style,true>(arg.data_));
 	#endif
@@ -3347,6 +3736,8 @@ namespace half_float
 
 	/// Hyperbolic area cosine.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::acosh](https://en.cppreference.com/w/cpp/numeric/math/acosh).
 	/// \param arg function argument
 	/// \return area cosine value of \a arg
 	inline half acosh(half arg)
@@ -3355,16 +3746,20 @@ namespace half_float
 		return half(detail::binary, detail::float2half<half::round_style>(std::acosh(detail::half2float<detail::internal_t>(arg.data_))));
 	#else
 		int abs = arg.data_ & 0x7FFF;
-		if((arg.data_&0x8000) || abs <= 0x3C00)
-			return half(detail::binary, -static_cast<unsigned>(arg.data_!=0x3C00));
+		if((arg.data_&0x8000) || abs < 0x3C00)
+			return half(detail::binary, (abs<=0x7C00) ? detail::invalid() : detail::signal(arg.data_));
+		if(abs == 0x3C00)
+			return half(detail::binary, 0);
 		if(arg.data_ >= 0x7C00)
-			return arg;
+			return (abs>0x7C00) ? half(detail::binary, detail::signal(arg.data_)) : arg;
 		return half(detail::binary, detail::area<half::round_style,false>(arg.data_));
 	#endif
 	}
 
 	/// Hyperbolic area tangent.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::atanh](https://en.cppreference.com/w/cpp/numeric/math/atanh).
 	/// \param arg function argument
 	/// \return area tangent value of \a arg
 	inline half atanh(half arg)
@@ -3376,14 +3771,14 @@ namespace half_float
 		if(!abs)
 			return arg;
 		if(abs >= 0x3C00)
-			return half(detail::binary, (abs==0x3C00) ? (arg.data_+0x4000) : 0x7FFF);
+			return half(detail::binary, (abs==0x3C00) ? detail::pole(arg.data_&0x8000) : (abs<=0x7C00) ? detail::invalid() : detail::signal(arg.data_));
 		if(abs < 0x2700)
-			return half(detail::binary, detail::rounded<half::round_style>(arg.data_, 0, 1));
+			return half(detail::binary, detail::rounded<half::round_style,true>(arg.data_, 0, 1));
 		detail::uint32 m = static_cast<detail::uint32>((abs&0x3FF)|((abs>0x3FF)<<10)) << ((abs>>10)+(abs<=0x3FF)+6), my = 0x80000000 + m, mx = 0x80000000 - m;
 		for(; mx<0x80000000; mx<<=1,++exp) ;
 		int i = my >= mx, s;
 		return half(detail::binary, detail::log2_post<half::round_style,0xB8AA3B2A>(detail::log2(
-			(detail::divide64(my>>i, mx, s)+1)>>1, 27)+0x10, 16, exp+i-1, arg.data_&0x8000));
+			(detail::divide64(my>>i, mx, s)+1)>>1, 27)+0x10, exp+i-1, 16, arg.data_&0x8000));
 	#endif
 	}
 
@@ -3394,6 +3789,8 @@ namespace half_float
 
 	/// Error function.
 	/// This function may be 1 ULP off the correctly rounded result for any rounding mode in <0.5% of inputs.
+	///
+	/// **See also:** Documentation for [std::erf](https://en.cppreference.com/w/cpp/numeric/math/erf).
 	/// \param arg function argument
 	/// \return error function value of \a arg
 	inline half erf(half arg)
@@ -3401,17 +3798,19 @@ namespace half_float
 	#if defined(HALF_ARITHMETIC_TYPE) && HALF_ENABLE_CPP11_CMATH
 		return half(detail::binary, detail::float2half<half::round_style>(std::erf(detail::half2float<detail::internal_t>(arg.data_))));
 	#else
-		unsigned int abs = arg.data_ & 0x7FFF, sign = arg.data_ & 0x8000;
+		unsigned int abs = arg.data_ & 0x7FFF;
 		if(!abs || abs >= 0x7C00)
-			return (abs==0x7C00) ? half(detail::binary, sign|0x3C00) : arg;
+			return (abs>=0x7C00) ? half(detail::binary, (abs==0x7C00) ? (arg.data_-0x4000) : detail::signal(arg.data_)) : arg;
 		if(abs >= 0x4200)
-			return half(detail::binary, detail::rounded<half::round_style>(sign|0x3BFF, 1, 1));
+			return half(detail::binary, detail::rounded<half::round_style,true>((arg.data_&0x8000)|0x3BFF, 1, 1));
 		return half(detail::binary, detail::erf<half::round_style,false>(arg.data_));
 	#endif
 	}
 
 	/// Complementary error function.
 	/// This function may be 1 ULP off the correctly rounded result for any rounding mode in <0.5% of inputs.
+	///
+	/// **See also:** Documentation for [std::erfc](https://en.cppreference.com/w/cpp/numeric/math/erfc).
 	/// \param arg function argument
 	/// \return 1 minus error function value of \a arg
 	inline half erfc(half arg)
@@ -3421,17 +3820,19 @@ namespace half_float
 	#else
 		unsigned int abs = arg.data_ & 0x7FFF, sign = arg.data_ & 0x8000;
 		if(abs >= 0x7C00)
-			return (abs==0x7C00) ? half(detail::binary, sign>>1) : arg;
+			return (abs>=0x7C00) ? half(detail::binary, (abs==0x7C00) ? (sign>>1) : detail::signal(arg.data_)) : arg;
 		if(!abs)
 			return half(detail::binary, 0x3C00);
 		if(abs >= 0x4400)
-			return half(detail::binary, detail::rounded<half::round_style>((sign>>1)-(sign>>15), sign>>15, 1));
+			return half(detail::binary, detail::rounded<half::round_style,true>((sign>>1)-(sign>>15), sign>>15, 1));
 		return half(detail::binary, detail::erf<half::round_style,true>(arg.data_));
 	#endif
 	}
 
 	/// Natural logarithm of gamma function.
 	/// This function may be 1 ULP off the correctly rounded result for any rounding mode in ~0.025% of inputs.
+	///
+	/// **See also:** Documentation for [std::lgamma](https://en.cppreference.com/w/cpp/numeric/math/lgamma).
 	/// \param arg function argument
 	/// \return natural logarith of gamma function for \a arg
 	inline half lgamma(half arg)
@@ -3440,10 +3841,10 @@ namespace half_float
 		return half(detail::binary, detail::float2half<half::round_style>(std::lgamma(detail::half2float<detail::internal_t>(arg.data_))));
 	#else
 		int abs = arg.data_ & 0x7FFF;
-		if(!abs || abs >= 0x7C00)
-			return (abs<=0x7C00) ? half(detail::binary, 0x7C00) : arg;
-		if(arg.data_ >= 0xE400 || (arg.data_ >= 0xBC00 && !(abs&((1<<(25-(abs>>10)))-1))))
-			return half(detail::binary, 0x7C00);
+		if(abs >= 0x7C00)
+			return half(detail::binary, (abs==0x7C00) ? 0x7C00 : detail::signal(arg.data_));
+		if(!abs || arg.data_ >= 0xE400 || (arg.data_ >= 0xBC00 && !(abs&((1<<(25-(abs>>10)))-1))))
+			return half(detail::binary, detail::pole());
 		if(arg.data_ == 0x3C00 || arg.data_ == 0x4000)
 			return half(detail::binary, 0);
 		return half(detail::binary, detail::gamma<half::round_style,true>(arg.data_));
@@ -3452,6 +3853,8 @@ namespace half_float
 
 	/// Gamma function.
 	/// This function may be 1 ULP off the correctly rounded result for any rounding mode in <0.25% of inputs.
+	///
+	/// **See also:** Documentation for [std::tgamma](https://en.cppreference.com/w/cpp/numeric/math/tgamma).
 	/// \param arg function argument
 	/// \return gamma function value of \a arg
 	inline half tgamma(half arg)
@@ -3460,16 +3863,18 @@ namespace half_float
 		return half(detail::binary, detail::float2half<half::round_style>(std::tgamma(detail::half2float<detail::internal_t>(arg.data_))));
 	#else
 		unsigned int abs = arg.data_ & 0x7FFF;
-		if(abs >= 0x7C00 || arg.data_ == 0x3C00)
-			return half(detail::binary, arg.data_|-static_cast<unsigned>(arg.data_==0xFC00));
 		if(!abs)
-			return half(detail::binary, arg.data_|0x7C00);
+			return half(detail::binary, detail::pole(arg.data_));
+		if(abs >= 0x7C00)
+			return (arg.data_==0x7C00) ? arg : half(detail::binary, detail::signal(arg.data_));
 		if(arg.data_ >= 0xE400 || (arg.data_ >= 0xBC00 && !(abs&((1<<(25-(abs>>10)))-1))))
-			return half(detail::binary, 0x7FFF);
+			return half(detail::binary, detail::invalid());
 		if(arg.data_ >= 0xCA80)
 			return half(detail::binary, detail::underflow<half::round_style>((1-((abs>>(25-(abs>>10)))&1))<<15));
 		if(arg.data_ <= 0x100 || (arg.data_ >= 0x4900 && arg.data_ < 0x8000))
 			return half(detail::binary, detail::overflow<half::round_style>());
+		if(arg.data_ == 0x3C00)
+			return arg;
 		return half(detail::binary, detail::gamma<half::round_style,false>(arg.data_));
 	#endif
 	}
@@ -3480,54 +3885,64 @@ namespace half_float
 	/// \{
 
 	/// Nearest integer not less than half value.
+	/// **See also:** Documentation for [std::ceil](https://en.cppreference.com/w/cpp/numeric/math/ceil).
 	/// \param arg half to round
 	/// \return nearest integer not less than \a arg
-	inline half ceil(half arg) { return half(detail::binary, detail::round_half<std::round_toward_infinity,true>(arg.data_)); }
+	inline half ceil(half arg) { return half(detail::binary, detail::round_half<std::round_toward_infinity,true,true>(arg.data_)); }
 
 	/// Nearest integer not greater than half value.
+	/// **See also:** Documentation for [std::floor](https://en.cppreference.com/w/cpp/numeric/math/floor).
 	/// \param arg half to round
 	/// \return nearest integer not greater than \a arg
-	inline half floor(half arg) { return half(detail::binary, detail::round_half<std::round_toward_neg_infinity,true>(arg.data_)); }
+	inline half floor(half arg) { return half(detail::binary, detail::round_half<std::round_toward_neg_infinity,true,true>(arg.data_)); }
 
 	/// Nearest integer not greater in magnitude than half value.
+	/// **See also:** Documentation for [std::trunc](https://en.cppreference.com/w/cpp/numeric/math/trunc).
 	/// \param arg half to round
 	/// \return nearest integer not greater in magnitude than \a arg
-	inline half trunc(half arg) { return half(detail::binary, detail::round_half<std::round_toward_zero,true>(arg.data_)); }
+	inline half trunc(half arg) { return half(detail::binary, detail::round_half<std::round_toward_zero,true,true>(arg.data_)); }
 
 	/// Nearest integer.
+	/// **See also:** Documentation for [std::round](https://en.cppreference.com/w/cpp/numeric/math/round).
 	/// \param arg half to round
 	/// \return nearest integer, rounded away from zero in half-way cases
-	inline half round(half arg) { return half(detail::binary, detail::round_half<std::round_to_nearest,false>(arg.data_)); }
+	inline half round(half arg) { return half(detail::binary, detail::round_half<std::round_to_nearest,false,true>(arg.data_)); }
 
 	/// Nearest integer.
+	/// **See also:** Documentation for [std::lround](https://en.cppreference.com/w/cpp/numeric/math/round).
 	/// \param arg half to round
 	/// \return nearest integer, rounded away from zero in half-way cases
-	inline long lround(half arg) { return detail::half2int<std::round_to_nearest,false,long>(arg.data_); }
+	inline long lround(half arg) { return detail::half2int<std::round_to_nearest,false,false,long>(arg.data_); }
 
 	/// Nearest integer using half's internal rounding mode.
+	/// **See also:** Documentation for [std::rint](https://en.cppreference.com/w/cpp/numeric/math/rint).
 	/// \param arg half expression to round
 	/// \return nearest integer using default rounding mode
-	inline half rint(half arg) { return half(detail::binary, detail::round_half<half::round_style,true>(arg.data_)); }
+	inline half rint(half arg) { return half(detail::binary, detail::round_half<half::round_style,true,true>(arg.data_)); }
 
 	/// Nearest integer using half's internal rounding mode.
+	/// **See also:** Documentation for [std::lrint](https://en.cppreference.com/w/cpp/numeric/math/rint).
 	/// \param arg half expression to round
 	/// \return nearest integer using default rounding mode
-	inline long lrint(half arg) { return detail::half2int<half::round_style,true,long>(arg.data_); }
+	inline long lrint(half arg) { return detail::half2int<half::round_style,true,true,long>(arg.data_); }
 
 	/// Nearest integer using half's internal rounding mode.
+	/// **See also:** Documentation for [std::nearbyint](https://en.cppreference.com/w/cpp/numeric/math/nearbyint).
 	/// \param arg half expression to round
 	/// \return nearest integer using default rounding mode
-	inline half nearbyint(half arg) { return rint(arg); }
+	inline half nearbyint(half arg) { return half(detail::binary, detail::round_half<half::round_style,true,false>(arg.data_)); }
 #if HALF_ENABLE_CPP11_LONG_LONG
 	/// Nearest integer.
+	/// **See also:** Documentation for [std::llround](https://en.cppreference.com/w/cpp/numeric/math/round).
 	/// \param arg half to round
 	/// \return nearest integer, rounded away from zero in half-way cases
-	inline long long llround(half arg) { return detail::half2int<std::round_to_nearest,false,long long>(arg.data_); }
+	inline long long llround(half arg) { return detail::half2int<std::round_to_nearest,false,false,long long>(arg.data_); }
 
 	/// Nearest integer using half's internal rounding mode.
+	/// **See also:** Documentation for [std::llrint](https://en.cppreference.com/w/cpp/numeric/math/rint).
 	/// \param arg half expression to round
 	/// \return nearest integer using default rounding mode
-	inline long long llrint(half arg) { return detail::half2int<half::round_style,true,long long>(arg.data_); }
+	inline long long llrint(half arg) { return detail::half2int<half::round_style,true,true,long long>(arg.data_); }
 #endif
 
 	/// \}
@@ -3535,23 +3950,26 @@ namespace half_float
 	/// \name Floating point manipulation
 	/// \{
 
-	/// Decompress floating point number.
+	/// Decompress floating-point number.
+	/// **See also:** Documentation for [std::frexp](https://en.cppreference.com/w/cpp/numeric/math/frexp).
 	/// \param arg number to decompress
 	/// \param exp address to store exponent at
 	/// \return significant in range [0.5, 1)
 	inline half frexp(half arg, int *exp)
 	{
 		*exp = 0;
-		unsigned int m = arg.data_ & 0x7FFF;
-		if(m >= 0x7C00 || !m)
-			return arg;
-		for(; m<0x400; m<<=1,--*exp) ;
-		*exp += (m>>10) - 14;
-		return half(detail::binary, (arg.data_&0x8000)|0x3800|(m&0x3FF));
+		unsigned int abs = arg.data_ & 0x7FFF;
+		if(abs >= 0x7C00 || !abs)
+			return (abs>0x7C00) ? half(detail::binary, detail::signal(arg.data_)) : arg;
+		for(; abs<0x400; abs<<=1,--*exp) ;
+		*exp += (abs>>10) - 14;
+		return half(detail::binary, (arg.data_&0x8000)|0x3800|(abs&0x3FF));
 	}
 
 	/// Multiply by power of two.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::scalbln](https://en.cppreference.com/w/cpp/numeric/math/scalbn).
 	/// \param arg number to modify
 	/// \param exp power of two to multiply with
 	/// \return \a arg multplied by 2 raised to \a exp
@@ -3559,7 +3977,7 @@ namespace half_float
 	{
 		unsigned int abs = arg.data_ & 0x7FFF, value = arg.data_ & 0x8000;
 		if(abs >= 0x7C00 || !abs)
-			return arg;
+			return (abs>0x7C00) ? half(detail::binary, detail::signal(arg.data_)) : arg;
 		for(; abs<0x400; abs<<=1,--exp) ;
 		exp += abs >> 10;
 		if(exp > 30)
@@ -3569,11 +3987,13 @@ namespace half_float
 		else if(exp > 0)
 			return half(detail::binary, value|(exp<<10)|(abs&0x3FF));
 		unsigned int m = (abs&0x3FF) | 0x400;
-		return half(detail::binary, detail::rounded<half::round_style>(value|(m>>(1-exp)), (m>>-exp)&1, (m&((1<<-exp)-1))!=0));
+		return half(detail::binary, detail::rounded<half::round_style,false>(value|(m>>(1-exp)), (m>>-exp)&1, (m&((1<<-exp)-1))!=0));
 	}
 
 	/// Multiply by power of two.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::scalbn](https://en.cppreference.com/w/cpp/numeric/math/scalbn).
 	/// \param arg number to modify
 	/// \param exp power of two to multiply with
 	/// \return \a arg multplied by 2 raised to \a exp
@@ -3581,20 +4001,28 @@ namespace half_float
 
 	/// Multiply by power of two.
 	/// This function is exact to rounding for all rounding modes.
+	///
+	/// **See also:** Documentation for [std::ldexp](https://en.cppreference.com/w/cpp/numeric/math/ldexp).
 	/// \param arg number to modify
 	/// \param exp power of two to multiply with
 	/// \return \a arg multplied by 2 raised to \a exp
 	inline half ldexp(half arg, int exp) { return scalbln(arg, exp); }
 
 	/// Extract integer and fractional parts.
+	/// **See also:** Documentation for [std::modf](https://en.cppreference.com/w/cpp/numeric/math/modf).
 	/// \param arg number to decompress
 	/// \param iptr address to store integer part at
 	/// \return fractional part
 	inline half modf(half arg, half *iptr)
 	{
 		unsigned int abs = arg.data_ & 0x7FFF;
+		if(abs > 0x7C00)
+		{
+			arg = half(detail::binary, detail::signal(arg.data_));
+			return *iptr = arg, arg;
+		}
 		if(abs >= 0x6400)
-			return *iptr = arg, half(detail::binary, arg.data_&(0x8000|-static_cast<unsigned>(abs>0x7C00)));
+			return *iptr = arg, half(detail::binary, arg.data_&0x8000);
 		if(abs < 0x3C00)
 			return iptr->data_ = arg.data_ & 0x8000, arg;
 		unsigned int exp = abs >> 10, mask = (1<<(25-exp)) - 1, m = arg.data_ & mask;
@@ -3606,32 +4034,35 @@ namespace half_float
 	}
 
 	/// Extract exponent.
+	/// **See also:** Documentation for [std::ilogb](https://en.cppreference.com/w/cpp/numeric/math/ilogb).
 	/// \param arg number to query
-	/// \return floating point exponent
+	/// \return floating-point exponent
 	/// \retval FP_ILOGB0 for zero
 	/// \retval FP_ILOGBNAN for NaN
 	/// \retval INT_MAX for infinity
 	inline int ilogb(half arg)
 	{
 		int abs = arg.data_ & 0x7FFF, exp;
-		if(!abs)
-			return FP_ILOGB0;
-		if(abs >= 0x7C00)
-			return (abs==0x7C00) ? INT_MAX : FP_ILOGBNAN;
+		if(!abs || abs >= 0x7C00)
+		{
+			detail::raise(HALF_FE_INVALID);
+			return !abs ? FP_ILOGB0 : (abs==0x7C00) ? INT_MAX : FP_ILOGBNAN;
+		}
 		for(exp=(abs>>10)-15; abs<0x200; abs<<=1,--exp) ;
 		return exp;
 	}
 
 	/// Extract exponent.
+	/// **See also:** Documentation for [std::logb](https://en.cppreference.com/w/cpp/numeric/math/logb).
 	/// \param arg number to query
-	/// \return floating point exponent
+	/// \return floating-point exponent
 	inline half logb(half arg)
 	{
 		int abs = arg.data_ & 0x7FFF, exp;
 		if(!abs)
-			return half(detail::binary, 0xFC00);
+			return half(detail::binary, detail::pole(0x8000));
 		if(abs >= 0x7C00)
-			return (abs==0x7C00) ? half(detail::binary, 0x7C00) : arg;
+			return half(detail::binary, (abs==0x7C00) ? 0x7C00 : detail::signal(arg.data_));
 		for(exp=(abs>>10)-15; abs<0x200; abs<<=1,--exp) ;
 		unsigned int value = static_cast<unsigned>(exp<0) << 15;
 		if(exp)
@@ -3644,23 +4075,31 @@ namespace half_float
 	}
 
 	/// Next representable value.
+	/// **See also:** Documentation for [std::nextafter](https://en.cppreference.com/w/cpp/numeric/math/nextafter).
 	/// \param from value to compute next representable value for
 	/// \param to direction towards which to compute next value
 	/// \return next representable value after \a from in direction towards \a to
 	inline half nextafter(half from, half to)
 	{
 		int fabs = from.data_ & 0x7FFF, tabs = to.data_ & 0x7FFF;
-		if(fabs > 0x7C00)
-			return from;
-		if(tabs > 0x7C00 || from.data_ == to.data_ || !(fabs|tabs))
+		if(fabs > 0x7C00 || tabs > 0x7C00)
+			return half(detail::binary, detail::signal(from.data_, to.data_));
+		if(from.data_ == to.data_ || !(fabs|tabs))
 			return to;
 		if(!fabs)
+		{
+			detail::raise(HALF_FE_UNDERFLOW);
 			return half(detail::binary, (to.data_&0x8000)+1);
-		return half(detail::binary, from.data_+(((from.data_>>15)^static_cast<unsigned>(
-			((fabs==from.data_) ? fabs : -fabs)<((tabs==to.data_) ? tabs : -tabs)))<<1)-1);
+		}
+		unsigned int out = from.data_ + (((from.data_>>15)^static_cast<unsigned>(
+			(from.data_^(0x8000|(0x8000-(from.data_>>15))))<(to.data_^(0x8000|(0x8000-(to.data_>>15))))))<<1) - 1;
+		detail::raise(HALF_FE_OVERFLOW, fabs<0x7C00 && (out&0x7C00)==0x7C00);
+		detail::raise(HALF_FE_UNDERFLOW, (out&0x7C00)<0x400);
+		return half(detail::binary, out);
 	}
 
 	/// Next representable value.
+	/// **See also:** Documentation for [std::nexttoward](https://en.cppreference.com/w/cpp/numeric/math/nexttoward).
 	/// \param from value to compute next representable value for
 	/// \param to direction towards which to compute next value
 	/// \return next representable value after \a from in direction towards \a to
@@ -3668,16 +4107,23 @@ namespace half_float
 	{
 		int fabs = from.data_ & 0x7FFF;
 		if(fabs > 0x7C00)
-			return from;
+			return half(detail::binary, detail::signal(from.data_));
 		long double lfrom = static_cast<long double>(from);
 		if(detail::builtin_isnan(to) || lfrom == to)
 			return half(static_cast<float>(to));
 		if(!fabs)
+		{
+			detail::raise(HALF_FE_UNDERFLOW);
 			return half(detail::binary, (static_cast<unsigned>(detail::builtin_signbit(to))<<15)+1);
-		return half(detail::binary, from.data_+(((from.data_>>15)^static_cast<unsigned>(lfrom<to))<<1)-1);
+		}
+		unsigned int out = from.data_ + (((from.data_>>15)^static_cast<unsigned>(lfrom<to))<<1) - 1;
+		detail::raise(HALF_FE_OVERFLOW, (out&0x7FFF)==0x7C00);
+		detail::raise(HALF_FE_UNDERFLOW, (out&0x7FFF)<0x400);
+		return half(detail::binary, out);
 	}
 
 	/// Take sign.
+	/// **See also:** Documentation for [std::copysign](https://en.cppreference.com/w/cpp/numeric/math/copysign).
 	/// \param x value to change sign for
 	/// \param y value to take sign from
 	/// \return value equal to \a x in magnitude and to \a y in sign
@@ -3688,7 +4134,8 @@ namespace half_float
 	/// \name Floating point classification
 	/// \{
 
-	/// Classify floating point value.
+	/// Classify floating-point value.
+	/// **See also:** Documentation for [std::fpclassify](https://en.cppreference.com/w/cpp/numeric/math/fpclassify).
 	/// \param arg number to classify
 	/// \retval FP_ZERO for positive and negative zero
 	/// \retval FP_SUBNORMAL for subnormal numbers
@@ -3705,30 +4152,35 @@ namespace half_float
 	}
 
 	/// Check if finite number.
+	/// **See also:** Documentation for [std::isfinite](https://en.cppreference.com/w/cpp/numeric/math/isfinite).
 	/// \param arg number to check
 	/// \retval true if neither infinity nor NaN
 	/// \retval false else
 	inline HALF_CONSTEXPR bool isfinite(half arg) { return (arg.data_&0x7C00) != 0x7C00; }
 
 	/// Check for infinity.
+	/// **See also:** Documentation for [std::isinf](https://en.cppreference.com/w/cpp/numeric/math/isinf).
 	/// \param arg number to check
 	/// \retval true for positive or negative infinity
 	/// \retval false else
 	inline HALF_CONSTEXPR bool isinf(half arg) { return (arg.data_&0x7FFF) == 0x7C00; }
 
 	/// Check for NaN.
+	/// **See also:** Documentation for [std::isnan](https://en.cppreference.com/w/cpp/numeric/math/isnan).
 	/// \param arg number to check
 	/// \retval true for NaNs
 	/// \retval false else
 	inline HALF_CONSTEXPR bool isnan(half arg) { return (arg.data_&0x7FFF) > 0x7C00; }
 
 	/// Check if normal number.
+	/// **See also:** Documentation for [std::isnormal](https://en.cppreference.com/w/cpp/numeric/math/isnormal).
 	/// \param arg number to check
 	/// \retval true if normal number
 	/// \retval false if either subnormal, zero, infinity or NaN
 	inline HALF_CONSTEXPR bool isnormal(half arg) { return ((arg.data_&0x7C00)!=0) & ((arg.data_&0x7C00)!=0x7C00); }
 
 	/// Check sign.
+	/// **See also:** Documentation for [std::signbit](https://en.cppreference.com/w/cpp/numeric/math/signbit).
 	/// \param arg number to check
 	/// \retval true for negative number
 	/// \retval false for positive number
@@ -3739,42 +4191,63 @@ namespace half_float
 	/// \name Comparison
 	/// \{
 
-	/// Comparison for greater than.
+	/// Quiet comparison for greater than.
+	/// **See also:** Documentation for [std::isgreater](https://en.cppreference.com/w/cpp/numeric/math/isgreater).
 	/// \param x first operand
 	/// \param y second operand
 	/// \retval true if \a x greater than \a y
 	/// \retval false else
-	inline HALF_CONSTEXPR bool isgreater(half x, half y) { return x > y; }
+	inline HALF_CONSTEXPR bool isgreater(half x, half y)
+	{
+		return ((x.data_^(0x8000|(0x8000-(x.data_>>15))))+(x.data_>>15)) > ((y.data_^(0x8000|(0x8000-(y.data_>>15))))+(y.data_>>15)) && !isnan(x) && !isnan(y);
+	}
 
-	/// Comparison for greater equal.
+	/// Quiet comparison for greater equal.
+	/// **See also:** Documentation for [std::isgreaterequal](https://en.cppreference.com/w/cpp/numeric/math/isgreaterequal).
 	/// \param x first operand
 	/// \param y second operand
 	/// \retval true if \a x greater equal \a y
 	/// \retval false else
-	inline HALF_CONSTEXPR bool isgreaterequal(half x, half y) { return x >= y; }
+	inline HALF_CONSTEXPR bool isgreaterequal(half x, half y)
+	{
+		return ((x.data_^(0x8000|(0x8000-(x.data_>>15))))+(x.data_>>15)) >= ((y.data_^(0x8000|(0x8000-(y.data_>>15))))+(y.data_>>15)) && !isnan(x) && !isnan(y);
+	}
 
-	/// Comparison for less than.
+	/// Quiet comparison for less than.
+	/// **See also:** Documentation for [std::isless](https://en.cppreference.com/w/cpp/numeric/math/isless).
 	/// \param x first operand
 	/// \param y second operand
 	/// \retval true if \a x less than \a y
 	/// \retval false else
-	inline HALF_CONSTEXPR bool isless(half x, half y) { return x < y; }
+	inline HALF_CONSTEXPR bool isless(half x, half y)
+	{
+		return ((x.data_^(0x8000|(0x8000-(x.data_>>15))))+(x.data_>>15)) < ((y.data_^(0x8000|(0x8000-(y.data_>>15))))+(y.data_>>15)) && !isnan(x) && !isnan(y);
+	}
 
-	/// Comparison for less equal.
+	/// Quiet comparison for less equal.
+	/// **See also:** Documentation for [std::islessequal](https://en.cppreference.com/w/cpp/numeric/math/islessequal).
 	/// \param x first operand
 	/// \param y second operand
 	/// \retval true if \a x less equal \a y
 	/// \retval false else
-	inline HALF_CONSTEXPR bool islessequal(half x, half y) { return x <= y; }
+	inline HALF_CONSTEXPR bool islessequal(half x, half y)
+	{
+		return ((x.data_^(0x8000|(0x8000-(x.data_>>15))))+(x.data_>>15)) <= ((y.data_^(0x8000|(0x8000-(y.data_>>15))))+(y.data_>>15)) && !isnan(x) && !isnan(y);
+	}
 
-	/// Comarison for less or greater.
+	/// Quiet comarison for less or greater.
+	/// **See also:** Documentation for [std::islessgreater](https://en.cppreference.com/w/cpp/numeric/math/islessgreater).
 	/// \param x first operand
 	/// \param y second operand
 	/// \retval true if either less or greater
 	/// \retval false else
-	inline HALF_CONSTEXPR bool islessgreater(half x, half y) { return x < y || x > y; }
+	inline HALF_CONSTEXPR bool islessgreater(half x, half y)
+	{
+		return x.data_!=y.data_ && ((x.data_|y.data_)&0x7FFF) && !isnan(x) && !isnan(y);
+	}
 
-	/// Check if unordered.
+	/// Quiet check if unordered.
+	/// **See also:** Documentation for [std::isunordered](https://en.cppreference.com/w/cpp/numeric/math/isunordered).
 	/// \param x first operand
 	/// \param y second operand
 	/// \retval true if unordered (one or two NaN operands)
@@ -3786,7 +4259,7 @@ namespace half_float
 	/// \name Casting
 	/// \{
 
-	/// Cast to or from half-precision floating point number.
+	/// Cast to or from half-precision floating-point number.
 	/// This casts between [half](\ref half_float::half) and any built-in arithmetic type. The values are converted 
 	/// directly using the default rounding mode, without any roundtrip over `float` that a `static_cast` would otherwise do.
 	///
@@ -3799,7 +4272,7 @@ namespace half_float
 	/// \return \a arg converted to destination type
 	template<typename T,typename U> T half_cast(U arg) { return detail::half_caster<T,U>::cast(arg); }
 
-	/// Cast to or from half-precision floating point number.
+	/// Cast to or from half-precision floating-point number.
 	/// This casts between [half](\ref half_float::half) and any built-in arithmetic type. The values are converted 
 	/// directly using the specified rounding mode, without any roundtrip over `float` that a `static_cast` would otherwise do.
 	///
@@ -3813,13 +4286,80 @@ namespace half_float
 	/// \return \a arg converted to destination type
 	template<typename T,std::float_round_style R,typename U> T half_cast(U arg) { return detail::half_caster<T,U,R>::cast(arg); }
 	/// \}
+
+	/// \}
+	/// \anchor errors
+	/// \name Error handling
+	/// \{
+
+	/// Clear exception flags.
+	/// **See also:** Documentation for [std::feclearexcept](https://en.cppreference.com/w/cpp/numeric/fenv/feclearexcept).
+	/// \param excepts OR of exceptions to clear
+	/// \retval 0 all selected flags cleared successfully
+	inline int feclearexcept(int excepts) { detail::errflags() &= ~excepts; return 0; }
+
+	/// Test exception flags.
+	/// **See also:** Documentation for [std::fetestexcept](https://en.cppreference.com/w/cpp/numeric/fenv/fetestexcept).
+	/// \param excepts OR of exceptions to test
+	/// \return OR of selected exceptions if raised
+	inline int fetestexcept(int excepts) { return detail::errflags() & excepts; }
+
+	/// Raise exception flags.
+	/// This raises the specified floating point exceptions and also invokes any additional automatic exception handling as 
+	/// configured with the [HALF_ERRHANDLIG_...](\ref HALF_ERRHANDLING_ERRNO) preprocessor symbols.
+	///
+	/// **See also:** Documentation for [std::feraiseexcept](https://en.cppreference.com/w/cpp/numeric/fenv/feraiseexcept).
+	/// \param excepts OR of exceptions to raise
+	/// \retval 0 all selected exceptions raised successfully
+	inline int feraiseexcept(int excepts) { detail::errflags() |= excepts; detail::raise(excepts); return 0; }
+
+	/// Save exception flags.
+	/// **See also:** Documentation for [std::fegetexceptflag](https://en.cppreference.com/w/cpp/numeric/fenv/feexceptflag).
+	/// \param flagp adress to store flag state at
+	/// \param excepts OR of flags to save
+	/// \retval 0 for success
+	inline int fegetexceptflag(int *flagp, int excepts) { *flagp = detail::errflags() & excepts; return 0; }
+
+	/// Restore exception flags.
+	/// This only copies the specified exception state (including unset flags) without incurring any additional exception handling.
+	///
+	/// **See also:** Documentation for [std::fesetexceptflag](https://en.cppreference.com/w/cpp/numeric/fenv/feexceptflag).
+	/// \param flagp adress to take flag state from
+	/// \param excepts OR of flags to restore
+	/// \retval 0 for success
+	inline int fesetexceptflag(const int *flagp, int excepts) { detail::errflags() = (detail::errflags()|(*flagp&excepts)) & (*flagp|~excepts); return 0; }
+
+	/// Throw C++ exceptions based on set exception flags.
+	/// This function manually throws a corresponding C++ exception if one of the specified flags is set, 
+	/// no matter if automatic throwing (via [HALF_ERRHANDLING_THROW_...](\ref HALF_ERRHANDLING_THROW_INVALID)) is enabled or not.
+	/// \param excepts OR of exceptions to test
+	/// \param msg error message to use for exception description
+	/// \throw std::domain_error if [HALF_FE_INVALID](\ref HALF_FE_INVALID) or [HALF_FE_DIVBYZERO](\ref HALF_FE_DIVBYZERO) is selected and set
+	/// \throw std::overflow_error if [HALF_FE_OVERFLOW](\ref HALF_FE_OVERFLOW) is selected and set
+	/// \throw std::underflow_error if [HALF_FE_UNDERFLOW](\ref HALF_FE_UNDERFLOW) is selected and set
+	/// \throw std::range_error if [HALF_FE_INEXACT](\ref HALF_FE_INEXACT) is selected and set
+	inline void fethrowexcept(int excepts, const char *msg = "")
+	{
+		excepts &= detail::errflags();
+		if(excepts & (HALF_FE_INVALID|HALF_FE_DIVBYZERO))
+			throw std::domain_error(msg);
+		if(excepts & HALF_FE_OVERFLOW)
+			throw std::overflow_error(msg);
+		if(excepts & HALF_FE_UNDERFLOW)
+			throw std::underflow_error(msg);
+		if(excepts & HALF_FE_INEXACT)
+			throw std::range_error(msg);
+	}
+	/// \}
 }
 
 
 #undef HALF_CONSTEXPR
 #undef HALF_CONSTEXPR_CONST
+#undef HALF_CONSTEXPR_NOERR
 #undef HALF_NOEXCEPT
 #undef HALF_NOTHROW
+#undef HALF_THREAD_LOCAL
 #undef HALF_TWOS_COMPLEMENT_INT
 #ifdef HALF_POP_WARNINGS
 	#pragma warning(pop)
