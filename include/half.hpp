@@ -1037,8 +1037,8 @@ namespace half_float
 			if(N)
 				for(; m<(static_cast<uint32>(1)<<F) && exp; m<<=1,--exp) ;
 			else if(exp < 0)
-				return rounded<R,I>(value|(m>>(F-10-exp)), (m>>(F-11-exp))&1, s|((m&((static_cast<uint32>(1)<<(F-11-exp))-1))!=0));
-			return rounded<R,I>(value|((exp<<10)+(m>>(F-10))), (m>>(F-11))&1, s|((m&((static_cast<uint32>(1)<<(F-11))-1))!=0));
+				return rounded<R,I>(value+(m>>(F-10-exp)), (m>>(F-11-exp))&1, s|((m&((static_cast<uint32>(1)<<(F-11-exp))-1))!=0));
+			return rounded<R,I>(value+(exp<<10)+(m>>(F-10)), (m>>(F-11))&1, s|((m&((static_cast<uint32>(1)<<(F-11))-1))!=0));
 		}
 
 		/// Convert half-precision to IEEE single-precision.
@@ -1982,7 +1982,7 @@ namespace half_float
 						return underflow<R>(value);
 				}
 				else if(z.exp > 0 && !(z.m&((1<<(31-z.exp))-1)))
-					return fixed2half<R,31,false,false,false>(s.m, s.exp+14, value);
+					return ((s.exp+14)<<10) + (s.m>>21);
 				if(s.exp > 15)
 					return overflow<R>(value);
 			}
