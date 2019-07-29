@@ -119,9 +119,6 @@
 	#pragma warning(push)
 	#pragma warning(disable : 4099 4127 4146)	//struct vs class, constant in if, negative unsigned
 #endif
-#if defined(__F16C__) && !defined(HALF_ENABLE_F16C_INTRINSICS)
-	#define HALF_ENABLE_F16C_INTRINSICS 1
-#endif
 
 // check C++11 library features
 #include <utility>
@@ -268,25 +265,27 @@
 #endif
 
 
+#ifndef HALF_ENABLE_F16C_INTRINSICS
+	/// Enable F16C intruction set intrinsics.
+	/// Defining this to 1 enables the use of [F16C compiler intrinsics](https://en.wikipedia.org/wiki/F16C) for converting between 
+	/// half-precision and single-precision values which may result in improved performance. This will not perform additional checks 
+	/// for support of the F16C instruction set, so an appropriate target platform is required when enabling this feature.
+	///
+	/// Unless predefined it will be enabled automatically when the `__F16C__` symbol is defined, which some compilers do on supporting platforms.
+	#define HALF_ENABLE_F16C_INTRINSICS __F16C__
+#endif
+
 #ifdef HALF_DOXYGEN_ONLY
 /// Type for internal floating-point computations.
-/// This can be defined to a built-in floating-point type (`float`, `double` or `long double`) to override the internal 
+/// This can be predefined to a built-in floating-point type (`float`, `double` or `long double`) to override the internal 
 /// half-precision implementation to use this type for computing arithmetic operations and mathematical function (if available). 
-/// This might cause results to deviate from the specified half-precision rounding mode but can result in improved performance 
-/// for arithmetic operators and mathematical functions.
+/// This can result in improved performance for arithmetic operators and mathematical functions but might cause results to 
+/// deviate from the specified half-precision rounding mode and inhibits proper detection of half-precision exceptions.
 #define HALF_ARITHMETIC_TYPE (undefined)
-
-/// Enable F16C intrustion set intrinsics.
-/// Defining this to 1 enables the use of [F16C compiler intrinsics](https://en.wikipedia.org/wiki/F16C) for converting between 
-/// half-precision and single-precision values which may result in improved performance. This will not perform additional checks 
-/// for support of the F16C instruction set, so an appropriate target platform is required when enabling this feature.
-#define HALF_ENABLE_F16C_INTRINSICS (undefined)
 
 /// Enable internal exception flags.
 /// Defining this to 1 causes operations on half-precision values to raise internal floating-point exception flags according to 
 /// the IEEE 754 standard. These can then be cleared and checked with clearexcept(), testexcept().
-///
-/// This is disabled by default since it incurs additional runtime checks that are rarely ever needed.
 #define HALF_ERRHANDLING_FLAGS	0
 
 /// Enable exception propagation to `errno`.
@@ -301,7 +300,7 @@
 /// single- and double-precision implementation's exception flags using the 
 /// [C++11 floating-point environment control](https://en.cppreference.com/w/cpp/numeric/fenv) from `<cfenv>`. However, this 
 /// does not work in reverse and single- or double-precision exceptions will not raise the corresponding half-precision 
-/// exception flags.
+/// exception flags, nor will explicitly clearing flags clear the corresponding built-in flags.
 #define HALF_ERRHANDLING_FENV	0
 
 /// Throw C++ exception on domain errors.
@@ -641,12 +640,12 @@ namespace half_float
 		/// Raise floating-point exception.
 		/// \param flags exceptions to raise
 		/// \param cond condition to raise exceptions for
-		inline void raise(unsigned int flags, bool cond = true)
+		inline void raise(int flags, bool cond = true)
 		{
 			if(!cond)
 				return;
 		#if HALF_ERRHANDLING_FLAGS
-			errflags() |= static_cast<int>(flags);
+			errflags() |= flags;
 		#endif
 		#if HALF_ERRHANDLING_ERRNO
 			if(flags & HALF_FE_INVALID)
@@ -655,7 +654,7 @@ namespace half_float
 				errno = ERANGE;
 		#endif
 		#if HALF_ERRHANDLING_FENV && HALF_ENABLE_CPP11_CFENV
-			std::feraiseexcept(static_cast<int>(flags));
+			std::feraiseexcept(flags);
 		#endif
 		#ifdef HALF_ERRHANDLING_THROW_INVALID
 			if(flags & HALF_FE_INVALID)
@@ -688,7 +687,7 @@ namespace half_float
 		}
 	#else
 		/// Raise floating-point exception.
-		inline void raise(unsigned int, bool = true) {}
+		inline void raise(int, bool = true) {}
 	#endif
 
 		/// Signal and silence signaling NaNs.
@@ -4293,12 +4292,18 @@ namespace half_float
 	/// \{
 
 	/// Clear exception flags.
+	/// This function works even if [automatic exception flag handling](\ref HALF_ERRHANDLING_FLAGS) is disabled, 
+	/// but in that case manual flag management is the only way to raise flags.
+	///
 	/// **See also:** Documentation for [std::feclearexcept](https://en.cppreference.com/w/cpp/numeric/fenv/feclearexcept).
 	/// \param excepts OR of exceptions to clear
 	/// \retval 0 all selected flags cleared successfully
 	inline int feclearexcept(int excepts) { detail::errflags() &= ~excepts; return 0; }
 
 	/// Test exception flags.
+	/// This function works even if [automatic exception flag handling](\ref HALF_ERRHANDLING_FLAGS) is disabled, 
+	/// but in that case manual flag management is the only way to raise flags.
+	///
 	/// **See also:** Documentation for [std::fetestexcept](https://en.cppreference.com/w/cpp/numeric/fenv/fetestexcept).
 	/// \param excepts OR of exceptions to test
 	/// \return OR of selected exceptions if raised
@@ -4307,6 +4312,8 @@ namespace half_float
 	/// Raise exception flags.
 	/// This raises the specified floating point exceptions and also invokes any additional automatic exception handling as 
 	/// configured with the [HALF_ERRHANDLIG_...](\ref HALF_ERRHANDLING_ERRNO) preprocessor symbols.
+	/// This function works even if [automatic exception flag handling](\ref HALF_ERRHANDLING_FLAGS) is disabled, 
+	/// but in that case manual flag management is the only way to raise flags.
 	///
 	/// **See also:** Documentation for [std::feraiseexcept](https://en.cppreference.com/w/cpp/numeric/fenv/feraiseexcept).
 	/// \param excepts OR of exceptions to raise
@@ -4314,6 +4321,9 @@ namespace half_float
 	inline int feraiseexcept(int excepts) { detail::errflags() |= excepts; detail::raise(excepts); return 0; }
 
 	/// Save exception flags.
+	/// This function works even if [automatic exception flag handling](\ref HALF_ERRHANDLING_FLAGS) is disabled, 
+	/// but in that case manual flag management is the only way to raise flags.
+	///
 	/// **See also:** Documentation for [std::fegetexceptflag](https://en.cppreference.com/w/cpp/numeric/fenv/feexceptflag).
 	/// \param flagp adress to store flag state at
 	/// \param excepts OR of flags to save
@@ -4322,6 +4332,8 @@ namespace half_float
 
 	/// Restore exception flags.
 	/// This only copies the specified exception state (including unset flags) without incurring any additional exception handling.
+	/// This function works even if [automatic exception flag handling](\ref HALF_ERRHANDLING_FLAGS) is disabled, 
+	/// but in that case manual flag management is the only way to raise flags.
 	///
 	/// **See also:** Documentation for [std::fesetexceptflag](https://en.cppreference.com/w/cpp/numeric/fenv/feexceptflag).
 	/// \param flagp adress to take flag state from
@@ -4332,6 +4344,8 @@ namespace half_float
 	/// Throw C++ exceptions based on set exception flags.
 	/// This function manually throws a corresponding C++ exception if one of the specified flags is set, 
 	/// no matter if automatic throwing (via [HALF_ERRHANDLING_THROW_...](\ref HALF_ERRHANDLING_THROW_INVALID)) is enabled or not.
+	/// This function works even if [automatic exception flag handling](\ref HALF_ERRHANDLING_FLAGS) is disabled, 
+	/// but in that case manual flag management is the only way to raise flags.
 	/// \param excepts OR of exceptions to test
 	/// \param msg error message to use for exception description
 	/// \throw std::domain_error if [HALF_FE_INVALID](\ref HALF_FE_INVALID) or [HALF_FE_DIVBYZERO](\ref HALF_FE_DIVBYZERO) is selected and set

@@ -18,9 +18,10 @@ neccessity to build anything or link to anything.
 Whereas this library is fully C++98-compatible, it can profit from certain 
 C++11 features. Support for those features is checked automatically at compile 
 (or rather preprocessing) time, but can be explicitly enabled or disabled by 
-defining the corresponding preprocessor symbols to either 1 or 0 yourself. This 
-is useful when the automatic detection fails (for more exotic implementations) 
-or when a feature should be explicitly disabled:
+predefining the corresponding preprocessor symbols to either 1 or 0 yourself 
+before including half.hpp. This is useful when the automatic detection fails 
+(for more exotic implementations) or when a feature should be explicitly 
+disabled:
 
   - 'long long' integer type for mathematical functions returning 'long long' 
     results (enabled for VC++ 2003 and icc 11.1 and newer, gcc and clang, 
@@ -147,12 +148,12 @@ half-precision environment.
 
 The default rounding mode for conversions between half and more precise types 
 as well as for rounding results of arithmetic operations and mathematical 
-functions rounds to the nearest representable value. But by redefining the 
-'HALF_ROUND_STYLE' preprocessor symbol (before including half.hpp) this default 
-can be overridden with one of the other standard rounding modes using their 
-respective constants or the equivalent values of 'std::float_round_style' (it 
-can even be synchronized with the built-in single-precision implementation by 
-defining it to 'std::numeric_limits<float>::round_style'):
+functions rounds to the nearest representable value. But by predefining the 
+'HALF_ROUND_STYLE' preprocessor symbol this default can be overridden with one 
+of the other standard rounding modes using their respective constants or the 
+equivalent values of 'std::float_round_style' (it can even be synchronized with 
+the built-in single-precision implementation by defining it to 
+'std::numeric_limits<float>::round_style'):
 
   - 'std::round_indeterminate' (-1) for the fastest rounding.
 
@@ -216,26 +217,25 @@ conceptually clean IEEE-confromant half-precision implementation and in the few
 cases when you do need to compute directly in half-precision you do so for a 
 reason and want accurate results.
 
-If necessary, this internal implementation can be overridden by defining the 
-'HALF_ARITHMETIC_TYPE' preprocessor symbol (before including half.hpp) to one 
-of the built-in floating-point types ('float', 'double' or 'long double'), 
-which will cause the library to use this type for computing arithmetic 
-operations and mathematical functions (if available). However, due to using the 
-platform's floating-point implementation (and its rounding behaviour) 
-internally, this might cause results to deviate from the specified 
-half-precision rounding mode. It will of course also inhibit any of the 
-automatic exception handling facilities described below.
+If necessary, this internal implementation can be overridden by predefining the 
+'HALF_ARITHMETIC_TYPE' preprocessor symbol to one of the built-in 
+floating-point types ('float', 'double' or 'long double'), which will cause the 
+library to use this type for computing arithmetic operations and mathematical 
+functions (if available). However, due to using the platform's floating-point 
+implementation (and its rounding behaviour) internally, this might cause 
+results to deviate from the specified half-precision rounding mode. It will of 
+course also inhibit the automatic exception detection described below.
 
 The conversion operations between half-precision and single-precision types can 
 also make use of the F16C extension for x86 processors by using the 
 corresponding compiler intrinsics from <immintrin.h>. Support for this is 
 checked at compile-time by looking for the '__F16C__' macro which at least gcc 
 and clang define based on the target platform. It can also be enabled manually 
-by defining the 'HALF_ENABLE_F16C_INTRINSICS' preprocessor symbol to 1 (before 
-including half.hpp), or 0 for explicitly disabling it. However, this will 
-directly use the corresponding intrinsics for conversion without checking if 
-they are available at runtime (possibly crashing if they are not), so make sure 
-they are supported on the target platform before enabling this.
+by predefining the 'HALF_ENABLE_F16C_INTRINSICS' preprocessor symbol to 1, or 0 
+for explicitly disabling it. However, this will directly use the corresponding 
+intrinsics for conversion without checking if they are available at runtime 
+(possibly crashing if they are not), so make sure they are supported on the 
+target platform before enabling this.
 
 EXCEPTION HANDLING
 
@@ -252,27 +252,26 @@ C++11's <cfenv> header if supported, specifically:
   - 'HALF_FE_INEXACT' if a result needed rounding to be representable.
   - 'HALF_FE_ALL_EXCEPT' as a convenient OR of all possible exception flags.
 
-The internal exception flag state is stored per thread if C++11 thread-local 
-storage is supported, otherwise it will be stored globally and will 
-theoretically NOT be thread-safe (while practically being as thread-safe as a 
-simple integer variable can be). These flags can be managed explicitly using 
-the library's error handling functions, which again try to mimic the built-in 
-functions for handling floating-point exceptions from <cfenv>. You can clear 
-them with 'feclearexcept' (which is the only way a flag can be cleared), test 
-them with 'fetestexcept', explicitly raise errors with 'feraiseexcept' and save 
-and restore their state using 'fegetexceptflag' and 'fesetexceptflag'. You can 
-also throw corresponding C++ exceptions based on the current flag state using 
-'fethrowexcept'.
+The internal exception flag state will start with all flags cleared and is 
+maintained per thread if C++11 thread-local storage is supported, otherwise it 
+will be maintained globally and will theoretically NOT be thread-safe (while 
+practically being as thread-safe as a simple integer variable can be). These 
+flags can be managed explicitly using the library's error handling functions, 
+which again try to mimic the built-in functions for handling floating-point 
+exceptions from <cfenv>. You can clear them with 'feclearexcept' (which is the 
+only way a flag can be cleared), test them with 'fetestexcept', explicitly 
+raise errors with 'feraiseexcept' and save and restore their state using 
+'fegetexceptflag' and 'fesetexceptflag'. You can also throw corresponding C++ 
+exceptions based on the current flag state using 'fethrowexcept'.
 
 However, any automatic exception detection and handling during half-precision 
 operations and functions is DISABLED by default, since it comes with a minor 
 performance overhead due to runtime checks, and reacting to IEEE floating-point 
 exceptions is rarely ever needed in application code. But the library fully 
 supports IEEE-conformant detection of floating-point exceptions and various 
-ways for handling them, which can be enabled by defining the corresponding 
-preprocessor symbols to 1 (before includidng half.hpp). They can be enabled 
-individually or all at once and they will be processed in the order they are 
-listed here:
+ways for handling them, which can be enabled by pre-defining the corresponding 
+preprocessor symbols to 1. They can be enabled individually or all at once and 
+they will be processed in the order they are listed here:
 
   - 'HALF_ERRHANDLING_FLAGS' sets the internal exception flags described above 
     whenever the corresponding exception occurs.
@@ -280,7 +279,8 @@ listed here:
     the behaviour of the built-in floating-point types when 'MATH_ERRNO' is used.
   - 'HALF_ERRHANDLING_FENV' will propagate exceptions to the built-in 
     floating-point implementation using 'std::feraiseexcept' if support for 
-    C++11 floating-point control is enabled.
+    C++11 floating-point control is enabled. However, this does not synchronize 
+    exceptions: neither will clearing  propagate nor will it work in reverse.
   - 'HALF_ERRHANDLING_THROW_...' can be defined to a string literal which will 
     be used as description message for a C++ exception that is thrown whenever 
     a 'HALF_FE_...' exception occurs, similar to the behaviour of 'fethrowexcept'.
@@ -292,8 +292,9 @@ into a quiet NaN. If error handling is disabled, signaling NaNs will be
 treated like quiet NaNs (while still getting explicitly quieted if propagated 
 to the result). There can also be additional treatment of overflow and 
 underflow errors after they have been processed as above, which is ENABLED by 
-default unless overridden by defining the corresponding preprocessor symbol 
-to 0 (before includidng half.hpp):
+default (but of course only takes effect if any other exception handling is 
+activated) unless overridden by pre-defining the corresponding preprocessor 
+symbol to 0:
 
   - 'HALF_ERRHANDLING_OVERFLOW_TO_INEXACT' will cause overflow errors to also 
     raise a 'HALF_FE_INEXACT' exception.
