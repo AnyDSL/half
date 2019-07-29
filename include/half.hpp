@@ -204,6 +204,12 @@
 // any error handling enabled?
 #define HALF_ERRHANDLING	((HALF_ERRHANDLING_FLAGS) || (HALF_ERRHANDLING_ERRNO) || (HALF_ERRHANDLING_FENV) || (HALF_ERRHANDLING_THROWS))
 
+#if HALF_ERRHANDLING
+	#define HALF_UNUSED_NOERR(name) name
+#else
+	#define HALF_UNUSED_NOERR(name)
+#endif
+
 // support constexpr
 #if HALF_ENABLE_CPP11_CONSTEXPR
 	#define HALF_CONSTEXPR				constexpr
@@ -636,12 +642,12 @@ namespace half_float
 		/// \return reference to global exception flags
 		inline int& errflags() { HALF_THREAD_LOCAL int flags = 0; return flags; }
 
-	#if HALF_ERRHANDLING
 		/// Raise floating-point exception.
 		/// \param flags exceptions to raise
 		/// \param cond condition to raise exceptions for
-		inline void raise(int flags, bool cond = true)
+		inline void raise(int HALF_UNUSED_NOERR(flags), bool HALF_UNUSED_NOERR(cond) = true)
 		{
+		#if HALF_ERRHANDLING
 			if(!cond)
 				return;
 		#if HALF_ERRHANDLING_FLAGS
@@ -684,11 +690,8 @@ namespace half_float
 			if((flags & HALF_FE_OVERFLOW) && !(flags & HALF_FE_INEXACT))
 				raise(HALF_FE_INEXACT);
 		#endif
+		#endif
 		}
-	#else
-		/// Raise floating-point exception.
-		inline void raise(int, bool = true) {}
-	#endif
 
 		/// Signal and silence signaling NaNs.
 		/// \param x first half-precision value to check
@@ -738,18 +741,18 @@ namespace half_float
 			return ((x&0x7FFF)>0x7C00) ? (x|0x200) : ((y&0x7FFF)>0x7C00) ? (y|0x200) : (z|0x200);
 		}
 
-	#if HALF_ERRHANDLING
 		/// Select value or signaling NaN.
 		/// \param x preferred half-precision value
 		/// \param y ignored half-precision value except for signaling NaN
 		/// \return \a y if signaling NaN, \a x otherwise
-		inline HALF_CONSTEXPR_NOERR unsigned int select(unsigned int x, unsigned int y) { return (((y&0x7FFF)>0x7C00) && !(y&0x200)) ? signal(y) : x; }
-	#else
-		/// Select value or signaling NaN.
-		/// \param x preferred half-precision value
-		/// \return always x
-		inline HALF_CONSTEXPR_NOERR unsigned int select(unsigned int x, unsigned int) { return x; }
-	#endif
+		inline HALF_CONSTEXPR_NOERR unsigned int select(unsigned int x, unsigned int HALF_UNUSED_NOERR(y))
+		{
+		#if HALF_ERRHANDLING
+			return (((y&0x7FFF)>0x7C00) && !(y&0x200)) ? signal(y) : x;
+		#else
+			return x;
+		#endif
+		}
 
 		/// Raise domain error and return NaN.
 		/// return quiet NaN
@@ -4368,6 +4371,7 @@ namespace half_float
 }
 
 
+#undef HALF_UNUSED_NOERR
 #undef HALF_CONSTEXPR
 #undef HALF_CONSTEXPR_CONST
 #undef HALF_CONSTEXPR_NOERR
