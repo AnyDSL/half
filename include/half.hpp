@@ -767,12 +767,24 @@ namespace half_float
 		/// Raise pole error and return infinity.
 		/// \param value half-precision value with sign bit only
 		/// \return half-precision infinity with sign of \a value
-		inline HALF_CONSTEXPR_NOERR unsigned int pole(unsigned int value = 0)
+		inline HALF_CONSTEXPR_NOERR unsigned int pole(unsigned int sign = 0)
 		{
 		#if HALF_ERRHANDLING
 			raise(HALF_FE_DIVBYZERO);
 		#endif
-			return value | 0x7C00;
+			return sign | 0x7C00;
+		}
+
+		/// Check value for over or underflow.
+		/// \param arg half-precision value to check
+		/// \return \a arg
+		inline HALF_CONSTEXPR_NOERR unsigned int check(unsigned int arg)
+		{
+		#if HALF_ERRHANDLING
+			raise(HALF_FE_OVERFLOW, (arg&0x7C00)==0x7C00);
+			raise(HALF_FE_UNDERFLOW, !HALF_ERRHANDLING_UNDERFLOW_TO_INEXACT && arg && !(arg&0x7C00));
+		#endif
+			return arg;
 		}
 
 		/// \}
@@ -826,7 +838,7 @@ namespace half_float
 			else if(value & 0x7C00)
 				raise(HALF_FE_INEXACT, I || (g|s)!=0);
 			else
-				raise(HALF_FE_UNDERFLOW, !(HALF_ERRHANDLING_UNDERFLOW_TO_INEXACT) || (g|s)!=0);
+				raise(HALF_FE_UNDERFLOW, !(HALF_ERRHANDLING_UNDERFLOW_TO_INEXACT) || I || (g|s)!=0);
 			return value;
 		#else
 			return	(R==std::round_to_nearest) ? (value+(g&(s|value))) :
@@ -3199,9 +3211,9 @@ namespace half_float
 			return half(detail::binary,	(absx==0x7C00) ? detail::select(0x7C00, y.data_) :
 				(absy==0x7C00) ? detail::select(0x7C00, x.data_) : detail::signal(x.data_, y.data_));
 		if(!absx)
-			return half(detail::binary, absy);
+			return half(detail::binary, detail::check(absy));
 		if(!absy)
-			return half(detail::binary, absx);
+			return half(detail::binary, detail::check(absx));
 		if(absy > absx)
 			std::swap(absx, absy);
 		for(; absx<0x400; absx<<=1,--expx) ;
@@ -3285,7 +3297,7 @@ namespace half_float
 	}
 
 	/// Power function.
-	/// This function may be 1 ULP off the correctly rounded result for any rounding mode in <0.002%.
+	/// This function may be 1 ULP off the correctly rounded result in ~0.0005% of inputs for any rounding mode other than `std::round_to_nearest`.
 	///
 	/// **See also:** Documentation for [std::pow](https://en.cppreference.com/w/cpp/numeric/math/pow).
 	/// \param x base
@@ -3311,12 +3323,12 @@ namespace half_float
 			return half(detail::binary, detail::invalid());
 		if(x.data_ == 0xBC00)
 			return half(detail::binary, value|0x3C00);
-//		if(y.data_ == 0x3800)
-//			return sqrt(x);
+		if(y.data_ == 0x3800)
+			return sqrt(x);
 		if(y.data_ == 0x3C00)
-			return x;
-//		if(y.data_ == 0x4000)
-//			return x * x;
+			return half(detail::binary, detail::check(x.data_));
+		if(y.data_ == 0x4000)
+			return x * x;
 		for(; absx<0x400; absx<<=1,--exp) ;
 		detail::uint32 ilog = exp + (absx>>10), sign = detail::sign_mask(ilog), f, m = 
 			(((ilog<<27)+((detail::log2(static_cast<detail::uint32>((absx&0x3FF)|0x400)<<20)+8)>>4))^sign) - sign;
