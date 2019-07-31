@@ -530,10 +530,10 @@ namespace half_float
 		typedef unsigned short uint16;
 
 		/// Fastest unsigned integer of (at least) 32 bits width.
-		typedef conditional<std::numeric_limits<unsigned int>::digits>=32,unsigned int,unsigned long>::type uint32;
+		typedef unsigned long uint32;
 
 		/// Fastest unsigned integer of (at least) 32 bits width.
-		typedef conditional<std::numeric_limits<int>::digits>=31,int,long>::type int32;
+		typedef long int32;
 
 		/// Unsigned integer of (at least) 32 bits width.
 		template<> struct bits<float> : conditional<std::numeric_limits<unsigned int>::digits>=32,unsigned int,unsigned long> {};
@@ -693,10 +693,11 @@ namespace half_float
 		#endif
 		}
 
-		/// Signal and silence signaling NaNs.
+		/// Check and signal for any NaN.
 		/// \param x first half-precision value to check
 		/// \param y second half-precision value to check
-		/// \return quiet NaN
+		/// \retval true if either \a x or \a y is NaN
+		/// \retval false else
 		inline HALF_CONSTEXPR_NOERR bool compsignal(unsigned int x, unsigned int y)
 		{
 		#if HALF_ERRHANDLING
@@ -765,8 +766,8 @@ namespace half_float
 		}
 
 		/// Raise pole error and return infinity.
-		/// \param value half-precision value with sign bit only
-		/// \return half-precision infinity with sign of \a value
+		/// \param sign half-precision value with sign bit only
+		/// \return half-precision infinity with sign of \a sign
 		inline HALF_CONSTEXPR_NOERR unsigned int pole(unsigned int sign = 0)
 		{
 		#if HALF_ERRHANDLING
@@ -775,7 +776,7 @@ namespace half_float
 			return sign | 0x7C00;
 		}
 
-		/// Check value for over or underflow.
+		/// Check value for over- or underflow.
 		/// \param arg half-precision value to check
 		/// \return \a arg
 		inline HALF_CONSTEXPR_NOERR unsigned int check(unsigned int arg)
@@ -793,31 +794,31 @@ namespace half_float
 
 		/// Half-precision overflow.
 		/// \tparam R rounding mode to use
-		/// \param value half-precision value with sign bit only
+		/// \param sign half-precision value with sign bit only
 		/// \return rounded overflowing half-precision value
-		template<std::float_round_style R> HALF_CONSTEXPR_NOERR unsigned int overflow(unsigned int value = 0)
+		template<std::float_round_style R> HALF_CONSTEXPR_NOERR unsigned int overflow(unsigned int sign = 0)
 		{
 		#if HALF_ERRHANDLING
 			raise(HALF_FE_OVERFLOW);
 		#endif
-			return	(R==std::round_toward_infinity) ? (value+0x7C00-(value>>15)) :
-					(R==std::round_toward_neg_infinity) ? (value+0x7BFF+(value>>15)) :
-					(R==std::round_toward_zero) ? (value|0x7BFF) :
-					(value|0x7C00);
+			return	(R==std::round_toward_infinity) ? (sign+0x7C00-(sign>>15)) :
+					(R==std::round_toward_neg_infinity) ? (sign+0x7BFF+(sign>>15)) :
+					(R==std::round_toward_zero) ? (sign|0x7BFF) :
+					(sign|0x7C00);
 		}
 
 		/// Half-precision underflow.
 		/// \tparam R rounding mode to use
-		/// \param value half-precision value with sign bit only
+		/// \param sign half-precision value with sign bit only
 		/// \return rounded underflowing half-precision value
-		template<std::float_round_style R> HALF_CONSTEXPR_NOERR unsigned int underflow(unsigned int value = 0)
+		template<std::float_round_style R> HALF_CONSTEXPR_NOERR unsigned int underflow(unsigned int sign = 0)
 		{
 		#if HALF_ERRHANDLING
 			raise(HALF_FE_UNDERFLOW);
 		#endif
-			return	(R==std::round_toward_infinity) ? (value+1-(value>>15)) :
-					(R==std::round_toward_neg_infinity) ? (value+(value>>15)) :
-					value;
+			return	(R==std::round_toward_infinity) ? (sign+1-(sign>>15)) :
+					(R==std::round_toward_neg_infinity) ? (sign+(sign>>15)) :
+					sign;
 		}
 
 		/// Round half-precision number.
@@ -848,9 +849,62 @@ namespace half_float
 		#endif
 		}
 
+		/// Round half-precision number to nearest integer value.
+		/// \tparam R rounding mode to use
+		/// \tparam E `true` for round to even, `false` for round away from zero
+		/// \tparam I `true` to raise INEXACT exception (if inexact), `false` to never raise it
+		/// \param value binary representation of half-precision value
+		/// \return half-precision bits for nearest integral value
+		template<std::float_round_style R,bool E,bool I> unsigned int integral(unsigned int value)
+		{
+			unsigned int abs = value & 0x7FFF;
+			if(abs < 0x3C00)
+			{
+				raise(HALF_FE_INEXACT, I);
+				return ((R==std::round_to_nearest) ? (0x3C00&-static_cast<unsigned>(abs>=(0x3800+E))) :
+						(R==std::round_toward_infinity) ? (0x3C00&-(~(value>>15)&(abs!=0))) :
+						(R==std::round_toward_neg_infinity) ? (0x3C00&-static_cast<unsigned>(value>0x8000)) :
+						0) | (value&0x8000);
+			}
+			if(abs >= 0x6400)
+				return (abs>0x7C00) ? signal(value) : value;
+			unsigned int exp = 25 - (abs>>10), mask = (1<<exp) - 1;
+			raise(HALF_FE_INEXACT, I && (value&mask)!=0);
+			return ((	(R==std::round_to_nearest) ? ((1<<(exp-1))-(~(value>>exp)&E)) :
+						(R==std::round_toward_infinity) ? (mask&((value>>15)-1)) :
+						(R==std::round_toward_neg_infinity) ? (mask&-(value>>15)) :
+						0) + value) & ~mask;
+		}
+
+		/// Convert fixed point to half-precision floating-point.
+		/// \tparam R rounding mode to use
+		/// \tparam F number of fractional bits (at least 11)
+		/// \tparam S `true` for signed, `false` for unsigned
+		/// \tparam N `true` for additional normalization step, `false` if already normalized to 1.F
+		/// \tparam I `true` to always raise INEXACT exception, `false` to raise only for rounded results
+		/// \param m mantissa in Q1.F fixed point format
+		/// \param exp exponent
+		/// \param value half-precision value with sign bit only
+		/// \param s sticky bit (or of all but the most significant already discarded bits)
+		/// \return value converted to half-precision
+		template<std::float_round_style R,unsigned int F,bool S,bool N,bool I> unsigned int fixed2half(uint32 m, int exp = 14, unsigned int value = 0, int s = 0)
+		{
+			if(S)
+			{
+				uint32 sign = sign_mask(m);
+				m = (m^sign) - sign;
+				value = sign & 0x8000;
+			}
+			if(N)
+				for(; m<(static_cast<uint32>(1)<<F) && exp; m<<=1,--exp) ;
+			else if(exp < 0)
+				return rounded<R,I>(value+(m>>(F-10-exp)), (m>>(F-11-exp))&1, s|((m&((static_cast<uint32>(1)<<(F-11-exp))-1))!=0));
+			return rounded<R,I>(value+(exp<<10)+(m>>(F-10)), (m>>(F-11))&1, s|((m&((static_cast<uint32>(1)<<(F-11))-1))!=0));
+		}
+
 		/// Convert IEEE single-precision to half-precision.
 		/// Credit for this goes to [Jeroen van der Zijp](ftp://ftp.fox-toolkit.org/pub/fasthalffloatconversion.pdf).
-		/// \tparam R rounding mode to use, `std::round_indeterminate` for fastest rounding
+		/// \tparam R rounding mode to use
 		/// \param value single-precision value
 		/// \return binary representation of half-precision value
 		template<std::float_round_style R> unsigned int float2half_impl(float value, true_type)
@@ -863,28 +917,27 @@ namespace half_float
 				(R==std::round_toward_neg_infinity) ? _MM_FROUND_TO_NEG_INF :
 				_MM_FROUND_CUR_DIRECTION));
 		#else
-			typedef bits<float>::type uint32;
-			uint32 bits;
-			std::memcpy(&bits, &value, sizeof(float));
+			bits<float>::type fbits;
+			std::memcpy(&fbits, &value, sizeof(float));
 		#if 1
-			unsigned int sign = (bits>>16) & 0x8000;
-			bits &= 0x7FFFFFFF;
-			if(bits >= 0x7F800000)
-				return sign | 0x7C00 | (0x400-((bits&0x7FFFFF)!=0));
-			if(bits >= 0x47800000)
+			unsigned int sign = (fbits>>16) & 0x8000;
+			fbits &= 0x7FFFFFFF;
+			if(fbits >= 0x7F800000)
+				return sign | 0x7C00 | (0x400-((fbits&0x7FFFFF)!=0));
+			if(fbits >= 0x47800000)
 				return overflow<R>(sign);
-			if(bits >= 0x38800000)
-				return rounded<R,false>(sign|(((bits>>23)-112)<<10)|((bits>>13)&0x3FF), (bits>>12)&1, (bits&0xFFF)!=0);
-			if(bits >= 0x33000000)
+			if(fbits >= 0x38800000)
+				return rounded<R,false>(sign|(((fbits>>23)-112)<<10)|((fbits>>13)&0x3FF), (fbits>>12)&1, (fbits&0xFFF)!=0);
+			if(fbits >= 0x33000000)
 			{
-				int i = 125 - (bits>>23);
-				bits = (bits&0x7FFFFF) | 0x800000;
-				return rounded<R,false>(sign|(bits>>(i+1)), (bits>>i)&1, (bits&((static_cast<uint32>(1)<<i)-1))!=0);
+				int i = 125 - (fbits>>23);
+				fbits = (fbits&0x7FFFFF) | 0x800000;
+				return rounded<R,false>(sign|(fbits>>(i+1)), (fbits>>i)&1, (fbits&((static_cast<uint32>(1)<<i)-1))!=0);
 			}
-			if(bits != 0)
+			if(fbits != 0)
 				return underflow<R>(sign);
 			return sign;
-		#elif 0
+		#else
 			static const uint16 base_table[512] = {
 				0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 
 				0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 
@@ -927,16 +980,16 @@ namespace half_float
 				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
 				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 
 				24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 13 };
-			int sexp = bits >> 23, exp = sexp & 0xFF, i = shift_table[exp];
-			bits &= 0x7FFFFF;
-			uint32 m = (bits|((exp!=0)<<23)) & -static_cast<uint32>(exp!=0xFF);
-			return rounded<R,false>(base_table[sexp]+(bits>>i), (m>>(i-1))&1, (((static_cast<uint32>(1)<<(i-1))-1)&m)!=0);
+			int sexp = fbits >> 23, exp = sexp & 0xFF, i = shift_table[exp];
+			fbits &= 0x7FFFFF;
+			uint32 m = (fbits|((exp!=0)<<23)) & -static_cast<uint32>(exp!=0xFF);
+			return rounded<R,false>(base_table[sexp]+(fbits>>i), (m>>(i-1))&1, (((static_cast<uint32>(1)<<(i-1))-1)&m)!=0);
 		#endif
 		#endif
 		}
 
 		/// Convert IEEE double-precision to half-precision.
-		/// \tparam R rounding mode to use, `std::round_indeterminate` for fastest rounding
+		/// \tparam R rounding mode to use
 		/// \param value double-precision value
 		/// \return binary representation of half-precision value
 		template<std::float_round_style R> unsigned int float2half_impl(double value, true_type)
@@ -945,14 +998,13 @@ namespace half_float
 			if(R == std::round_indeterminate)
 				return _mm_cvtsi128_si32(_mm_cvtps_ph(_mm_cvtpd_ps(_mm_set_sd(value)), _MM_FROUND_CUR_DIRECTION));
 		#endif
-			typedef bits<double>::type uint64;
-			uint64 bits;
-			std::memcpy(&bits, &value, sizeof(double));
-			uint32 hi = bits >> 32, lo = bits & 0xFFFFFFFF;
+			bits<double>::type dbits;
+			std::memcpy(&dbits, &value, sizeof(double));
+			uint32 hi = dbits >> 32, lo = dbits & 0xFFFFFFFF;
 			unsigned int sign = (hi>>16) & 0x8000;
 			hi &= 0x7FFFFFFF;
 			if(hi >= 0x7FF00000)
-				return sign | 0x7C00 | (0x400-((bits&0xFFFFFFFFFFFFF)!=0));
+				return sign | 0x7C00 | (0x400-((dbits&0xFFFFFFFFFFFFF)!=0));
 			if(hi >= 0x40F00000)
 				return overflow<R>(sign);
 			if(hi >= 0x3F100000)
@@ -969,7 +1021,7 @@ namespace half_float
 		}
 
 		/// Convert non-IEEE floating-point to half-precision.
-		/// \tparam R rounding mode to use, `std::round_indeterminate` for fastest rounding
+		/// \tparam R rounding mode to use
 		/// \tparam T source type (builtin floating-point type)
 		/// \param value floating-point value
 		/// \return binary representation of half-precision value
@@ -999,7 +1051,7 @@ namespace half_float
 		}
 
 		/// Convert floating-point to half-precision.
-		/// \tparam R rounding mode to use, `std::round_indeterminate` for fastest rounding
+		/// \tparam R rounding mode to use
 		/// \tparam T source type (builtin floating-point type)
 		/// \param value floating-point value
 		/// \return binary representation of half-precision value
@@ -1009,7 +1061,7 @@ namespace half_float
 		}
 
 		/// Convert integer to half-precision floating-point.
-		/// \tparam R rounding mode to use, `std::round_indeterminate` for fastest rounding
+		/// \tparam R rounding mode to use
 		/// \tparam T type to convert (builtin integer type)
 		/// \param value integral value
 		/// \return binary representation of half-precision value
@@ -1029,32 +1081,6 @@ namespace half_float
 			return (exp>24) ? rounded<R,false>(bits, (value>>(exp-25))&1, (((1<<(exp-25))-1)&value)!=0) : bits;
 		}
 
-		/// Convert fixed point to half-precision floating-point.
-		/// \tparam R rounding mode to use
-		/// \tparam F number of fractional bits (at least 11)
-		/// \tparam S `true` for signed, `false` for unsigned
-		/// \tparam N `true` for additional normalization step, `false` if already normalized to 1.X
-		/// \tparam I `true` to always raise INEXACT exception, `false` to raise only for rounded results
-		/// \param m mantissa in Q1.F fixed point format
-		/// \param exp exponent
-		/// \param value half-precision value with sign bit only
-		/// \param s sticky bit (or of all but the most significant already discarded bits)
-		/// \return value converted to half-precision
-		template<std::float_round_style R,unsigned int F,bool S,bool N,bool I> unsigned int fixed2half(uint32 m, int exp = 14, unsigned int value = 0, int s = 0)
-		{
-			if(S)
-			{
-				detail::uint32 sign = sign_mask(m);
-				m = (m^sign) - sign;
-				value = sign & 0x8000;
-			}
-			if(N)
-				for(; m<(static_cast<uint32>(1)<<F) && exp; m<<=1,--exp) ;
-			else if(exp < 0)
-				return rounded<R,I>(value+(m>>(F-10-exp)), (m>>(F-11-exp))&1, s|((m&((static_cast<uint32>(1)<<(F-11-exp))-1))!=0));
-			return rounded<R,I>(value+(exp<<10)+(m>>(F-10)), (m>>(F-11))&1, s|((m&((static_cast<uint32>(1)<<(F-11))-1))!=0));
-		}
-
 		/// Convert half-precision to IEEE single-precision.
 		/// Credit for this goes to [Jeroen van der Zijp](ftp://ftp.fox-toolkit.org/pub/fasthalffloatconversion.pdf).
 		/// \param value binary representation of half-precision value
@@ -1065,17 +1091,16 @@ namespace half_float
 			return _mm_cvtss_f32(_mm_cvtph_ps(_mm_cvtsi32_si128(value)));
 		#else
 		#if 0
-			typedef bits<float>::type uint32;
-			uint32 bits = static_cast<uint32>(value&0x8000) << 16;
+			bits<float>::type fbits = static_cast<bits<float>::type>(value&0x8000) << 16;
 			int abs = value & 0x7FFF;
 			if(abs)
 			{
-				bits |= 0x38000000 << static_cast<unsigned>(abs>=0x7C00);
-				for(; abs<0x400; abs<<=1,bits-=0x800000) ;
-				bits += static_cast<uint32>(abs) << 13;
+				fbits |= 0x38000000 << static_cast<unsigned>(abs>=0x7C00);
+				for(; abs<0x400; abs<<=1,fbits-=0x800000) ;
+				fbits += static_cast<bits<float>::type>(abs) << 13;
 			}
 		#else
-			static const uint32 mantissa_table[2048] = {
+			static const bits<float>::type mantissa_table[2048] = {
 				0x00000000, 0x33800000, 0x34000000, 0x34400000, 0x34800000, 0x34A00000, 0x34C00000, 0x34E00000, 0x35000000, 0x35100000, 0x35200000, 0x35300000, 0x35400000, 0x35500000, 0x35600000, 0x35700000, 
 				0x35800000, 0x35880000, 0x35900000, 0x35980000, 0x35A00000, 0x35A80000, 0x35B00000, 0x35B80000, 0x35C00000, 0x35C80000, 0x35D00000, 0x35D80000, 0x35E00000, 0x35E80000, 0x35F00000, 0x35F80000, 
 				0x36000000, 0x36040000, 0x36080000, 0x360C0000, 0x36100000, 0x36140000, 0x36180000, 0x361C0000, 0x36200000, 0x36240000, 0x36280000, 0x362C0000, 0x36300000, 0x36340000, 0x36380000, 0x363C0000, 
@@ -1204,7 +1229,7 @@ namespace half_float
 				0x387A0000, 0x387A2000, 0x387A4000, 0x387A6000, 0x387A8000, 0x387AA000, 0x387AC000, 0x387AE000, 0x387B0000, 0x387B2000, 0x387B4000, 0x387B6000, 0x387B8000, 0x387BA000, 0x387BC000, 0x387BE000, 
 				0x387C0000, 0x387C2000, 0x387C4000, 0x387C6000, 0x387C8000, 0x387CA000, 0x387CC000, 0x387CE000, 0x387D0000, 0x387D2000, 0x387D4000, 0x387D6000, 0x387D8000, 0x387DA000, 0x387DC000, 0x387DE000, 
 				0x387E0000, 0x387E2000, 0x387E4000, 0x387E6000, 0x387E8000, 0x387EA000, 0x387EC000, 0x387EE000, 0x387F0000, 0x387F2000, 0x387F4000, 0x387F6000, 0x387F8000, 0x387FA000, 0x387FC000, 0x387FE000 };
-			static const uint32 exponent_table[64] = {
+			static const bits<float>::type exponent_table[64] = {
 				0x00000000, 0x00800000, 0x01000000, 0x01800000, 0x02000000, 0x02800000, 0x03000000, 0x03800000, 0x04000000, 0x04800000, 0x05000000, 0x05800000, 0x06000000, 0x06800000, 0x07000000, 0x07800000, 
 				0x08000000, 0x08800000, 0x09000000, 0x09800000, 0x0A000000, 0x0A800000, 0x0B000000, 0x0B800000, 0x0C000000, 0x0C800000, 0x0D000000, 0x0D800000, 0x0E000000, 0x0E800000, 0x0F000000, 0x47800000, 
 				0x80000000, 0x80800000, 0x81000000, 0x81800000, 0x82000000, 0x82800000, 0x83000000, 0x83800000, 0x84000000, 0x84800000, 0x85000000, 0x85800000, 0x86000000, 0x86800000, 0x87000000, 0x87800000, 
@@ -1212,10 +1237,10 @@ namespace half_float
 			static const unsigned short offset_table[64] = {
 				0, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 
 				0, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024 };
-			uint32 bits = mantissa_table[offset_table[value>>10]+(value&0x3FF)] + exponent_table[value>>10];
+			bits<float>::type fbits = mantissa_table[offset_table[value>>10]+(value&0x3FF)] + exponent_table[value>>10];
 		#endif
 			float out;
-			std::memcpy(&out, &bits, sizeof(float));
+			std::memcpy(&out, &fbits, sizeof(float));
 			return out;
 		#endif
 		}
@@ -1228,7 +1253,6 @@ namespace half_float
 		#if HALF_ENABLE_F16C_INTRINSICS
 			return _mm_cvtsd_f64(_mm_cvtps_pd(_mm_cvtph_ps(_mm_cvtsi32_si128(value))));
 		#else
-			typedef bits<double>::type uint64;
 			uint32 hi = static_cast<uint32>(value&0x8000) << 16;
 			unsigned int abs = value & 0x7FFF;
 			if(abs)
@@ -1237,9 +1261,9 @@ namespace half_float
 				for(; abs<0x400; abs<<=1,hi-=0x100000) ;
 				hi += static_cast<uint32>(abs) << 10;
 			}
-			uint64 bits = static_cast<uint64>(hi) << 32;
+			bits<double>::type dbits = static_cast<bits<double>::type>(hi) << 32;
 			double out;
-			std::memcpy(&out, &bits, sizeof(double));
+			std::memcpy(&out, &dbits, sizeof(double));
 			return out;
 		#endif
 		}
@@ -1273,13 +1297,13 @@ namespace half_float
 		}
 
 		/// Convert half-precision floating-point to integer.
-		/// \tparam R rounding mode to use, `std::round_indeterminate` for fastest rounding
+		/// \tparam R rounding mode to use
 		/// \tparam E `true` for round to even, `false` for round away from zero
-		/// \tparam F `true` to raise INEXACT exception, `false` not to raise it
+		/// \tparam I `true` to raise INEXACT exception (if inexact), `false` to never raise it
 		/// \tparam T type to convert to (buitlin integer type with at least 16 bits precision, excluding any implicit sign bits)
 		/// \param value binary representation of half-precision value
 		/// \return integral value
-		template<std::float_round_style R,bool E,bool F,typename T> T half2int(unsigned int value)
+		template<std::float_round_style R,bool E,bool I,typename T> T half2int(unsigned int value)
 		{
 			unsigned int abs = value & 0x7FFF;
 			if(abs >= 0x7C00)
@@ -1289,52 +1313,23 @@ namespace half_float
 			}
 			if(abs < 0x3800)
 			{
-				raise(HALF_FE_INEXACT, F);
+				raise(HALF_FE_INEXACT, I);
 				return	(R==std::round_toward_infinity) ? T(~(value>>15)&(abs!=0)) :
 						(R==std::round_toward_neg_infinity) ? -T(value>0x8000) :
 						T();
 			}
-			unsigned int m = (value&0x3FF) | 0x400;
 			int exp = 25 - (abs>>10);
-			if(exp > 0)
-			{
-				raise(HALF_FE_INEXACT, F && (m&((1<<exp)-1U))!=0);
-				m =	((	(R==std::round_to_nearest) ? ((1<<(exp-1))-(~(m>>exp)&E)) :
-						(R==std::round_toward_infinity) ? (((1<<exp)-1U)&((value>>15)-1)) :
-						(R==std::round_toward_neg_infinity) ? (((1<<exp)-1U)&-(value>>15)) :
-						0) + m) >> exp;
-			}
-			else
-				m <<= -exp;
-//			raise(HALF_FE_INVALID&-static_cast<unsigned>());
-			return (value&0x8000) ? -static_cast<T>(m) : static_cast<T>(m);
-		}
-
-		/// Round half-precision number to nearest integer value.
-		/// \tparam R rounding mode to use, `std::round_indeterminate` for fastest rounding
-		/// \tparam E `true` for round to even, `false` for round away from zero
-		/// \tparam F `true` to raise INEXACT exception, `false` not to raise it
-		/// \param value binary representation of half-precision value
-		/// \return half-precision bits for nearest integral value
-		template<std::float_round_style R,bool E,bool F> unsigned int round_half(unsigned int value)
-		{
-			unsigned int abs = value & 0x7FFF;
-			if(abs < 0x3C00)
-			{
-				raise(HALF_FE_INEXACT, F);
-				return ((R==std::round_to_nearest) ? (0x3C00&-static_cast<unsigned>(abs>=(0x3800+E))) :
-						(R==std::round_toward_infinity) ? (0x3C00&-(~(value>>15)&(abs!=0))) :
-						(R==std::round_toward_neg_infinity) ? (0x3C00&-static_cast<unsigned>(value>0x8000)) :
-						0) | (value&0x8000);
-			}
-			if(abs >= 0x6400)
-				return (abs>0x7C00) ? signal(value) : value;
-			unsigned int exp = 25 - (abs>>10), mask = (1<<exp) - 1;
-			raise(HALF_FE_INEXACT, F && (value&mask)!=0);
-			return ((	(R==std::round_to_nearest) ? ((1<<(exp-1))-(~(value>>exp)&E)) :
-						(R==std::round_toward_infinity) ? (mask&((value>>15)-1)) :
-						(R==std::round_toward_neg_infinity) ? (mask&-(value>>15)) :
-						0) + value) & ~mask;
+			unsigned int m = (value&0x3FF) | 0x400;
+			int32 i = static_cast<int32>((exp<=0) ? (m<<-exp) : ((m+(
+				(R==std::round_to_nearest) ? ((1<<(exp-1))-(~(m>>exp)&E)) :
+				(R==std::round_toward_infinity) ? (((1<<exp)-1)&((value>>15)-1)) :
+				(R==std::round_toward_neg_infinity) ? (((1<<exp)-1)&-(value>>15)) : 0))>>exp));
+			if((!std::numeric_limits<T>::is_signed && (value&0x8000)) || (std::numeric_limits<T>::digits<16 &&
+				((value&0x8000) ? (-i<std::numeric_limits<T>::min()) : (i>std::numeric_limits<T>::max()))))
+				raise(HALF_FE_INVALID);
+			else if(I && exp > 0 && (m&((1<<exp)-1)))
+				raise(HALF_FE_INEXACT);
+			return static_cast<T>((value&0x8000) ? -i : i);
 		}
 
 		/// \}
@@ -3902,25 +3897,25 @@ namespace half_float
 	/// **See also:** Documentation for [std::ceil](https://en.cppreference.com/w/cpp/numeric/math/ceil).
 	/// \param arg half to round
 	/// \return nearest integer not less than \a arg
-	inline half ceil(half arg) { return half(detail::binary, detail::round_half<std::round_toward_infinity,true,true>(arg.data_)); }
+	inline half ceil(half arg) { return half(detail::binary, detail::integral<std::round_toward_infinity,true,true>(arg.data_)); }
 
 	/// Nearest integer not greater than half value.
 	/// **See also:** Documentation for [std::floor](https://en.cppreference.com/w/cpp/numeric/math/floor).
 	/// \param arg half to round
 	/// \return nearest integer not greater than \a arg
-	inline half floor(half arg) { return half(detail::binary, detail::round_half<std::round_toward_neg_infinity,true,true>(arg.data_)); }
+	inline half floor(half arg) { return half(detail::binary, detail::integral<std::round_toward_neg_infinity,true,true>(arg.data_)); }
 
 	/// Nearest integer not greater in magnitude than half value.
 	/// **See also:** Documentation for [std::trunc](https://en.cppreference.com/w/cpp/numeric/math/trunc).
 	/// \param arg half to round
 	/// \return nearest integer not greater in magnitude than \a arg
-	inline half trunc(half arg) { return half(detail::binary, detail::round_half<std::round_toward_zero,true,true>(arg.data_)); }
+	inline half trunc(half arg) { return half(detail::binary, detail::integral<std::round_toward_zero,true,true>(arg.data_)); }
 
 	/// Nearest integer.
 	/// **See also:** Documentation for [std::round](https://en.cppreference.com/w/cpp/numeric/math/round).
 	/// \param arg half to round
 	/// \return nearest integer, rounded away from zero in half-way cases
-	inline half round(half arg) { return half(detail::binary, detail::round_half<std::round_to_nearest,false,true>(arg.data_)); }
+	inline half round(half arg) { return half(detail::binary, detail::integral<std::round_to_nearest,false,true>(arg.data_)); }
 
 	/// Nearest integer.
 	/// **See also:** Documentation for [std::lround](https://en.cppreference.com/w/cpp/numeric/math/round).
@@ -3932,7 +3927,7 @@ namespace half_float
 	/// **See also:** Documentation for [std::rint](https://en.cppreference.com/w/cpp/numeric/math/rint).
 	/// \param arg half expression to round
 	/// \return nearest integer using default rounding mode
-	inline half rint(half arg) { return half(detail::binary, detail::round_half<half::round_style,true,true>(arg.data_)); }
+	inline half rint(half arg) { return half(detail::binary, detail::integral<half::round_style,true,true>(arg.data_)); }
 
 	/// Nearest integer using half's internal rounding mode.
 	/// **See also:** Documentation for [std::lrint](https://en.cppreference.com/w/cpp/numeric/math/rint).
@@ -3944,7 +3939,7 @@ namespace half_float
 	/// **See also:** Documentation for [std::nearbyint](https://en.cppreference.com/w/cpp/numeric/math/nearbyint).
 	/// \param arg half expression to round
 	/// \return nearest integer using default rounding mode
-	inline half nearbyint(half arg) { return half(detail::binary, detail::round_half<half::round_style,true,false>(arg.data_)); }
+	inline half nearbyint(half arg) { return half(detail::binary, detail::integral<half::round_style,true,false>(arg.data_)); }
 #if HALF_ENABLE_CPP11_LONG_LONG
 	/// Nearest integer.
 	/// **See also:** Documentation for [std::llround](https://en.cppreference.com/w/cpp/numeric/math/round).

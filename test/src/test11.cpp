@@ -16,7 +16,7 @@
 
 //#define HALF_ENABLE_F16C_INTRINSICS 1
 //#define HALF_ARITHMETIC_TYPE double
-#define HALF_ERRHANDLING_FLAGS 1
+//#define HALF_ERRHANDLING_FLAGS 0
 #define HALF_ERRHANDLING_OVERFLOW_TO_INEXACT 1
 #define HALF_ERRHANDLING_UNDERFLOW_TO_INEXACT 1
 #define HALF_ROUND_STYLE 1
@@ -285,7 +285,6 @@ public:
 		unary_reference_test("cbrt", half_float::cbrt);
 		binary_reference_test("pow", half_float::pow);
 		binary_reference_test<half(half,half)>("hypot", half_float::hypot);
-//		ternary_reference_test<half(half,half,half)>("hypot3", half_float::hypot);
 
 		//test trigonometric functions
 		unary_reference_test("sin", half_float::sin);
@@ -514,7 +513,7 @@ public:
 		std::shuffle(xs.begin(), xs.end(), g);
 		std::shuffle(ys.begin(), ys.end(), g);
 		std::shuffle(zs.begin(), zs.end(), g);
-/*
+
 		OPERATOR_PERFORMANCE_TEST(+, xs, ys, 4);
 		OPERATOR_PERFORMANCE_TEST(-, xs, ys, 4);
 		OPERATOR_PERFORMANCE_TEST(*, xs, ys, 4);
@@ -555,7 +554,7 @@ public:
 		UNARY_PERFORMANCE_TEST(erfc, finite, 1000);
 		UNARY_PERFORMANCE_TEST(lgamma, finite, 1000);
 		UNARY_PERFORMANCE_TEST(tgamma, finite, 1000);
-*/
+
 	}
 
 private:
@@ -906,7 +905,9 @@ private:
 				in.read(reinterpret_cast<char*>(&x), sizeof(x));
 				in.read(reinterpret_cast<char*>(&y), sizeof(y));
 				ref.read(in);
+				half_float::feclearexcept(CHECK_EXCEPT);
 				half a = fn(x, y), b = ref.value();
+				int ea = half_float::fetestexcept(CHECK_EXCEPT), eb = ref.except(CHECK_EXCEPT);
 				bool equal = comp(a, b);
 				if(!equal)
 				{
@@ -915,7 +916,11 @@ private:
 //					std::cerr << x << ", " << y << " = " << a << '(' << std::hex << h2b(a) << "), " << b << '(' << h2b(b) << ") -> " << error << '\n' << std::dec;
 					err = std::max(err, error); rel = std::max(rel, error/std::abs(b)); bin = std::max(bin, std::abs(h2b(a)-h2b(b)));
 				}
-				passed += equal;
+				if(ea != eb)
+				{
+//					std::cerr << std::hex << x << '(' << h2b(x) << "), " << y << '(' << h2b(y) << ") = " << a << '(' << h2b(a) << "), " << b << '(' << h2b(b) << ") @ " << ea << " vs " << eb << " -> " << (ea^eb) << '\n' << std::dec;
+				}
+				passed += equal && ea == eb;;
 			}
 			if(csv_)
 				*csv_ << name << ";" << (count-passed) << '\n';
