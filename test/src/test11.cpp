@@ -61,31 +61,6 @@ int ilog2(int i)
 	return l;
 }
 
-#define UNARY_PERFORMANCE_TEST(func, x, N) { \
-	auto start = std::chrono::high_resolution_clock::now(); \
-	for(unsigned int i=0; i<N; ++i) for(unsigned int h=0; h<x.size(); ++h) results[h] = func(x[h]); \
-	auto tm = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now()-start).count(); \
-	log_ << #func << "\tx " << N << ":\t" << tm << "\n\n"; if(csv_) *csv_ << #func << ';' << tm << '\n'; }
-
-#define BINARY_PERFORMANCE_TEST(func, x, y, N) { \
-	auto start = std::chrono::high_resolution_clock::now(); \
-	for(unsigned int i=0; i<x.size(); i+=N) for(unsigned int j=0; j<y.size(); j+=N) results[j] = func(x[i], y[j]); \
-	auto tm = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now()-start).count(); \
-	log_ << #func << "\t@ 1/" << (N*N) << ":\t" << tm << "\n\n"; if(csv_) *csv_ << #func << ';' << tm << '\n'; }
-
-#define OPERATOR_PERFORMANCE_TEST(op, x, y, N) { \
-	auto start = std::chrono::high_resolution_clock::now(); \
-	for(unsigned int i=0; i<x.size(); i+=N) for(unsigned int j=0; j<y.size(); j+=N) results[j] = x[i] op y[j]; \
-	auto tm = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now()-start).count(); \
-	log_ << #op << "\t@ 1/" << (N*N) << ":\t" << tm << "\n\n"; if(csv_) *csv_ << #op << ';' << tm << '\n'; }
-
-#define TERNARY_PERFORMANCE_TEST(func, x, y, z, N) { \
-	auto start = std::chrono::high_resolution_clock::now(); \
-	for(unsigned int i=0; i<x.size(); i+=N) for(unsigned int j=0; j<y.size(); j+=N) for(unsigned int k=0; k<z.size(); k+=N) results[k] = func(x[i], y[j], z[k]); \
-	auto tm = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now()-start).count(); \
-	log_ << #func << "\t@ 1/" << (N*N*N) << ":\t" << tm << "\n\n"; if(csv_) *csv_ << #func << ';' << tm << '\n'; }
-
-
 using half_float::half;
 using half_float::half_cast;
 #if HALF_ENABLE_CPP11_USER_LITERALS
@@ -146,6 +121,8 @@ template<std::float_round_style R> half select(const std::pair<half,half> &hh)
 			(R==std::round_toward_neg_infinity && hh.second<=hh.first) ? 
 			hh.second : hh.first;
 }
+
+void performance_test(std::ostream &out = std::cout, std::ostream *csv = nullptr);
 
 
 class half_test
@@ -495,78 +472,6 @@ public:
 			log_ << '\n';
 		}
 		return failed_.size();
-	}
-
-	void performance_test()
-	{
-		std::vector<half> finite, positive, one2one, one2inf, neg2inf;
-		for(std::uint16_t u=0; u<0x7C00; ++u)
-		{
-			finite.push_back(b2h(u));
-			finite.push_back(b2h(u|0x8000));
-			positive.push_back(b2h(u));
-			neg2inf.push_back(b2h(u));
-			if(u <= 0x3C00)
-			{
-				one2one.push_back(b2h(u));
-				one2one.push_back(b2h(u|0x8000));
-				neg2inf.push_back(b2h(u|0x8000));
-			}
-			else
-				one2inf.push_back(b2h(u));
-		}
-		std::vector<half> xs(finite), ys(finite), zs(finite), results(finite.size());
-		std::default_random_engine g;
-		std::shuffle(finite.begin(), finite.end(), g);
-		std::shuffle(positive.begin(), positive.end(), g);
-		std::shuffle(one2one.begin(), one2one.end(), g);
-		std::shuffle(one2inf.begin(), one2inf.end(), g);
-		std::shuffle(neg2inf.begin(), neg2inf.end(), g);
-		std::shuffle(xs.begin(), xs.end(), g);
-		std::shuffle(ys.begin(), ys.end(), g);
-		std::shuffle(zs.begin(), zs.end(), g);
-/*
-		OPERATOR_PERFORMANCE_TEST(+, xs, ys, 4);
-		OPERATOR_PERFORMANCE_TEST(-, xs, ys, 4);
-		OPERATOR_PERFORMANCE_TEST(*, xs, ys, 4);
-		OPERATOR_PERFORMANCE_TEST(/, xs, ys, 4);
-
-		BINARY_PERFORMANCE_TEST(fdim, xs, ys, 8);
-		TERNARY_PERFORMANCE_TEST(fma, xs, ys, zs, 64);
-
-		UNARY_PERFORMANCE_TEST(exp, finite, 1000);
-		UNARY_PERFORMANCE_TEST(exp2, finite, 1000);
-		UNARY_PERFORMANCE_TEST(expm1, finite, 1000);
-		UNARY_PERFORMANCE_TEST(log, positive, 1000);
-		UNARY_PERFORMANCE_TEST(log10, positive, 1000);
-		UNARY_PERFORMANCE_TEST(log2, positive, 1000);
-		UNARY_PERFORMANCE_TEST(log1p, neg2inf, 1000);
-
-		UNARY_PERFORMANCE_TEST(sqrt, positive, 1000);
-		UNARY_PERFORMANCE_TEST(cbrt, finite, 1000);
-		BINARY_PERFORMANCE_TEST(pow, xs, ys, 8);
-		BINARY_PERFORMANCE_TEST(hypot, xs, ys, 8);
-
-		UNARY_PERFORMANCE_TEST(sin, finite, 1000);
-		UNARY_PERFORMANCE_TEST(cos, finite, 1000);
-		UNARY_PERFORMANCE_TEST(tan, finite, 1000);
-		UNARY_PERFORMANCE_TEST(asin, one2one, 1000);
-		UNARY_PERFORMANCE_TEST(acos, one2one, 1000);
-		UNARY_PERFORMANCE_TEST(atan, finite, 1000);
-		BINARY_PERFORMANCE_TEST(atan2, xs, ys, 8);
-
-		UNARY_PERFORMANCE_TEST(sinh, finite, 1000);
-		UNARY_PERFORMANCE_TEST(cosh, finite, 1000);
-		UNARY_PERFORMANCE_TEST(tanh, finite, 1000);
-		UNARY_PERFORMANCE_TEST(asinh, finite, 1000);
-		UNARY_PERFORMANCE_TEST(acosh, one2inf, 1000);
-		UNARY_PERFORMANCE_TEST(atanh, one2one, 1000);
-
-		UNARY_PERFORMANCE_TEST(erf, finite, 1000);
-		UNARY_PERFORMANCE_TEST(erfc, finite, 1000);
-		UNARY_PERFORMANCE_TEST(lgamma, finite, 1000);
-		UNARY_PERFORMANCE_TEST(tgamma, finite, 1000);
-*/
 	}
 
 private:
@@ -1190,7 +1095,7 @@ int main(int argc, char *argv[]) try
 	}
 	half_test test(file ? *file : std::cout, csv.get(), fast, rough);
 
-	test.performance_test();
+//	performance_test(file ? *file : std::cout, csv.get());
 
 	timer time;
 	return test.test();

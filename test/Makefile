@@ -3,9 +3,9 @@ CFLAGS	 = -Wall -Wextra -pedantic -g -O3
 CPPFLAGS = -I../include
 LDFLAGS  = 
 
-test11: src/test11.cpp ../include/half.hpp
+test11: src/test11.cpp src/perf.cpp ../include/half.hpp
 	mkdir -p bin
-	$(CC) -std=c++11 $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -o bin/test src/test11.cpp
+	$(CC) -std=c++11 $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -o bin/test src/test11.cpp src/perf.cpp
 
 test03: src/test03.cpp ../include/half.hpp
 	mkdir -p bin

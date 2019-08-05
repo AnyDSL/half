@@ -7,7 +7,7 @@ This is a C++ header-only library to provide an [IEEE 754](http://en.wikipedia.o
 
 # News														{#new}
 
-XXX X, 2019 - Release 2.1.0: IEEE-conformant exception handling
+August 5, 2019 - Release 2.1.0: IEEE-conformant exception handling
 ---------------------------------------------------------------
 
 [Version 2.1.0](https://sourceforge.net/projects/half/files/half/2.1.0) of the library has been released. It adds proper detection of IEEE floating-point exceptions to all required operators and functions. In addition to this it also adds support for managing the exception flags and various means for additional processing of floating-point exceptions, like propagating them to the built-in floating-point platform or throwing C++ exceptions. For performance reasons all exception detection and handling is disabled by default and has to be enabled explicitly, though. Additionally, the accuracy of the pow() and [atan2()](\ref half_float::atan2) functions has been improved.
