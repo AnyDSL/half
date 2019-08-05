@@ -16,13 +16,13 @@
 
 //#define HALF_ENABLE_F16C_INTRINSICS 1
 //#define HALF_ARITHMETIC_TYPE double
-//#define HALF_ERRHANDLING_FLAGS 0
+#define HALF_ERRHANDLING_FLAGS 1
 #define HALF_ERRHANDLING_OVERFLOW_TO_INEXACT 1
 #define HALF_ERRHANDLING_UNDERFLOW_TO_INEXACT 1
 #define HALF_ROUND_STYLE 1
 #include <half.hpp>
 
-#define CHECK_EXCEPT 0//(HALF_FE_INVALID|HALF_FE_DIVBYZERO|HALF_FE_OVERFLOW|HALF_FE_UNDERFLOW|HALF_FE_INEXACT)
+#define CHECK_EXCEPT 0//(FE_INVALID|FE_DIVBYZERO|FE_OVERFLOW|FE_UNDERFLOW|FE_INEXACT)
 
 #include <utility>
 #include <vector>
@@ -132,7 +132,7 @@ public:
 		}
 	}
 
-	int except(int flags = HALF_FE_ALL_EXCEPT) const { return static_cast<int>(flags_&flags); }
+	int except(int flags = FE_ALL_EXCEPT) const { return static_cast<int>(flags_&flags); }
 
 private:
 	half value_;
@@ -308,6 +308,18 @@ public:
 		unary_reference_test("erfc", half_float::erfc);
 		unary_reference_test("lgamma", half_float::lgamma);
 		unary_reference_test("tgamma", half_float::tgamma);
+
+	#if HALF_ENABLE_CPP11_CMATH
+		//test binary functions
+		auto isgeneral = [](double x, double y) { return std::isfinite(x) && std::isfinite(y) && x != 0.0 && y != 0.0; };
+		binary_double_test("fdim", half_float::fdim, [&](double x, double y) { return std::fdim(x, y); });
+		binary_double_test("pow", half_float::pow, [&](double x, double y) -> double { double d = std::pow(x, y);
+			return (isgeneral(x, y) && d==0.0) ? std::copysign(std::numeric_limits<double>::min(), d) :
+			(isgeneral(x, y) && std::isinf(d)) ? std::copysign(std::numeric_limits<double>::max(), d) : d; });
+//		binary_double_test("hypot", [](half x, half y) { return hypot(x, y); }, [&](double x, double y) { return std::hypot(x, y); });
+		binary_double_test("atan2", half_float::atan2, [&](double y, double x) -> double { double d = std::atan2(y, x);
+			return (isgeneral(x, y) && d==0.0) ? std::copysign(std::numeric_limits<double>::min(), y) : d; });
+	#endif
 
 		//test rounding functions
 		unary_double_test("ceil", half_float::ceil, [](double arg) { return std::ceil(arg); });
@@ -513,7 +525,7 @@ public:
 		std::shuffle(xs.begin(), xs.end(), g);
 		std::shuffle(ys.begin(), ys.end(), g);
 		std::shuffle(zs.begin(), zs.end(), g);
-
+/*
 		OPERATOR_PERFORMANCE_TEST(+, xs, ys, 4);
 		OPERATOR_PERFORMANCE_TEST(-, xs, ys, 4);
 		OPERATOR_PERFORMANCE_TEST(*, xs, ys, 4);
@@ -554,7 +566,7 @@ public:
 		UNARY_PERFORMANCE_TEST(erfc, finite, 1000);
 		UNARY_PERFORMANCE_TEST(lgamma, finite, 1000);
 		UNARY_PERFORMANCE_TEST(tgamma, finite, 1000);
-
+*/
 	}
 
 private:
@@ -636,7 +648,7 @@ private:
 
 	template<typename F> bool binary_test(const std::string &name, F &&test)
 	{
-		unsigned long tests = 0, count = 0, step = fast_ ? 64 : 1;
+		unsigned long long tests = 0, count = 0, step = fast_ ? 64 : 1;
 		auto rand = std::bind(std::uniform_int_distribution<std::uint16_t>(0, step-1), std::default_random_engine());
 		std::set<std::string> failed_tests;
 		log_ << "testing " << name << (fast_ ? ": " : ":\n");
@@ -690,7 +702,7 @@ private:
 
 	template<typename F> bool ternary_test(const std::string &name, F &&test)
 	{
-		unsigned int tests = 0, count = 0, step = fast_ ? 256 : 1;
+		unsigned long long tests = 0, count = 0, step = fast_ ? 256 : 1;
 		auto rand = std::bind(std::uniform_int_distribution<std::uint16_t>(0, step-1), std::default_random_engine());
 		std::set<std::string> failed_tests;
 		log_ << "testing " << name << ": ";
@@ -755,7 +767,7 @@ private:
 			half_float::feclearexcept(CHECK_EXCEPT);
 			std::feclearexcept(CHECK_EXCEPT);
 			bool equal = fn(arg);
-			int eh = half_float::fetestexcept(CHECK_EXCEPT), ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(HALF_FE_OVERFLOW|HALF_FE_UNDERFLOW|HALF_FE_INEXACT));
+			int eh = half_float::fetestexcept(CHECK_EXCEPT), ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(FE_OVERFLOW|FE_UNDERFLOW|FE_INEXACT));
 //			if(eh != ed)
 //				std::cerr << arg << " = " << std::hex << eh << " vs " << ed << std::dec << '\n';
 			return equal && eh == ed;
@@ -772,7 +784,7 @@ private:
 			half_float::feclearexcept(CHECK_EXCEPT);
 			std::feclearexcept(CHECK_EXCEPT);
 			bool equal = fn(x, y);
-			int eh = half_float::fetestexcept(CHECK_EXCEPT), ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(HALF_FE_OVERFLOW|HALF_FE_UNDERFLOW|HALF_FE_INEXACT));
+			int eh = half_float::fetestexcept(CHECK_EXCEPT), ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(FE_OVERFLOW|FE_UNDERFLOW|FE_INEXACT));
 //			if(eh != ed)
 //				std::cerr << std::hex << h2b(x) << ", " << h2b(y) << " = " << eh << " vs " << ed << std::dec << '\n';
 			return equal && eh == ed;
@@ -789,7 +801,7 @@ private:
 			half_float::feclearexcept(CHECK_EXCEPT);
 			std::feclearexcept(CHECK_EXCEPT);
 			bool equal = fn(x, y, z);
-			int eh = half_float::fetestexcept(CHECK_EXCEPT), ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(HALF_FE_OVERFLOW|HALF_FE_UNDERFLOW|HALF_FE_INEXACT));
+			int eh = half_float::fetestexcept(CHECK_EXCEPT), ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(FE_OVERFLOW|FE_UNDERFLOW|FE_INEXACT));
 			return equal && eh == ed;
 		#else
 			return fn(x, y, z);
@@ -799,6 +811,7 @@ private:
 
 	template<typename FH,typename FD> bool unary_double_test(const std::string &name, FH &&fh, FD &&fd)
 	{
+		double err = 0.0, rel = 0.0; int bin = 0;
 		return unary_test(name, [&](half arg) -> bool {
 		#if HALF_ENABLE_CPP11_CFENV && CHECK_EXCEPT
 			half_float::feclearexcept(CHECK_EXCEPT);
@@ -806,18 +819,28 @@ private:
 			int eh = half_float::fetestexcept(CHECK_EXCEPT);
 			std::feclearexcept(CHECK_EXCEPT);
 			half b = half_cast<half>(fd(half_cast<double>(arg)));
-			int ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(HALF_FE_OVERFLOW|HALF_FE_UNDERFLOW|HALF_FE_INEXACT));
+			int ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(FE_OVERFLOW|FE_UNDERFLOW|FE_INEXACT));
 			if(eh != ed)
 				std::cerr << std::hex << h2b(arg) << " = " << eh << " vs " << ed << std::dec << '\n';
 			return comp(a, b) && eh == ed;
 		#else
-			return comp(fh(arg), half_cast<half>(fd(half_cast<double>(arg))));
+			half a = fh(arg), b = half_cast<half>(fd(half_cast<double>(arg)));
+			bool equal = comp(a, b);
+			if(!equal)
+			{
+				double error = std::abs(static_cast<double>(a)-static_cast<double>(b));
+				err = std::max(err, error); rel = std::max(rel, error/std::abs(b)); bin = std::max(bin, std::abs(h2b(a)-h2b(b)));
+			}
+			return equal;
 		#endif
 		});
+		if(err != 0.0 || rel != 0.0 || bin != 0)
+			std::cout << name << " max error: " << err << ", max relative error: " << rel << ", max ulp error: " << /*ilog2*/(bin) << '\n';
 	}
 
-	template<typename FH, typename FD> bool binary_double_test(const std::string &name, FH &&fh, FD &&fd)
+	template<typename FH,typename FD> bool binary_double_test(const std::string &name, FH &&fh, FD &&fd)
 	{
+		double err = 0.0, rel = 0.0; int bin = 0;
 		return binary_test(name, [&](half x, half y) -> bool {
 		#if HALF_ENABLE_CPP11_CFENV && CHECK_EXCEPT
 			half_float::feclearexcept(CHECK_EXCEPT);
@@ -825,18 +848,28 @@ private:
 			int eh = half_float::fetestexcept(CHECK_EXCEPT);
 			std::feclearexcept(CHECK_EXCEPT);
 			half b = half_cast<half>(fd(half_cast<double>(x), half_cast<double>(y)));
-			int ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(HALF_FE_OVERFLOW|HALF_FE_UNDERFLOW|HALF_FE_INEXACT));
+			int ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(FE_OVERFLOW|FE_UNDERFLOW|FE_INEXACT));
 //			if(eh != ed)
 //				std::cerr << std::hex << h2b(x) << ", " << h2b(y) << " = " << eh << " vs " << ed << std::dec << '\n';
 			return comp(a, b) && eh == ed;
 		#else
-			return comp(fh(x, y), half_cast<half>(fd(half_cast<double>(x), half_cast<double>(y))));
+			half a = fh(x, y), b = half_cast<half>(fd(half_cast<double>(x), half_cast<double>(y)));
+			bool equal = comp(a, b);
+			if(!equal)
+			{
+				double error = std::abs(static_cast<double>(a)-static_cast<double>(b));
+				err = std::max(err, error); rel = std::max(rel, error/std::abs(b)); bin = std::max(bin, std::abs(h2b(a)-h2b(b)));
+			}
+			return equal;
 		#endif
 		});
+		if(err != 0.0 || rel != 0.0 || bin != 0)
+			std::cout << name << " max error: " << err << ", max relative error: " << rel << ", max ulp error: " << /*ilog2*/(bin) << '\n';
 	}
 
-	template<typename FH, typename FD> bool ternary_double_test(const std::string &name, FH &&fh, FD &&fd)
+	template<typename FH,typename FD> bool ternary_double_test(const std::string &name, FH &&fh, FD &&fd)
 	{
+		double err = 0.0, rel = 0.0; int bin = 0;
 		return ternary_test(name, [&](half x, half y, half z) -> bool {
 		#if HALF_ENABLE_CPP11_CFENV && CHECK_EXCEPT
 			half_float::feclearexcept(CHECK_EXCEPT);
@@ -844,14 +877,23 @@ private:
 			int eh = half_float::fetestexcept(CHECK_EXCEPT);
 			std::feclearexcept(CHECK_EXCEPT);
 			half b = half_cast<half>(fd(half_cast<double>(x), half_cast<double>(y), half_cast<double>(z)));
-			int ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(HALF_FE_OVERFLOW|HALF_FE_UNDERFLOW|HALF_FE_INEXACT));
+			int ed = std::fetestexcept(CHECK_EXCEPT) | (eh&(FE_OVERFLOW|FE_UNDERFLOW|FE_INEXACT));
 //			if(eh != ed)
 //				std::cerr << std::hex << h2b(x) << ", " << h2b(y) << ", " << h2b(z) << " = " << eh << " vs " << ed << std::dec << '\n';
 			return comp(a, b) && eh == ed;
 		#else
-			return comp(fh(x, y, z), half_cast<half>(fd(half_cast<double>(x), half_cast<double>(y), half_cast<double>(z))));
+			half a = fh(x, y, z), b = half_cast<half>(fd(half_cast<double>(x), half_cast<double>(y), half_cast<double>(z)));
+			bool equal = comp(a, b);
+			if(!equal)
+			{
+				double error = std::abs(static_cast<double>(a)-static_cast<double>(b));
+				err = std::max(err, error); rel = std::max(rel, error/std::abs(b)); bin = std::max(bin, std::abs(h2b(a)-h2b(b)));
+			}
+			return equal;
 		#endif
 		});
+		if(err != 0.0 || rel != 0.0 || bin != 0)
+			std::cout << name << " max error: " << err << ", max relative error: " << rel << ", max ulp error: " << /*ilog2*/(bin) << '\n';
 	}
 
 	template<typename F> bool unary_reference_test(const std::string &name, F &&fn)
@@ -874,7 +916,7 @@ private:
 				double error = std::abs(static_cast<double>(a)-static_cast<double>(b));
 //				if(std::abs(h2b(a)-h2b(b)) > 1)
 //				if(std::isinf(error/std::abs(b)))
-//				std::cerr << std::hex << arg << '(' << h2b(arg) << ") = " << a << '(' << h2b(a) << "), " << b << '(' << h2b(b) << ") -> " << error << '\n' << std::dec;
+//				std::cerr << std::hex << arg << '(' << h2b(arg) << ") = " << a << '(' << h2b(a) << "), " << b << '(' << h2b(b) << ") -> " << error << std::dec << '\n';
 				err = std::max(err, error); rel = std::max(rel, error/std::abs(b)); bin = std::max(bin, std::abs(h2b(a)-h2b(b)));
 			}
 			if(ea != eb)
@@ -883,7 +925,7 @@ private:
 			}
 			return equal && ea == eb;
 		});
-		if(err != 0.0 || rel != 0.0)
+		if(err != 0.0 || rel != 0.0 || bin != 0)
 			std::cout << name << " max error: " << err << ", max relative error: " << rel << ", max ulp error: " << /*ilog2*/(bin) << '\n';
 		return success;
 	}
@@ -913,7 +955,7 @@ private:
 				{
 					double error = std::abs(static_cast<double>(a)-static_cast<double>(b));
 //					if(std::abs(h2b(a)-h2b(b)) > 1)
-//					std::cerr << x << ", " << y << " = " << a << '(' << std::hex << h2b(a) << "), " << b << '(' << h2b(b) << ") -> " << error << '\n' << std::dec;
+//					std::cerr << std::hex << x << ", " << y << " = " << a << '(' << h2b(a) << "), " << b << '(' << h2b(b) << ") -> " << error << std::dec << ' ' << (ilogb(x)-ilogb(y)) << '\n';
 					err = std::max(err, error); rel = std::max(rel, error/std::abs(b)); bin = std::max(bin, std::abs(h2b(a)-h2b(b)));
 				}
 				if(ea != eb)
@@ -928,7 +970,7 @@ private:
 		});
 		if(passed != count)
 			std::cout << name << ": " << (count-passed) << " of " << count << " failed\n";
-		if(err != 0.0 || rel != 0.0)
+		if(err != 0.0 || rel != 0.0 || bin != 0)
 			std::cout << name << " max error: " << err << ", max relative error: " << rel << ", max ulp error: " << /*ilog2*/(bin) << '\n';
 		return success;
 	}
@@ -958,7 +1000,7 @@ private:
 				if(!equal)
 				{
 					double error = std::abs(static_cast<double>(a)-static_cast<double>(b));
-//					std::cerr << x << ", " << y << ", " << z << " = " << a << '(' << std::hex << h2b(a) << "), " << b << '(' << h2b(b) << ") -> " << error << '\n' << std::dec;
+//					std::cerr << std::hex << x << ", " << y << ", " << z << " = " << a << '(' << h2b(a) << "), " << b << '(' << h2b(b) << ") -> " << error << std::dec << '\n';
 					err = std::max(err, error); rel = std::max(rel, error/std::abs(b)); bin = std::max(bin, std::abs(h2b(a)-h2b(b)));
 				}
 				passed += equal;
@@ -969,7 +1011,7 @@ private:
 		});
 		if(passed != count)
 			std::cout << name << ": " << (count-passed) << " of " << count << " failed\n";
-		if(err != 0.0 || rel != 0.0)
+		if(err != 0.0 || rel != 0.0 || bin != 0)
 			std::cout << name << " max error: " << err << ", max relative error: " << rel << ", max ulp error: " << /*ilog2*/(bin) << '\n';
 		return success;
 	}

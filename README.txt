@@ -197,11 +197,11 @@ are exact to rounding for all rounding modes, i.e. the error to the exact
 result is at most 0.5 ULP (unit in the last place) for rounding to nearest and 
 less than 1 ULP for all other rounding modes. This holds for all the operations 
 required by the IEEE 754 standard and many more. Specifically the following 
-functions might exhibit a deviation from the correctly rounded result by 1 ULP 
-for a select few input values: 'expm1', 'log1p', 'pow', 'atan2', 'erf', 'erfc', 
-'lgamma', 'tgamma' (for more details see the documentation of the individual 
-functions). All other functions and operators are always exact to rounding or 
-independent of the rounding mode altogether.
+functions might exhibit a deviation from the correctly rounded exact result by 
+1 ULP for a select few input values: 'expm1', 'log1p', 'pow', 'atan2', 'erf', 
+'erfc', 'lgamma', 'tgamma' (for more details see the documentation of the 
+individual functions). All other functions and operators are always exact to 
+rounding or independent of the rounding mode altogether.
 
 The increased IEEE-conformance and cleanliness of this implementation comes 
 with a certain performance cost compared to doing computations and mathematical 
@@ -245,12 +245,12 @@ results during operations. These are represented by exception flags which
 actually use the same values as the corresponding 'FE_...' flags defined in 
 C++11's <cfenv> header if supported, specifically:
 
-  - 'HALF_FE_INVALID' for invalid inputs to an operation.
-  - 'HALF_FE_DIVBYZERO' for finite inputs producing infinite results.
-  - 'HALF_FE_OVERFLOW' if a result is too large to represent finitely.
-  - 'HALF_FE_UNDERFLOW' for a subnormal or zero result after rounding.
-  - 'HALF_FE_INEXACT' if a result needed rounding to be representable.
-  - 'HALF_FE_ALL_EXCEPT' as a convenient OR of all possible exception flags.
+  - 'FE_INVALID' for invalid inputs to an operation.
+  - 'FE_DIVBYZERO' for finite inputs producing infinite results.
+  - 'FE_OVERFLOW' if a result is too large to represent finitely.
+  - 'FE_UNDERFLOW' for a subnormal or zero result after rounding.
+  - 'FE_INEXACT' if a result needed rounding to be representable.
+  - 'FE_ALL_EXCEPT' as a convenient OR of all possible exception flags.
 
 The internal exception flag state will start with all flags cleared and is 
 maintained per thread if C++11 thread-local storage is supported, otherwise it 
@@ -283,10 +283,10 @@ they will be processed in the order they are listed here:
     exceptions: neither will clearing  propagate nor will it work in reverse.
   - 'HALF_ERRHANDLING_THROW_...' can be defined to a string literal which will 
     be used as description message for a C++ exception that is thrown whenever 
-    a 'HALF_FE_...' exception occurs, similar to the behaviour of 'fethrowexcept'.
+    a 'FE_...' exception occurs, similar to the behaviour of 'fethrowexcept'.
 
 If any of the above error handling is activated, non-quiet operations on 
-half-precision values will also raise a 'HALF_FE_INVALID' exception whenever 
+half-precision values will also raise a 'FE_INVALID' exception whenever 
 they encounter a signaling NaN value, in addition to transforming the value 
 into a quiet NaN. If error handling is disabled, signaling NaNs will be 
 treated like quiet NaNs (while still getting explicitly quieted if propagated 
@@ -297,9 +297,9 @@ activated) unless overridden by pre-defining the corresponding preprocessor
 symbol to 0:
 
   - 'HALF_ERRHANDLING_OVERFLOW_TO_INEXACT' will cause overflow errors to also 
-    raise a 'HALF_FE_INEXACT' exception.
+    raise a 'FE_INEXACT' exception.
   - 'HALF_ERRHANDLING_UNDERFLOW_TO_INEXACT' will cause underflow errors to also 
-    raise a 'HALF_FE_INEXACT' exception. This will also slightly change the 
+    raise a 'FE_INEXACT' exception. This will also slightly change the 
     behaviour of the underflow exception, which will ONLY be raised if the 
     result is actually inexact due to underflow. If this is disabled, underflow 
     exceptions will be raised for ANY (possibly exact) subnormal result.
