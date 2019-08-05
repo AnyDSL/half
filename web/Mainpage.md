@@ -25,7 +25,7 @@ July 23, 2019 - Release 2.0.0: Clean half-precision computations
 
 The library in its most recent version can be obtained from here, see the [Release Notes](changelog.html) for further information:
 
-###[**Download half 2.0.0 (.zip)**](https://sourceforge.net/projects/half/files/latest/download)
+###[**Download half 2.1.0 (.zip)**](https://sourceforge.net/projects/half/files/latest/download)
 
 If you are interested in previous versions of the library, see the [SourceForge download page](https://sourceforge.net/projects/half/files/half).
 
