@@ -7,6 +7,11 @@ This is a C++ header-only library to provide an [IEEE 754](http://en.wikipedia.o
 
 # News														{#new}
 
+XXX X, 2019 - Release 2.2.0: Inverse square root function
+---------------------------------------------------------
+
+[Version 2.2.0](https://sourceforge.net/projects/half/files/half/2.2.0) of the library has been released. It adds the rsqrt() function for computing the inverse square root of a half-precision number faster and more accurately than by directly computing `1 / sqrt(x)` in half-precision.
+
 August 5, 2019 - Release 2.1.0: IEEE-conformant exception handling
 ---------------------------------------------------------------
 
@@ -116,7 +121,7 @@ assert( half_cast<half,std::round_toward_infinity>( std::numeric_limits<double>:
 
 From version 2.0 onward the library is implemented without employing the underlying floating-point implementation of the system (except for conversions, of course), providing an entirely self-contained half-precision implementation with results independent from the system's existing single- or double-precision implementation and its rounding behaviour.
 
-As to accuracy, many of the operators and functions provided by this library are exact to rounding for all [rounding modes](\ref HALF_ROUND_STYLE), i.e. the error to the exact result is at most 0.5 ULP (unit in the last place) for rounding to nearest and less than 1 ULP for all other rounding modes. This holds for all the operations required by the IEEE 754 standard and many more. Specifically, the following functions might exhibit a deviation from the correctly rounded exact result by 1 ULP for a select few input values: expm1(), log1p(), pow(), [atan2()](\ref half_float::atan2), [erf()](\ref half_float::erf), erfc(), lgamma(), tgamma() (for more details see the documentation of the individual functions). All other functions and operators are always exact to rounding or independent of the rounding mode altogether.
+As to accuracy, many of the operators and functions provided by this library are exact to rounding for all [rounding modes](\ref HALF_ROUND_STYLE), i.e. the error to the exact result is at most 0.5 ULP (unit in the last place) for rounding to nearest and less than 1 ULP for all other rounding modes. This holds for all the operations required by the IEEE 754 standard and many more. Specifically, the following functions might exhibit a deviation from the correctly rounded exact result by 1 ULP for a select few input values: expm1(), log1p(), rsqrt(), pow(), [atan2()](\ref half_float::atan2), [erf()](\ref half_float::erf), erfc(), lgamma(), tgamma() (for more details see the documentation of the individual functions). All other functions and operators are always exact to rounding or independent of the rounding mode altogether.
 
 The increased IEEE-conformance and cleanliness of this implementation comes with a certain performance cost compared to doing computations and mathematical functions in hardware-accelerated single-precision. On average and depending on the platform, the arithemtic operators are about 75% as fast and the mathematical functions about 50% as fast as performing the corresponding operations in single-precision and converting between the inputs and outputs. However, directly computing with half-precision values is a rather rare use-case and usually using actual `float` values for all computations and temproraries and using [half](\ref half_float::half)s only for storage is the recommended way. But nevertheless the goal of this library was to provide a complete and conceptually clean IEEE-confromant half-precision implementation and in the few cases when you do need to compute directly in half-precision you do so for a reason and want accurate results.
 

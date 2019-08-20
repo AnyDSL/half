@@ -14,7 +14,7 @@
 // COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, 
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Version 2.1.0
+// Version 2.2.0
 
 /// \file
 /// Main header file for half-precision functionality.
@@ -269,7 +269,6 @@
 #if HALF_ENABLE_F16C_INTRINSICS
 	#include <immintrin.h>
 #endif
-#include <cassert>
 
 
 #ifndef HALF_ENABLE_F16C_INTRINSICS
@@ -870,7 +869,7 @@ namespace half_float
 
 		/// Convert fixed point to half-precision floating-point.
 		/// \tparam R rounding mode to use
-		/// \tparam F number of fractional bits (at least 11)
+		/// \tparam F number of fractional bits in [11,31]
 		/// \tparam S `true` for signed, `false` for unsigned
 		/// \tparam N `true` for additional normalization step, `false` if already normalized to 1.F
 		/// \tparam I `true` to always raise INEXACT exception, `false` to raise only for rounded results
@@ -3231,77 +3230,39 @@ namespace half_float
 	}
 
 	/// Inverse square root.
-	/// This function is exact to rounding for all rounding modes.
+	/// This function may be 1 ULP off the correctly rounded exact result in <0.05% of inputs for `std::round_to_nearest` and 
+	/// in ~0.1% of inputs for any other rounding mode. It is, however, generally not less accurate than directly computing 
+	/// 1 / sqrt(\a arg) in half-precision and in the majority of cases it is more accurate, in addition to also being faster.
 	/// \param arg function argument
-	/// \return 1 / sqrt(\a arg)
+	/// \return reciprocal of square root of \a arg
 	/// \exception FE_INVALID for signaling NaN and negative arguments
 	/// \exception FE_INEXACT according to rounding
 	inline half rsqrt(half arg)
 	{
 	#ifdef HALF_ARITHMETIC_TYPE
-		return half(detail::binary, detail::float2half<half::round_style>(std::sqrt(detail::internal_t(1)/detail::half2float<detail::internal_t>(arg.data_))));
+		return half(detail::binary, detail::float2half<half::round_style>(detail::internal_t(1)/std::sqrt(detail::half2float<detail::internal_t>(arg.data_))));
 	#else
-		int abs = arg.data_ & 0x7FFF, exp = 0;
+		unsigned int abs = arg.data_ & 0x7FFF, exp = 0;
 		if(!abs || arg.data_ >= 0x7C00)
 			return half(detail::binary,	(abs>0x7C00) ? detail::signal(arg.data_) : (arg.data_>0x8000) ?
 										detail::invalid() : !abs ? detail::pole(arg.data_&0x8000) : 0);
-//		return half(detail::binary, 0x3C00) / sqrt(arg);
-
-		for(; abs<0x400; abs<<=1,--exp) ;
-		detail::uint32 f = 0x43376 + (-exp<<10) - abs;
-		f = (((f>>11)-112)<<10) + ((f>>1)&0x3FF) + (f&1);
-/*
-		detail::uint32 f = 0x1C000;
-		for(; abs<0x400; abs<<=1,--exp,f-=0x400) ;
-		f = 0x5F376 - f - abs;
-		f = (((f>>11)-112)<<10) + ((f>>1)&0x3FF) + (f&1);
-
-		for(; abs<0x400; abs<<=1,--exp) ;
-		detail::uint32 f = 0x866EB50C + (-exp<<23) - (static_cast<detail::uint32>(abs)<<13);
-		f = (((f>>24)-112)<<10) + ((f>>14)&0x3FF) + ((f>>13)&1);
-/*
-		detail::uint32 f = 0x38000000;
-		for(; abs<0x400; abs<<=1,--exp,f-=0x800000) ;
-		f = 0xBE6EB50C - f - (static_cast<detail::uint32>(abs)<<13);
-		f = (((f>>24)-112)<<10) + ((f>>14)&0x3FF) + ((f>>13)&1);
-/*
-		f += static_cast<detail::uint32>(abs) << 13;
-		f = 0x5F375A86 - (f>>1);
-		f = (((f>>23)-112)<<10) + ((f>>13)&0x3FF) + ((f>>12)&1);
-*/
-		int absy = /*0x59BB - (abs>>1)*/f, expy = (absy>>10) - 15, expx = exp + (abs>>10) - 16;
-//		for(; abs<0x400; abs<<=1,--expx) ;
-		assert(absy >= 0x400);
-		detail::uint32 mx = (abs&0x3FF) | 0x400, my = (absy&0x3FF) | 0x400;
-		for(int k=0; k<2; ++k)
-		{
-			detail::uint32 mz = my * my;
-			int i = mz >> 21;
-			mz = (mz+i) >> i;
-			mz *= mx;
-			int j = mz >> 31;
-			mz = (mz+j) >> j;
-			int expz = expx + 2*expy + i + j;
-			assert(expz < 0 || (expz==0 && mz<0x60000000));
-			mz = 0x60000000 - (mz>>-expz);
-			for(expz=0; mz<0x40000000; mz<<=1,--expz ) ;
-			mz >>= 10;
-			my *= mz;
-			i = my >> 31;
-			expy += expz + i;
-			if(k < 1)
-				my = (my+(0x80000<<i)) >> (20+i);
-			else
-				my <<= 1 - i;
-		}
-		return half(detail::binary, detail::fixed2half<half::round_style,31,false,false,false>(my, expy+14));
-/*
-		float y = detail::half2float<float>(arg.data_), x = y * 0.5f;
-		detail::bits<float>::type i = 0x5F3759DF - (*reinterpret_cast<detail::bits<float>::type*>(&y)>>1);
-		memcpy( &y, &i, sizeof( float ) );
-		y *= 1.5f - x*y*y;
-		return half(detail::binary, detail::float2half<half::round_style>(y));
-*/
+		for(; abs<0x400; abs<<=1,++exp) ;
+		if(((abs+(exp<<10))&0x7FF) == 0x400)
+			return half(detail::binary, 0x5800U-(((abs>>1)-(exp<<9))&~0x3FFU));
+		detail::uint32 f = ((half::round_style==std::round_to_nearest) ? 0x43376 : 0x43380) + (exp<<10) - abs;
+		detail::uint32 mx = (abs & 0x3FF) | 0x400, my = ((f>>1)&0x3FF) | 0x400, mz = my * my;
+		int expy = (f>>11) - 127, expx = exp - (abs>>10) + 16, i = mz >> 21;
+		for(mz=0x60000000-(((mz>>i)*mx)>>(expx-2*expy-i)); mz<0x40000000; mz<<=1,--expy) ;
+		my *= mz >> 10;
+		i = my >> 31;
+		expy += i;
+		my = (my>>(20+i)) + 1;
+		mz = my * my;
+		i = mz >> 21;
+		for(mz=0x60000000-(((mz>>i)*mx)>>(expx-2*expy-i)); mz<0x40000000; mz<<=1,--expy) ;
+		my *= (mz+0x3FF) >> 10;
+		i = my >> 31;
+		return half(detail::binary, detail::fixed2half<half::round_style,30,false,false,true>(my>>i, expy+i+14, 0, my&i));
 	#endif
 	}
 
@@ -3501,6 +3462,7 @@ namespace half_float
 			case 0x3800: return sqrt(x);
 			case 0x3C00: return half(detail::binary, detail::check_underflow(x.data_));
 			case 0x4000: return x * x;
+//			case 0xB800: return rsqrt(x);
 			case 0xBC00: return half(detail::binary, 0x3C00) / x;
 		}
 		for(; absx<0x400; absx<<=1,--exp) ;

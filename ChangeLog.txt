@@ -1,6 +1,9 @@
 Release Notes											{#changelog}
 =============
 
+- Added `rsqrt` function for inverse square root.
+
+
 2.1.0 release (2019-08-05):
 ---------------------------
 
