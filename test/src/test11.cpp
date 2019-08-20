@@ -15,7 +15,7 @@
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 //#define HALF_ENABLE_F16C_INTRINSICS 1
-//#define HALF_ARITHMETIC_TYPE double
+//#define HALF_ARITHMETIC_TYPE float
 #define HALF_ERRHANDLING_FLAGS 1
 #define HALF_ERRHANDLING_OVERFLOW_TO_INEXACT 1
 #define HALF_ERRHANDLING_UNDERFLOW_TO_INEXACT 1
@@ -259,7 +259,8 @@ public:
 
 		//test power functions
 		unary_reference_test("sqrt", half_float::sqrt);
-		unary_reference_test("cbrt", half_float::cbrt);
+*/		unary_reference_test("rsqrt", half_float::rsqrt);
+/*		unary_reference_test("cbrt", half_float::cbrt);
 		binary_reference_test("pow", half_float::pow);
 		binary_reference_test<half(half,half)>("hypot", half_float::hypot);
 
@@ -717,7 +718,7 @@ private:
 	template<typename FH,typename FD> bool unary_double_test(const std::string &name, FH &&fh, FD &&fd)
 	{
 		double err = 0.0, rel = 0.0; int bin = 0;
-		return unary_test(name, [&](half arg) -> bool {
+		bool success = unary_test(name, [&](half arg) -> bool {
 		#if HALF_ENABLE_CPP11_CFENV && CHECK_EXCEPT
 			half_float::feclearexcept(CHECK_EXCEPT);
 			half a = fh(arg);
@@ -741,12 +742,13 @@ private:
 		});
 		if(err != 0.0 || rel != 0.0 || bin != 0)
 			std::cout << name << " max error: " << err << ", max relative error: " << rel << ", max ulp error: " << /*ilog2*/(bin) << '\n';
+		return success;
 	}
 
 	template<typename FH,typename FD> bool binary_double_test(const std::string &name, FH &&fh, FD &&fd)
 	{
 		double err = 0.0, rel = 0.0; int bin = 0;
-		return binary_test(name, [&](half x, half y) -> bool {
+		bool success = binary_test(name, [&](half x, half y) -> bool {
 		#if HALF_ENABLE_CPP11_CFENV && CHECK_EXCEPT
 			half_float::feclearexcept(CHECK_EXCEPT);
 			half a = fh(x, y);
@@ -770,12 +772,13 @@ private:
 		});
 		if(err != 0.0 || rel != 0.0 || bin != 0)
 			std::cout << name << " max error: " << err << ", max relative error: " << rel << ", max ulp error: " << /*ilog2*/(bin) << '\n';
+		return success;
 	}
 
 	template<typename FH,typename FD> bool ternary_double_test(const std::string &name, FH &&fh, FD &&fd)
 	{
 		double err = 0.0, rel = 0.0; int bin = 0;
-		return ternary_test(name, [&](half x, half y, half z) -> bool {
+		bool success = ternary_test(name, [&](half x, half y, half z) -> bool {
 		#if HALF_ENABLE_CPP11_CFENV && CHECK_EXCEPT
 			half_float::feclearexcept(CHECK_EXCEPT);
 			half a = fh(x, y, z);
@@ -799,6 +802,7 @@ private:
 		});
 		if(err != 0.0 || rel != 0.0 || bin != 0)
 			std::cout << name << " max error: " << err << ", max relative error: " << rel << ", max ulp error: " << /*ilog2*/(bin) << '\n';
+		return success;
 	}
 
 	template<typename F> bool unary_reference_test(const std::string &name, F &&fn)
