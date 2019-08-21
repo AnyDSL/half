@@ -3241,19 +3241,19 @@ namespace half_float
 	#ifdef HALF_ARITHMETIC_TYPE
 		return half(detail::binary, detail::float2half<half::round_style>(detail::internal_t(1)/std::sqrt(detail::half2float<detail::internal_t>(arg.data_))));
 	#else
-		unsigned int abs = arg.data_ & 0x7FFF, exp = 0;
+		unsigned int abs = arg.data_ & 0x7FFF, bias = 0x4000;
 		if(!abs || arg.data_ >= 0x7C00)
 			return half(detail::binary,	(abs>0x7C00) ? detail::signal(arg.data_) : (arg.data_>0x8000) ?
 										detail::invalid() : !abs ? detail::pole(arg.data_&0x8000) : 0);
-		for(; abs<0x400; abs<<=1,++exp) ;
-		unsigned int norm = abs - (exp<<10), frac = norm & 0x7FF;
+		for(; abs<0x400; abs<<=1,bias-=0x400) ;
+		unsigned int frac = (abs+=bias) & 0x7FF;
 		if(frac == 0x400)
-			return half(detail::binary, 0x5800U-((norm>>1)&~0x3FFU));
+			return half(detail::binary, 0x7A00-(abs>>1));
 		if((half::round_style == std::round_to_nearest && (frac == 0x76C || frac == 0x3FE)) ||
 		   (half::round_style != std::round_to_nearest && (frac == 0x401 || frac == 0x402 || frac == 0x67B || frac == 0x15A || frac == 0x3FC)))
 			return pow(arg, half(detail::binary, 0xB800));
-		detail::uint32 f = 0x43376 + (exp<<10) - abs, mx = (abs & 0x3FF) | 0x400, my = ((f>>1)&0x3FF) | 0x400, mz = my * my;
-		int expy = (f>>11) - 127, expx = exp - (abs>>10) + 16, i = mz >> 21;
+		detail::uint32 f = 0x17376 - abs, mx = (abs&0x3FF) | 0x400, my = ((f>>1)&0x3FF) | 0x400, mz = my * my;
+		int expy = (f>>11) - 31, expx = 32 - (abs>>10), i = mz >> 21;
 		for(mz=0x60000000-(((mz>>i)*mx)>>(expx-2*expy-i)); mz<0x40000000; mz<<=1,--expy) ;
 		my *= mz >> 10;
 		i = my >> 31;
@@ -3262,9 +3262,9 @@ namespace half_float
 		mz = my * my;
 		i = mz >> 21;
 		for(mz=0x60000000-(((mz>>i)*mx)>>(expx-2*expy-i)); mz<0x40000000; mz<<=1,--expy) ;
-		my *= (mz+0x3FF) >> 10;
+		my *= (mz>>10) + 1;
 		i = my >> 31;
-		return half(detail::binary, detail::fixed2half<half::round_style,30,false,false,true>(my>>i, expy+i+14, 0, my&i));
+		return half(detail::binary, detail::fixed2half<half::round_style,30,false,false,true>(my>>i, expy+i+14));
 	#endif
 	}
 
