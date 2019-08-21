@@ -3230,9 +3230,8 @@ namespace half_float
 	}
 
 	/// Inverse square root.
-	/// This function may be 1 ULP off the correctly rounded exact result in <0.05% of inputs for `std::round_to_nearest` and 
-	/// in ~0.1% of inputs for any other rounding mode. It is, however, generally not less accurate than directly computing 
-	/// 1 / sqrt(\a arg) in half-precision and in the majority of cases it is more accurate, in addition to also being faster.
+	/// This function is exact to rounding for all rounding modes and thus generally more accurate than directly computing 
+	/// 1 / sqrt(\a arg) in half-precision, in addition to also being faster.
 	/// \param arg function argument
 	/// \return reciprocal of square root of \a arg
 	/// \exception FE_INVALID for signaling NaN and negative arguments
@@ -3247,10 +3246,13 @@ namespace half_float
 			return half(detail::binary,	(abs>0x7C00) ? detail::signal(arg.data_) : (arg.data_>0x8000) ?
 										detail::invalid() : !abs ? detail::pole(arg.data_&0x8000) : 0);
 		for(; abs<0x400; abs<<=1,++exp) ;
-		if(((abs+(exp<<10))&0x7FF) == 0x400)
-			return half(detail::binary, 0x5800U-(((abs>>1)-(exp<<9))&~0x3FFU));
-		detail::uint32 f = ((half::round_style==std::round_to_nearest) ? 0x43376 : 0x43380) + (exp<<10) - abs;
-		detail::uint32 mx = (abs & 0x3FF) | 0x400, my = ((f>>1)&0x3FF) | 0x400, mz = my * my;
+		unsigned int norm = abs - (exp<<10), frac = norm & 0x7FF;
+		if(frac == 0x400)
+			return half(detail::binary, 0x5800U-((norm>>1)&~0x3FFU));
+		if((half::round_style == std::round_to_nearest && (frac == 0x76C || frac == 0x3FE)) ||
+		   (half::round_style != std::round_to_nearest && (frac == 0x401 || frac == 0x402 || frac == 0x67B || frac == 0x15A || frac == 0x3FC)))
+			return pow(arg, half(detail::binary, 0xB800));
+		detail::uint32 f = 0x43376 + (exp<<10) - abs, mx = (abs & 0x3FF) | 0x400, my = ((f>>1)&0x3FF) | 0x400, mz = my * my;
 		int expy = (f>>11) - 127, expx = exp - (abs>>10) + 16, i = mz >> 21;
 		for(mz=0x60000000-(((mz>>i)*mx)>>(expx-2*expy-i)); mz<0x40000000; mz<<=1,--expy) ;
 		my *= mz >> 10;
@@ -3462,7 +3464,6 @@ namespace half_float
 			case 0x3800: return sqrt(x);
 			case 0x3C00: return half(detail::binary, detail::check_underflow(x.data_));
 			case 0x4000: return x * x;
-//			case 0xB800: return rsqrt(x);
 			case 0xBC00: return half(detail::binary, 0x3C00) / x;
 		}
 		for(; absx<0x400; absx<<=1,--exp) ;

@@ -15,7 +15,7 @@
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 //#define HALF_ENABLE_F16C_INTRINSICS 1
-//#define HALF_ARITHMETIC_TYPE float
+//#define HALF_ARITHMETIC_TYPE double
 #define HALF_ERRHANDLING_FLAGS 1
 #define HALF_ERRHANDLING_OVERFLOW_TO_INEXACT 1
 #define HALF_ERRHANDLING_UNDERFLOW_TO_INEXACT 1
@@ -259,8 +259,8 @@ public:
 
 		//test power functions
 		unary_reference_test("sqrt", half_float::sqrt);
-*/		unary_reference_test("rsqrt", half_float::rsqrt);
-/*		unary_reference_test("cbrt", half_float::cbrt);
+		unary_reference_test("rsqrt", half_float::rsqrt);
+		unary_reference_test("cbrt", half_float::cbrt);
 		binary_reference_test("pow", half_float::pow);
 		binary_reference_test<half(half,half)>("hypot", half_float::hypot);
 
@@ -286,6 +286,9 @@ public:
 		unary_reference_test("erfc", half_float::erfc);
 		unary_reference_test("lgamma", half_float::lgamma);
 		unary_reference_test("tgamma", half_float::tgamma);
+
+		unary_test("rsqrt", [](half arg) { half a = rsqrt(arg), b = half(1.0f) / sqrt(arg), c = half_cast<half>(1.0/sqrt(half_cast<double>(arg)));
+			return comp(a, b) || std::abs(h2b(a)-h2b(c)) <= std::abs(h2b(b)-h2b(c)); });
 
 	#if HALF_ENABLE_CPP11_CMATH
 		//test binary functions

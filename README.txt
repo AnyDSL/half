@@ -198,10 +198,10 @@ result is at most 0.5 ULP (unit in the last place) for rounding to nearest and
 less than 1 ULP for all other rounding modes. This holds for all the operations 
 required by the IEEE 754 standard and many more. Specifically the following 
 functions might exhibit a deviation from the correctly rounded exact result by 
-1 ULP for a select few input values: 'expm1', 'log1p', 'rsqrt', 'pow', 'atan2', 
-'erf', 'erfc', 'lgamma', 'tgamma' (for more details see the documentation of 
-the individual functions). All other functions and operators are always exact 
-to rounding or independent of the rounding mode altogether.
+1 ULP for a select few input values: 'expm1', 'log1p', 'pow', 'atan2', 'erf', 
+'erfc', 'lgamma', 'tgamma' (for more details see the documentation of the 
+individual functions). All other functions and operators are always exact to 
+rounding or independent of the rounding mode altogether.
 
 The increased IEEE-conformance and cleanliness of this implementation comes 
 with a certain performance cost compared to doing computations and mathematical 

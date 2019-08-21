@@ -15,7 +15,9 @@
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 //#define HALF_ENABLE_F16C_INTRINSICS 1
-//#define HALF_ARITHMETIC_TYPE float
+//#define HALF_ARITHMETIC_TYPE double
+#define HALF_ERRHANDLING_FLAGS 1
+#define HALF_ROUND_STYLE 1
 #include <half.hpp>
 using half_float::half;
 
@@ -90,7 +92,7 @@ void performance_test(std::ostream &out = std::cout, std::ostream *csv = nullptr
 
 	if( csv )
 		*csv << std::fixed << std::setprecision(3);
-/*
+
 	OPERATOR_PERFORMANCE_TEST(+, xs, ys, 4);
 	OPERATOR_PERFORMANCE_TEST(-, xs, ys, 4);
 	OPERATOR_PERFORMANCE_TEST(*, xs, ys, 4);
@@ -108,8 +110,8 @@ void performance_test(std::ostream &out = std::cout, std::ostream *csv = nullptr
 	UNARY_PERFORMANCE_TEST(log1p, neg2inf, 1000);
 
 	UNARY_PERFORMANCE_TEST(sqrt, positive, 1000);
-*/	UNARY_PERFORMANCE_TEST(rsqrt, positive, 1000);
-/*	UNARY_PERFORMANCE_TEST(cbrt, finite, 1000);
+	UNARY_PERFORMANCE_TEST(rsqrt, positive, 1000);
+	UNARY_PERFORMANCE_TEST(cbrt, finite, 1000);
 	BINARY_PERFORMANCE_TEST(pow, xs, ys, 8);
 	BINARY_PERFORMANCE_TEST(hypot, xs, ys, 8);
 
@@ -132,7 +134,7 @@ void performance_test(std::ostream &out = std::cout, std::ostream *csv = nullptr
 	UNARY_PERFORMANCE_TEST(erfc, finite, 1000);
 	UNARY_PERFORMANCE_TEST(lgamma, finite, 1000);
 	UNARY_PERFORMANCE_TEST(tgamma, finite, 1000);
-*/
+
 	if( csv )
 		*csv << std::defaultfloat << std::setprecision(6);
 }
