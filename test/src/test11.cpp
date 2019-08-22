@@ -768,6 +768,8 @@ private:
 			if(!equal)
 			{
 				double error = std::abs(static_cast<double>(a)-static_cast<double>(b));
+//				if(std::abs(h2b(a)-h2b(b)) > 1)
+//				std::cerr << std::hex << x << ", " << y << " = " << a << '(' << h2b(a) << "), " << b << '(' << h2b(b) << ") -> " << error << std::dec << ' ' << (ilogb(x)-ilogb(y)) << '\n';
 				err = std::max(err, error); rel = std::max(rel, error/std::abs(b)); bin = std::max(bin, std::abs(h2b(a)-h2b(b)));
 			}
 			return equal;

@@ -2,6 +2,7 @@ Release Notes											{#changelog}
 =============
 
 - Added `rsqrt` function for inverse square root.
+- Improved performance of `pow` function.
 
 
 2.1.0 release (2019-08-05):
