@@ -1,6 +1,6 @@
 // half - IEEE 754-based half-precision floating-point library.
 //
-// Copyright (c) 2012-2019 Christian Rau <rauy@users.sourceforge.net>
+// Copyright (c) 2012-2020 Christian Rau <rauy@users.sourceforge.net>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation 
 // files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, 
@@ -266,9 +266,6 @@
 #if HALF_ENABLE_CPP11_HASH
 	#include <functional>
 #endif
-#if HALF_ENABLE_F16C_INTRINSICS
-	#include <immintrin.h>
-#endif
 
 
 #ifndef HALF_ENABLE_F16C_INTRINSICS
@@ -279,6 +276,9 @@
 	///
 	/// Unless predefined it will be enabled automatically when the `__F16C__` symbol is defined, which some compilers do on supporting platforms.
 	#define HALF_ENABLE_F16C_INTRINSICS __F16C__
+#endif
+#if HALF_ENABLE_F16C_INTRINSICS
+	#include <immintrin.h>
 #endif
 
 #ifdef HALF_DOXYGEN_ONLY
