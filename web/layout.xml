@@ -4,6 +4,7 @@
     <tab type="mainpage" visible="yes" title="Home"/>
     <tab type="user" visible="yes" title="News" url="@ref news"/>
     <tab type="user" visible="yes" title="Release Notes" url="@ref changelog"/>
+    <tab type="user" visible="yes" title="Download" url="https://sourceforge.net/projects/half/files/half"/>
     <!--tab type="pages" visible="yes" title="" intro=""/-->
     <tab type="usergroup" visible="yes" title="Documentation">
       <!--tab type="modules" visible="yes" title="" intro=""/-->
@@ -25,10 +26,10 @@
     </tab>
     <tab type="usergroup" visible="yes" title="Support">
       <tab type="user" visible="yes" title="Contact" url="mailto:rauy@users.sourceforge.net"/>
-      <tab type="user" visible="yes" title="Tickets" url="http://sourceforge.net/p/half/tickets/"/>
-      <tab type="user" visible="yes" title="Forums" url="http://sourceforge.net/p/half/discussion/"/>
+      <tab type="user" visible="yes" title="Tickets" url="https://sourceforge.net/p/half/tickets/"/>
+      <tab type="user" visible="yes" title="Forums" url="https://sourceforge.net/p/half/discussion/"/>
     </tab>
-    <tab type="user" visible="yes" title="SourceForge.net" url="http://sourceforge.net/projects/half/"/>
+    <tab type="user" visible="yes" title="SourceForge.net" url="https://sourceforge.net/projects/half/"/>
   </navindex>
 
   <!-- Layout definition for a class page -->

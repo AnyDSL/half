@@ -1,6 +1,6 @@
 // test - Test application for half-precision floating point functionality.
 //
-// Copyright (c) 2012-2013 Christian Rau <rauy@users.sourceforge.net>
+// Copyright (c) 2012-2020 Christian Rau <rauy@users.sourceforge.net>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation 
 // files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, 
@@ -15,6 +15,8 @@
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <half.hpp>
+
+#include <iostream>
 
 using half_float::half;
 
