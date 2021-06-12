@@ -1,6 +1,6 @@
 // test - Test application for half-precision floating point functionality.
 //
-// Copyright (c) 2012-2020 Christian Rau <rauy@users.sourceforge.net>
+// Copyright (c) 2012-2021 Christian Rau <rauy@users.sourceforge.net>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation 
 // files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, 
@@ -177,7 +177,7 @@ public:
 
 	unsigned int test()
 	{
-/*
+
 		//test size
 		simple_test("size", []() { return sizeof(half)*CHAR_BIT >= 16; });
 
@@ -466,7 +466,7 @@ public:
 		simple_test("literals", []() -> bool { using namespace half_float::literal; return comp(0.0_h, half(0.0f)) && comp(-1.0_h, half(-1.0f)) && 
 			comp(+3.14159265359_h, half(3.14159265359f)) && comp(1e-2_h, half(1e-2f)) && comp(-4.2e3_h, half(-4.2e3f)); });
 	#endif
-*/
+
 		if(failed_.empty())
 			log_ << "all tests passed\n";
 		else

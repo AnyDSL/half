@@ -7,7 +7,7 @@ This is a C++ header-only library to provide an [IEEE 754](http://en.wikipedia.o
 
 # News														{#new}
 
-January X, 2021 - Release 2.2.0: Inverse square root function
+June 12, 2021 - Release 2.2.0: Inverse square root function
 ---------------------------------------------------------
 
 [Version 2.2.0](https://sourceforge.net/projects/half/files/half/2.2.0) of the library has been released. It adds the rsqrt() function for computing the inverse square root of a half-precision number faster and more accurately than by directly computing `1 / sqrt(x)` in half-precision. In addition to that it also fixes a minor bug that forgot to include `<immintrin.h>` when support for F16C intrinsics was activated automatically.
@@ -30,7 +30,7 @@ July 23, 2019 - Release 2.0.0: Clean half-precision computations
 
 The library in its most recent version can be obtained from here, see the [Release Notes](changelog.html) for further information:
 
-###[**Download half 2.1.0 (.zip)**](https://sourceforge.net/projects/half/files/latest/download)
+###[**Download half 2.2.0 (.zip)**](https://sourceforge.net/projects/half/files/latest/download)
 
 If you are interested in previous versions of the library, see the [SourceForge download page](https://sourceforge.net/projects/half/files/half).
 

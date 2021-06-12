@@ -1,6 +1,12 @@
 News														{#news}
 ====
 
+June 12, 2021 - Release 2.2.0
+-----------------------------
+
+[Version 2.2.0](https://sourceforge.net/projects/half/files/half/2.2.0) of the library has been released. It adds the rsqrt() function for computing the inverse square root of a half-precision number faster and more accurately than by directly computing `1 / sqrt(x)` in half-precision. In addition to that it also fixes a minor bug that forgot to include `<immintrin.h>` when support for F16C intrinsics was activated automatically.
+
+------------------------------
 August 5, 2019 - Release 2.1.0
 ------------------------------
 
