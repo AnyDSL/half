@@ -1,6 +1,6 @@
 // half - IEEE 754-based half-precision floating-point library.
 //
-// Copyright (c) 2012-2024 Christian Rau <rauy@users.sourceforge.net>
+// Copyright (c) 2012-2025 Christian Rau <rauy@users.sourceforge.net>
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation 
 // files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, 
@@ -14,7 +14,7 @@
 // COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, 
 // ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Version 2.2.0
+// Version 2.2.1
 
 /// \file
 /// Main header file for half-precision functionality.
@@ -1078,15 +1078,15 @@ namespace half_float
 			unsigned int bits = static_cast<unsigned>(value<0) << 15;
 			if(!value)
 				return bits;
-			if(bits)
-				value = -value;
-			if(value > 0xFFFF)
+			if(value > 0xFFE0 || (bits&&value < -0xFFE0))
 				return overflow<R>(bits);
 			unsigned int m = static_cast<unsigned int>(value), exp = 24;
+			if(bits)
+				m = -m;
 			for(; m<0x400; m<<=1,--exp) ;
 			for(; m>0x7FF; m>>=1,++exp) ;
 			bits |= (exp<<10) + m;
-			return (exp>24) ? rounded<R,false>(bits, (value>>(exp-25))&1, (((1<<(exp-25))-1)&value)!=0) : bits;
+			return (exp>24) ? rounded<R,false>(bits, static_cast<int>(value>>(exp-25))&1, (((1<<(exp-25))-1)&value)!=0) : bits;
 		}
 
 		/// Convert half-precision to IEEE single-precision.
