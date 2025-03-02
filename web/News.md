@@ -1,6 +1,12 @@
 News														{#news}
 ====
 
+March 2, 2025 - Release 2.2.1
+-----------------------------
+
+[Version 2.2.1](https://sourceforge.net/projects/half/files/half/2.2.1) of the library has been released. It fixes some issues with unnecessary conversion warnings on some 64-bit platforms as well as some naming conflicts with C standard library functions. It also fixes a problem in the signed integer to half conversion when trying to convert the minimum negative value.
+
+-----------------------------
 June 12, 2021 - Release 2.2.0
 -----------------------------
 

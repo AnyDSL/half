@@ -7,20 +7,15 @@ This is a C++ header-only library to provide an [IEEE 754](http://en.wikipedia.o
 
 # News														{#new}
 
+March 2, 2025 - Release 2.2.1: Minor bug fixes
+----------------------------------------------
+
+[Version 2.2.1](https://sourceforge.net/projects/half/files/half/2.2.1) of the library has been released. It fixes some issues with unnecessary conversion warnings on some 64-bit platforms as well as some naming conflicts with C standard library functions. It also fixes a problem in the signed integer to half conversion when trying to convert the minimum negative value.
+
 June 12, 2021 - Release 2.2.0: Inverse square root function
 ---------------------------------------------------------
 
 [Version 2.2.0](https://sourceforge.net/projects/half/files/half/2.2.0) of the library has been released. It adds the rsqrt() function for computing the inverse square root of a half-precision number faster and more accurately than by directly computing `1 / sqrt(x)` in half-precision. In addition to that it also fixes a minor bug that forgot to include `<immintrin.h>` when support for F16C intrinsics was activated automatically.
-
-August 5, 2019 - Release 2.1.0: IEEE-conformant exception handling
----------------------------------------------------------------
-
-[Version 2.1.0](https://sourceforge.net/projects/half/files/half/2.1.0) of the library has been released. It adds proper detection of IEEE floating-point exceptions to all required operators and functions. In addition to this it also adds support for managing the exception flags and various means for additional processing of floating-point exceptions, like propagating them to the built-in floating-point platform or throwing C++ exceptions. For performance reasons all exception detection and handling is disabled by default and has to be enabled explicitly, though. Additionally, the accuracy of the pow() and [atan2()](\ref half_float::atan2) functions has been improved.
-
-July 23, 2019 - Release 2.0.0: Clean half-precision computations
-----------------------------------------------------------------
-
-[Version 2.0.0](https://sourceforge.net/projects/half/files/half/2.0.0) of the library has been released. It marks a major change in its internal implementation by implementing all operators and mathematical functions directly in half-precision without employing the built-in single- or double-precision implementation and without keeping temporary results as part of lenghtier statements in single-precision. This makes for a much cleaner implementation giving more reliable and IEEE-conformant computation results. Furthermore, and this marks a slight deviation from the previous interface, the default rounding mode has been changed to rounding to nearest, but is of course still configurable at compile-time. What isn't configurable anymore is the tie-breaking behaviour, which now always rounds ties to even as any proper floating-point implementation does. In addition to these major cleanups there are a few new features. The `constexpr` support has been extended, primarily to comparisons, classifications and simple sign management functions (however, there are still no constant expression literals yet). The conversion functions can be accelerated by [F16C instructions](https://en.wikipedia.org/wiki/F16C) if supported. The C++11 feature detection has also been extended to Intel compilers (which hasn't been tested yet, though, so feedback is welcome).
 
 [more](news.html)
 
@@ -30,7 +25,7 @@ July 23, 2019 - Release 2.0.0: Clean half-precision computations
 
 The library in its most recent version can be obtained from here, see the [Release Notes](changelog.html) for further information:
 
-###[**Download half 2.2.0 (.zip)**](https://sourceforge.net/projects/half/files/latest/download)
+###[**Download half 2.2.1 (.zip)**](https://sourceforge.net/projects/half/files/latest/download)
 
 If you are interested in previous versions of the library, see the [SourceForge download page](https://sourceforge.net/projects/half/files/half).
 
